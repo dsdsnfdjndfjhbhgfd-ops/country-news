@@ -134,7 +134,7 @@ footer a{color:var(--muted)}
       </span>
       <datalist id="countries"></datalist>
     </form>
-    <p class="lede">Главные события последних двух дней по ключевым странам: политика, безопасность и экономика. До 25 новостей. Сначала то, о чём пишут сразу несколько изданий, в конце новости из одного издания.</p>
+    <p class="lede">Главные события последних двух дней по ключевым странам: политика, безопасность и экономика. До 25 новостей. Только проверенные издания. Сначала то, о чём пишут сразу несколько из них, в конце новости из одного издания.</p>
     <div class="quick" id="quick"><span>Страны:</span></div>
   </section>
 
@@ -148,7 +148,7 @@ footer a{color:var(--muted)}
     </div>
   </main>
 
-  <footer>Новости из <a href="https://news.google.com/" target="_blank" rel="noopener">Google Новостей</a>, русские и английские издания за последние 2 дня. Важность определяется автоматически по числу изданий и теме, без участия редактора.</footer>
+  <footer>Источники: ТАСС, РИА Новости, Интерфакс, Коммерсантъ, РБК, Ведомости, BBC Русская служба, DW на русском, BBC News, The Guardian, The New York Times, Al Jazeera, Deutsche Welle, France 24, Politico Europe, CNBC. Новости за последние 2 дня, обновление каждые 15 минут. Важность определяется автоматически по числу изданий и теме, без участия редактора.</footer>
 </div>
 
 <script>
@@ -260,7 +260,7 @@ function cluster(items, c, singles) {
     else groups.push({ lang: a.language, core: st, stems: new Set(st), items: [a] });
   }
   for (const g of groups) {
-    g.domains = new Set(g.items.map(i => i.domain)).size;
+    g.domains = new Set(g.items.map(i => i.source || i.domain)).size;
     g.lead = g.items[0];
     g.topic = g.items.map(i => topicOf(i.title)).find(Boolean) || null;
     g.soft = g.items.some(i => isSoft(i.title));
@@ -455,13 +455,13 @@ function render(c, allItems, info) {
 
     const src = el("div", "src");
     if (a.language === "English") { src.append(el("span", "lang", "EN")); src.append(document.createTextNode(" ")); }
-    src.append(document.createTextNode(`${a.domain}, ${fmtDate(a.seendate)}`));
-    const doms = new Set([a.domain]);
-    const more = g.items.filter(x => !doms.has(x.domain) && doms.add(x.domain)).slice(0, 3);
+    src.append(document.createTextNode(`${a.source || a.domain}, ${fmtDate(a.seendate)}`));
+    const doms = new Set([a.source || a.domain]);
+    const more = g.items.filter(x => !doms.has(x.source || x.domain) && doms.add(x.source || x.domain)).slice(0, 3);
     if (more.length) {
       src.append(document.createTextNode(". Также: "));
       more.forEach((x, k) => {
-        const l = el("a", null, x.domain); l.href = x.url; l.target = "_blank"; l.rel = "noopener"; l.title = cleanTitle(x.title);
+        const l = el("a", null, x.source || x.domain); l.href = x.url; l.target = "_blank"; l.rel = "noopener"; l.title = cleanTitle(x.title);
         src.append(l); if (k < more.length - 1) src.append(document.createTextNode(", "));
       });
     }
