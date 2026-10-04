@@ -1,52 +1,73 @@
-// Collects GDELT articles for popular countries and saves them to data/<CODE>.json,
-// so the site can show these countries instantly without waiting for GDELT.
+// Collects the last 2 days of news for key countries from Google News RSS
+// (Russian and English editions) and saves them to data/<CODE>.json for the site.
 import { writeFile, mkdir } from "node:fs/promises";
 
 const COUNTRIES = {
-  RU: "Russia", US: "United States", CN: "China", UA: "Ukraine", IL: "Israel",
-  IR: "Iran", DE: "Germany", GB: "United Kingdom", FR: "France", TR: "Turkey"
+  RU: ["Россия", "Russia"], US: ["США", "United States"], CN: ["Китай", "China"],
+  UA: ["Украина", "Ukraine"], IL: ["Израиль", "Israel"], IR: ["Иран", "Iran"],
+  DE: ["Германия", "Germany"], GB: ["Великобритания", "United Kingdom"],
+  FR: ["Франция", "France"], TR: ["Турция", "Turkey"]
 };
+const EDITIONS = [
+  { lang: "Russian", idx: 0, params: "hl=ru&gl=RU&ceid=RU:ru" },
+  { lang: "English", idx: 1, params: "hl=en-US&gl=US&ceid=US:en" }
+];
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
-let last = 0;
+const decode = s => s
+  .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1")
+  .replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'")
+  .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(+n)).replace(/&amp;/g, "&").trim();
+const tag = (block, name) => { const m = block.match(new RegExp(`<${name}(?:\\s[^>]*)?>([\\s\\S]*?)</${name}>`)); return m ? decode(m[1]) : ""; };
+// GDELT-style timestamp the page already understands: 20261004T153000Z
+const stamp = d => d.toISOString().replace(/[-:]/g, "").replace(/\.\d+/, "");
 
-async function gdelt(query) {
-  for (let attempt = 1; attempt <= 4; attempt++) {
-    const wait = 6000 - (Date.now() - last);
-    if (wait > 0) await sleep(wait);
-    last = Date.now();
+async function feed(query, params) {
+  const url = `https://news.google.com/rss/search?q=${encodeURIComponent(query + " when:2d")}&${params}`;
+  for (let attempt = 1; attempt <= 3; attempt++) {
     try {
-      const url = "https://api.gdeltproject.org/api/v2/doc/doc?query=" + encodeURIComponent(query) +
-        "&mode=artlist&format=json&maxrecords=250&timespan=2d&sort=hybridrel";
-      const r = await fetch(url, { signal: AbortSignal.timeout(60000) });
-      const txt = await r.text();
-      last = Date.now();
+      const r = await fetch(url, { signal: AbortSignal.timeout(30000), headers: { "User-Agent": "Mozilla/5.0 (country-news prefetch)" } });
       if (!r.ok) throw new Error("HTTP " + r.status);
-      return JSON.parse(txt).articles || [];
+      return await r.text();
     } catch (e) {
       console.log(`  attempt ${attempt} failed for "${query}": ${e.message}`);
-      await sleep(8000 * attempt);
+      await sleep(3000 * attempt);
     }
   }
   return null;
 }
 
-// Split the list between parallel jobs: SHARD=0..SHARDS-1 (each job runs on its own runner, so GDELT limits apply separately)
-const SHARDS = Number(process.env.SHARDS || 1), SHARD = Number(process.env.SHARD || 0);
-const mine = Object.entries(COUNTRIES).filter((_, i) => i % SHARDS === SHARD);
+function parse(xml, lang) {
+  const out = [];
+  for (const m of xml.matchAll(/<item>([\s\S]*?)<\/item>/g)) {
+    const b = m[1];
+    let title = tag(b, "title");
+    const source = tag(b, "source");
+    const srcUrl = (b.match(/<source[^>]*url="([^"]+)"/) || [])[1] || "";
+    if (source && title.endsWith(" - " + source)) title = title.slice(0, -(source.length + 3));
+    const date = new Date(tag(b, "pubDate"));
+    let domain = source;
+    try { if (srcUrl) domain = new URL(srcUrl).hostname.replace(/^www\./, ""); } catch {}
+    if (!title || isNaN(date)) continue;
+    out.push({ url: tag(b, "link"), title, seendate: stamp(date), socialimage: "", domain, source, language: lang });
+  }
+  return out;
+}
 
-const OUT = process.env.OUT_DIR || "data";
-await mkdir(OUT, { recursive: true });
+await mkdir("data", { recursive: true });
 let ok = 0;
-for (const [code, name] of mine) {
-  console.log(code, name);
-  const ru = await gdelt(`${name} sourcelang:russian`);
-  const en = await gdelt(`${name} sourcelang:english`);
-  if (!ru && !en) { console.log("  skipped"); continue; }
-  const keep = a => ({ url: a.url, title: a.title, seendate: a.seendate, socialimage: a.socialimage, domain: a.domain, language: a.language, sourcecountry: a.sourcecountry });
-  const items = [...(ru || []), ...(en || [])].map(keep);
-  await writeFile(`${OUT}/${code}.json`, JSON.stringify({ updated: new Date().toISOString(), complete: !!(ru && en), items }));
+for (const [code, names] of Object.entries(COUNTRIES)) {
+  const items = [];
+  let parts = 0;
+  for (const ed of EDITIONS) {
+    const xml = await feed(names[ed.idx], ed.params);
+    if (xml) { items.push(...parse(xml, ed.lang)); parts++; }
+    await sleep(1000);
+  }
+  console.log(`${code}: ${items.length} items`);
+  if (!items.length) continue;
+  await writeFile(`data/${code}.json`, JSON.stringify({ updated: new Date().toISOString(), complete: parts === EDITIONS.length, items }));
   ok++;
 }
-console.log(`Saved ${ok} of ${mine.length} countries`);
+console.log(`Saved ${ok} of ${Object.keys(COUNTRIES).length} countries`);
 if (!ok) process.exit(1);

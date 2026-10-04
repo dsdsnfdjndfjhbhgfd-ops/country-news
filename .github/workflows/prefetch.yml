@@ -1,4 +1,4 @@
-name: Обновить новости популярных стран
+name: Обновить новости стран
 
 on:
   schedule:
@@ -13,13 +13,9 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  collect:
+  prefetch:
     runs-on: ubuntu-latest
-    timeout-minutes: 14
-    strategy:
-      fail-fast: false
-      matrix:
-        shard: [0, 1, 2]
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -27,29 +23,6 @@ jobs:
           node-version: 20
       - name: Собрать новости
         run: node scripts/prefetch.mjs
-        env:
-          SHARD: ${{ matrix.shard }}
-          SHARDS: 3
-          OUT_DIR: out
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: data-${{ matrix.shard }}
-          path: out/
-          if-no-files-found: ignore
-          retention-days: 1
-
-  save:
-    needs: collect
-    if: always()
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
-        with:
-          pattern: data-*
-          path: data
-          merge-multiple: true
       - name: Сохранить
         run: |
           git config user.name "github-actions[bot]"
