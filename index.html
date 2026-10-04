@@ -331,11 +331,12 @@ function render() {
 }
 
 function cleanTitle(t) {
-  t = String(t || "").replace(/\s+([,.:;!?»)])/g, "$1").replace(/([«(])\s+/g, "$1");
+  t = String(t || "");
   for (const sep of [" :: ", " | ", " – ", " - "]) {
     const i = t.indexOf(sep, 30);
     if (i > 0) t = t.slice(0, i);
   }
+  t = t.replace(/\s+([,.:;!?»)%])/g, "$1").replace(/([«(])\s+/g, "$1");
   return t.length > 170 ? t.slice(0, 167).replace(/\s+\S*$/, "") + "…" : t;
 }
 
