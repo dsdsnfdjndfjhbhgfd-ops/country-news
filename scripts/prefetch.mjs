@@ -39,7 +39,8 @@ async function gdelt(query) {
 const SHARDS = Number(process.env.SHARDS || 1), SHARD = Number(process.env.SHARD || 0);
 const mine = Object.entries(COUNTRIES).filter((_, i) => i % SHARDS === SHARD);
 
-await mkdir("data", { recursive: true });
+const OUT = process.env.OUT_DIR || "data";
+await mkdir(OUT, { recursive: true });
 let ok = 0;
 for (const [code, name] of mine) {
   console.log(code, name);
@@ -48,7 +49,7 @@ for (const [code, name] of mine) {
   if (!ru && !en) { console.log("  skipped"); continue; }
   const keep = a => ({ url: a.url, title: a.title, seendate: a.seendate, socialimage: a.socialimage, domain: a.domain, language: a.language, sourcecountry: a.sourcecountry });
   const items = [...(ru || []), ...(en || [])].map(keep);
-  await writeFile(`data/${code}.json`, JSON.stringify({ updated: new Date().toISOString(), complete: !!(ru && en), items }));
+  await writeFile(`${OUT}/${code}.json`, JSON.stringify({ updated: new Date().toISOString(), complete: !!(ru && en), items }));
   ok++;
 }
 console.log(`Saved ${ok} of ${mine.length} countries`);
