@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Сводка по стране</title>
 <meta name="description" content="Политика, безопасность и экономика ключевых стран за последние 2 дня.">
+<script>try{var t=localStorage.getItem("cn:theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://api.gdeltproject.org" crossorigin>
@@ -23,11 +24,16 @@
   --serif:"Literata",Georgia,"Times New Roman",serif;
   color-scheme:light;
 }
-@media (prefers-color-scheme: dark){:root{
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
   --bg:#10151f; --surface:#171e2b; --ink:#e7ebf2; --muted:#94a0b4; --line:#273145;
   --accent:#8ea6ff; --marker:#c9a22a; --meter-off:#2a3346;
   --t-politics:#8ea6ff; --t-economy:#4fd1a5; --t-security:#ff8a7a; --t-intl:#c3a2ff; --t-society:#f0b45a;
   color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#10151f; --surface:#171e2b; --ink:#e7ebf2; --muted:#94a0b4; --line:#273145;
+  --accent:#8ea6ff; --marker:#c9a22a; --meter-off:#2a3346;
+  --t-politics:#8ea6ff; --t-economy:#4fd1a5; --t-security:#ff8a7a; --t-intl:#c3a2ff; --t-society:#f0b45a;
+  color-scheme:dark}
 *{box-sizing:border-box}
 [hidden]{display:none!important}
 html,body{margin:0}
@@ -36,6 +42,11 @@ img{max-width:100%}
 a{color:inherit}
 .wrap{max-width:880px;margin:0 auto;display:flex;flex-direction:column;gap:clamp(28px,5vw,44px)}
 
+.topbar{display:flex;justify-content:flex-end;margin-bottom:calc(-1 * clamp(14px,3vw,28px))}
+.theme{display:inline-flex;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:3px;gap:2px}
+.theme button{font:500 14px var(--sans);color:var(--muted);background:none;border:0;border-radius:999px;padding:6px 12px;cursor:pointer}
+.theme button:hover{color:var(--ink)}
+.theme button[aria-pressed="true"]{background:var(--ink);color:var(--surface)}
 .hero{display:flex;flex-direction:column;gap:18px}
 .ask{margin:0;font-weight:800;font-size:clamp(34px,7.4vw,76px);line-height:1.02;letter-spacing:-.025em;display:flex;flex-wrap:wrap;align-items:baseline;gap:0 .28em}
 .ask label{white-space:nowrap}
@@ -127,6 +138,13 @@ footer a{color:var(--muted)}
 </head>
 <body>
 <div class="wrap">
+  <div class="topbar">
+    <div class="theme" role="group" aria-label="Тема оформления">
+      <button type="button" data-t="auto" title="Как в системе">Авто</button>
+      <button type="button" data-t="light" title="Светлая тема">Светлая</button>
+      <button type="button" data-t="dark" title="Тёмная тема">Тёмная</button>
+    </div>
+  </div>
   <section class="hero">
     <form id="f" autocomplete="off" class="ask" role="search">
       <label for="country">Что происходит в</label>
@@ -155,6 +173,15 @@ footer a{color:var(--muted)}
 
 <script>
 const $ = s => document.querySelector(s);
+// Theme: auto (system), light or dark; remembered in this browser
+function applyTheme(t) {
+  if (t === "light" || t === "dark") document.documentElement.dataset.theme = t; else delete document.documentElement.dataset.theme;
+  document.querySelectorAll(".theme button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.t === (t || "auto"))));
+  try { t === "auto" ? localStorage.removeItem("cn:theme") : localStorage.setItem("cn:theme", t); } catch {}
+}
+let savedTheme = "auto"; try { savedTheme = localStorage.getItem("cn:theme") || "auto"; } catch {}
+applyTheme(savedTheme);
+document.querySelectorAll(".theme button").forEach(b => b.onclick = () => applyTheme(b.dataset.t));
 const QUICK = ["Россия","США","Китай","Украина","Израиль","Иран","Германия","Великобритания","Франция","Турция"];
 // Countries collected ahead of time by the GitHub Action (scripts/prefetch.mjs)
 const PREFETCHED = new Set("RU US CN UA IL IR DE GB FR TR".split(" "));
