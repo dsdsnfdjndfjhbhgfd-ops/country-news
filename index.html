@@ -300,18 +300,19 @@ function render() {
     if (g.topic) m0.append(el("span", "tag", g.topic));
     m0.append(document.createTextNode(g.domains > 1 ? `пишут ${g.domains} ${plural(g.domains, "издание", "издания", "изданий")}` : "одно издание"));
     body.append(m0);
-    const link = el("a", "t", a.title); link.href = a.url; link.target = "_blank"; link.rel = "noopener";
+    const link = el("a", "t", cleanTitle(a.title)); link.href = a.url; link.target = "_blank"; link.rel = "noopener";
     body.append(link);
     const m = el("div", "meta");
     if (LANG[a.language]) m.append(el("span", "tag", LANG[a.language]));
     m.append(document.createTextNode([a.domain, fmtDate(a.seendate)].filter(Boolean).join(" · ")));
     body.append(m);
-    const more = g.items.slice(1, 4);
+    const doms = new Set([a.domain]);
+    const more = g.items.filter(x => !doms.has(x.domain) && doms.add(x.domain)).slice(0, 3);
     if (more.length) {
       const s = el("div", "meta more");
       s.append(document.createTextNode("Также: "));
       more.forEach((x, k) => {
-        const l = el("a", null, x.domain); l.href = x.url; l.target = "_blank"; l.rel = "noopener"; l.title = x.title;
+        const l = el("a", null, x.domain); l.href = x.url; l.target = "_blank"; l.rel = "noopener"; l.title = cleanTitle(x.title);
         s.append(l); if (k < more.length - 1) s.append(document.createTextNode(", "));
       });
       body.append(s);
@@ -327,6 +328,15 @@ function render() {
   });
   box.append(ol);
   out.append(box);
+}
+
+function cleanTitle(t) {
+  t = String(t || "").replace(/\s+([,.:;!?»)])/g, "$1").replace(/([«(])\s+/g, "$1");
+  for (const sep of [" :: ", " | ", " – ", " - "]) {
+    const i = t.indexOf(sep, 30);
+    if (i > 0) t = t.slice(0, i);
+  }
+  return t.length > 170 ? t.slice(0, 167).replace(/\s+\S*$/, "") + "…" : t;
 }
 
 function plural(n, one, few, many) {
