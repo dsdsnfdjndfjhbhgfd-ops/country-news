@@ -120,7 +120,7 @@ footer a{color:var(--muted)}
       </span>
       <datalist id="countries"></datalist>
     </form>
-    <p class="lede">Главные события недели по выбранной стране. Остаётся только то, о чём пишут сразу несколько изданий: политика, экономика, безопасность, общество.</p>
+    <p class="lede">Главные события недели по выбранной стране. До 15 событий. Остаётся только то, о чём пишут сразу несколько изданий: политика, экономика, безопасность, общество.</p>
     <div class="quick" id="quick"><span>Часто ищут:</span></div>
   </section>
 
@@ -255,7 +255,7 @@ function cluster(items, c) {
   const ranked = groups.filter(g => !g.soft && (g.topic || g.domains >= 5))
     .sort((x, y) => y.score - x.score || y.items.length - x.items.length);
   const multi = ranked.filter(g => g.domains >= 2);
-  return (multi.length >= 5 ? multi : multi.concat(ranked.filter(g => g.domains < 2).slice(0, 5 - multi.length))).slice(0, 10);
+  return (multi.length >= 8 ? multi : multi.concat(ranked.filter(g => g.domains < 2).slice(0, 8 - multi.length))).slice(0, 15);
 }
 
 // ---------- Data loading ----------
@@ -278,23 +278,27 @@ async function loadPrefetched(code) {
 
 let nextSlot = 0;
 const sleep = ms => new Promise(r => setTimeout(r, ms));
-async function gdeltOnce(query) {
+async function gdeltOnce(query, signal) {
   const url = "https://api.gdeltproject.org/api/v2/doc/doc?query=" + encodeURIComponent(query) + "&mode=artlist&format=json&maxrecords=75&timespan=7d&sort=hybridrel";
-  const r = await fetch(url);
+  const r = await fetch(url, { signal });
   const txt = await r.text();
   if (!r.ok) throw new Error("http");
   return JSON.parse(txt).articles || [];
 }
 // GDELT allows about one request per 5 s: requests start 5.5 s apart but then run in parallel
-async function gdelt(query) {
+// Retries continue only while the overall deadline allows
+async function gdelt(query, signal, deadline) {
   for (let attempt = 1; ; attempt++) {
     const start = Math.max(Date.now(), nextSlot);
+    if (start > deadline - 2000) throw new Error("deadline");
     nextSlot = start + 5500;
     await sleep(start - Date.now());
-    try { return await gdeltOnce(query); }
-    catch (e) { if (attempt >= 3) throw e; await sleep(3000 + Math.random() * 3000); }
+    if (signal.aborted) throw new Error("aborted");
+    try { return await gdeltOnce(query, signal); }
+    catch (e) { if (signal.aborted) throw e; await sleep(1500); }
   }
 }
+const LIVE_LIMIT_MS = 15000;
 
 function dedupe(items) {
   const seen = new Set();
@@ -322,15 +326,18 @@ async function run(input) {
   }
 
   skeleton(c);
-  setStatus(`Ищу публикации. Для этой страны данные собираются на лету, обычно 15–30 секунд.`, true);
+  setStatus(`Ищу публикации, не дольше 15 секунд.`, true);
   let items = [], failed = 0;
+  const ctl = new AbortController(), deadline = Date.now() + LIVE_LIMIT_MS;
+  const timer = setTimeout(() => ctl.abort(), LIVE_LIMIT_MS);
   const take = arr => { items = dedupe(items.concat(arr)); if (id === runId) render(c, items, { partial: true }); };
   await Promise.all(["russian", "english"].map(lang =>
-    gdelt(`${c.en} sourcelang:${lang}`).then(take).catch(() => { failed++; })
+    gdelt(`${c.en} sourcelang:${lang}`, ctl.signal, deadline).then(take).catch(() => { failed++; })
   ));
+  clearTimeout(timer);
   if (id !== runId) return;
   setStatus("");
-  if (failed === 2) { notice("Источник новостей сейчас не отвечает. Попробуйте ещё раз через полминуты."); return; }
+  if (failed === 2) { notice("Источник новостей не ответил за 15 секунд. Попробуйте ещё раз через полминуты."); return; }
   if (!failed) cacheSet(c.code, items);
   render(c, items, { failed });
 }
