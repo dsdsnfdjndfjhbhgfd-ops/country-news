@@ -62,6 +62,8 @@ button:focus-visible,a:focus-visible,#country:focus-visible{outline:3px solid va
 .res-head{display:flex;justify-content:space-between;align-items:baseline;gap:8px 16px;flex-wrap:wrap;padding-bottom:12px;border-bottom:3px solid var(--ink)}
 .res-head h2{margin:0;font-weight:800;font-size:clamp(26px,4vw,34px);letter-spacing:-.015em}
 .res-head p{margin:0;color:var(--muted);font-size:15px}
+.res-head p.updated{flex-basis:100%;display:flex;align-items:center;gap:8px;color:var(--ink);font-weight:500}
+.res-head p.updated::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--t-economy);flex:none}
 .events{list-style:none;margin:0;padding:0}
 .ev{display:grid;grid-template-columns:minmax(0,1fr) 132px;gap:6px 22px;padding:22px 0;border-bottom:1px solid var(--line)}
 .ev.noimg{grid-template-columns:minmax(0,1fr)}
@@ -326,7 +328,7 @@ async function run(input) {
   $("#country").value = LOC[c.code] || c.ru;
   try { history.replaceState(null, "", "#" + c.code); } catch {}
 
-  const cached = cacheGet(c.code);
+  const cached = PREFETCHED.has(c.code) ? null : cacheGet(c.code);
   if (cached) { setStatus(""); render(c, cached.items, { at: cached.at }); return; }
 
   const pre = await loadPrefetched(c.code);
@@ -423,10 +425,22 @@ function render(c, allItems, info) {
   const head = el("div", "res-head");
   head.append(el("h2", null, c.ru));
   let meta = `${groups.length} ${plural(groups.length, "событие", "события", "событий")} из ${items.length} ${plural(items.length, "публикации", "публикаций", "публикаций")} ${PERIOD_TEXT[prefs.period]}`;
-  if (info.at) meta += `, обновлено ${ago(info.at)}`;
   if (info.partial) meta = "Загружаю остальные источники…";
   if (info.failed) meta += ". Часть источников не ответила";
   head.append(el("p", null, meta));
+  if (info.at) {
+    const up = el("p", "updated");
+    const paint = () => {
+      const t = new Date(info.at), next = new Date(info.at + 15 * 60000);
+      const hm = d => d.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
+      const day = t.toDateString() === new Date().toDateString() ? "" : " " + t.toLocaleDateString("ru-RU", { day: "numeric", month: "long" });
+      up.textContent = `Новости обновлены${day} в ${hm(t)}, ${ago(info.at)}. ` +
+        (next > Date.now() ? `Следующее обновление около ${hm(next)}.` : "Следующее обновление ожидается в ближайшие минуты.");
+    };
+    paint();
+    clearInterval(window.__upTimer); window.__upTimer = setInterval(() => up.isConnected ? paint() : clearInterval(window.__upTimer), 30000);
+    head.append(up);
+  }
   out.append(head);
   out.append(controls(() => render(shown.c, shown.allItems, shown.info)));
 
