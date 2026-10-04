@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Сводка по стране</title>
+<meta name="description" content="Свежие новости за 7 дней по любой стране.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700&family=PT+Serif:wght@400;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one column "dispatch" — search, filters, then a dated list of headlines */
+:root{
+  --bg:#f3f4f1; --paper:#ffffff; --ink:#15191f; --muted:#5c6470; --line:#d9dcd6;
+  --accent:#1f4fd1; --accent-soft:#e3eafc; --hot:#c2410c; --hot-soft:#fbe7dc;
+  --display:"Unbounded","Arial Black",system-ui,sans-serif;
+  --body:"PT Serif",Georgia,"Times New Roman",serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){:root{
+  --bg:#0f1216; --paper:#171b21; --ink:#e8eaee; --muted:#9aa3ae; --line:#2a313a;
+  --accent:#7ea2ff; --accent-soft:#1c2747; --hot:#ff8a50; --hot-soft:#3a2216; color-scheme:dark}}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:17px;line-height:1.55;padding-inline:16px;padding-block:32px 64px}
+img{max-width:100%}
+.wrap{max-width:760px;margin:0 auto;display:flex;flex-direction:column;gap:24px}
+header{display:flex;flex-direction:column;gap:10px}
+.eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+h1{font-family:var(--display);font-weight:700;font-size:clamp(28px,6vw,44px);line-height:1.08;margin:0;text-wrap:balance}
+h1 span{color:var(--accent)}
+.lede{color:var(--muted);margin:0;max-width:60ch}
+form{display:flex;gap:8px;flex-wrap:wrap}
+#country{flex:1 1 240px;min-width:0;font:500 18px var(--body);padding:14px 16px;border:2px solid var(--ink);border-radius:4px;background:var(--paper);color:var(--ink)}
+#country:focus{outline:3px solid var(--accent-soft);border-color:var(--accent)}
+button{font-family:var(--mono);font-size:14px;font-weight:500;cursor:pointer;border-radius:4px}
+#go{padding:14px 22px;background:var(--ink);color:var(--bg);border:2px solid var(--ink);letter-spacing:.04em}
+#go:hover{background:var(--accent);border-color:var(--accent);color:#fff}
+#go:disabled{opacity:.5;cursor:wait}
+button:focus-visible,a:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{padding:6px 10px;background:transparent;border:1px solid var(--line);color:var(--ink);font-size:13px}
+.chip:hover{border-color:var(--accent);color:var(--accent)}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.status{font-family:var(--mono);font-size:13px;color:var(--muted);display:flex;gap:10px;align-items:center;min-height:20px}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--accent);animation:pulse 1.2s infinite}
+@keyframes pulse{50%{opacity:.25}}
+@media (prefers-reduced-motion:reduce){.dot{animation:none}}
+.banner{padding:12px 14px;border-left:3px solid var(--hot);background:var(--hot-soft);font-size:15px}
+.head{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap;border-bottom:2px solid var(--ink);padding-bottom:10px}
+.head h2{font-family:var(--display);font-weight:500;font-size:22px;margin:0}
+.meta{font-family:var(--mono);font-size:12px;color:var(--muted);letter-spacing:.03em}
+ol.list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.item{display:grid;grid-template-columns:1fr 112px;gap:14px;padding:16px 0;border-bottom:1px solid var(--line);align-items:start}
+.item.noimg{grid-template-columns:1fr}
+.item .body{min-width:0;display:flex;flex-direction:column;gap:6px}
+.item a.t{color:var(--ink);text-decoration:none;font-weight:700;font-size:18px;line-height:1.35}
+.item a.t:hover{color:var(--accent);text-decoration:underline}
+.item .thumb{width:112px;aspect-ratio:4/3;object-fit:cover;border-radius:4px;background:var(--line)}
+.tag{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;padding:1px 6px;border-radius:3px;background:var(--accent-soft);color:var(--accent);margin-right:6px}
+.empty{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}
+.step{padding:16px;background:var(--paper);border:1px solid var(--line);border-radius:6px;display:flex;flex-direction:column;gap:6px}
+.step .meta{color:var(--accent)}
+.step p{margin:0;font-size:15px}
+footer{font-family:var(--mono);font-size:12px;color:var(--muted);border-top:1px solid var(--line);padding-top:14px}
+footer a{color:var(--muted)}
+@media (max-width:480px){.item{grid-template-columns:1fr 80px}.item .thumb{width:80px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Сводка по стране · новости за 7 дней</div>
+    <h1>Что происходит <span>сейчас</span> в любой стране</h1>
+    <p class="lede">Напишите страну по-русски или по-английски. Сайт покажет самые заметные публикации о ней за последнюю неделю из мировых СМИ.</p>
+  </header>
+
+  <form id="f" autocomplete="off">
+    <input id="country" name="country" list="countries" placeholder="Например: Казахстан" aria-label="Страна" required>
+    <datalist id="countries"></datalist>
+    <button id="go" type="submit">Найти новости</button>
+  </form>
+  <div class="chips" id="chips"></div>
+
+  <div class="status" id="status" aria-live="polite"></div>
+  <div id="out">
+    <div class="empty">
+      <div class="step"><span class="meta">Шаг 1</span><p>Введите страну или нажмите на одну из кнопок выше.</p></div>
+      <div class="step"><span class="meta">Шаг 2</span><p>Сайт найдёт публикации о ней за 7 дней в базе мировых СМИ GDELT.</p></div>
+      <div class="step"><span class="meta">Шаг 3</span><p>Сверху самые заметные. Можно оставить только русские или английские источники.</p></div>
+    </div>
+  </div>
+
+  <footer>Данные: <a href="https://www.gdeltproject.org/" target="_blank" rel="noopener">GDELT Project</a>. Порядок по заметности публикаций, без редакторского отбора.</footer>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+const QUICK = ["Россия","США","Китай","Украина","Казахстан","Германия","Турция","Израиль","Индия","Беларусь","Франция","Япония"];
+const ALIASES = { "сша":"US","америка":"US","штаты":"US","usa":"US","uk":"GB","англия":"GB","британия":"GB","великобритания":"GB","оаэ":"AE","uae":"AE","корея":"KR","южная корея":"KR","северная корея":"KP","кндр":"KP","чехия":"CZ","молдавия":"MD","киргизия":"KG","белоруссия":"BY" };
+// English names GDELT understands best for codes where Intl gives a long form
+const EN_FIX = { US:"United States", GB:"United Kingdom", KP:"North Korea", KR:"South Korea", CZ:"Czech Republic", MM:"Myanmar", CD:"Democratic Republic of the Congo", CG:"Republic of the Congo", CI:"Ivory Coast", PS:"Palestine", TR:"Turkey" };
+
+const ruNames = new Intl.DisplayNames(["ru"], { type: "region" });
+const enNames = new Intl.DisplayNames(["en"], { type: "region" });
+const index = new Map(); const ruList = [];
+const A = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+for (const a of A) for (const b of A) {
+  const code = a + b; let ru, en;
+  try { ru = ruNames.of(code); en = enNames.of(code); } catch { continue; }
+  if (!ru || ru === code || !en || en === code) continue;
+  index.set(ru.toLowerCase(), code); index.set(en.toLowerCase(), code);
+  ruList.push(ru);
+}
+for (const [k, v] of Object.entries(ALIASES)) index.set(k, v);
+const dl = $("#countries");
+[...new Set(ruList)].sort((x, y) => x.localeCompare(y, "ru")).forEach(n => { const o = document.createElement("option"); o.value = n; dl.append(o); });
+
+function resolve(input) {
+  const k = input.trim().toLowerCase().replace(/ё/g, "е");
+  const code = index.get(k) || index.get(input.trim().toLowerCase());
+  if (!code) return null;
+  return { code, ru: ruNames.of(code), en: EN_FIX[code] || enNames.of(code) };
+}
+
+const chips = $("#chips");
+QUICK.forEach(c => {
+  const b = document.createElement("button");
+  b.type = "button"; b.className = "chip"; b.textContent = c;
+  b.onclick = () => { $("#country").value = c; run(c); };
+  chips.append(b);
+});
+
+$("#f").addEventListener("submit", e => { e.preventDefault(); const v = $("#country").value.trim(); if (v) run(v); });
+
+function setStatus(text, loading) {
+  const s = $("#status"); s.textContent = "";
+  if (loading) { const d = document.createElement("span"); d.className = "dot"; s.append(d); }
+  s.append(document.createTextNode(text));
+}
+function el(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+function banner(text) { const o = $("#out"); o.textContent = ""; o.append(el("div", "banner", text)); }
+
+function fmtDate(s) {
+  const m = /^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})/.exec(s || ""); if (!m) return "";
+  const d = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]));
+  return d.toLocaleString("ru-RU", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+}
+const LANG = { Russian: "RU", English: "EN" };
+
+let busy = false, lastCall = 0, current = null, filter = "all";
+
+async function run(input) {
+  if (busy) return;
+  const c = resolve(input);
+  if (!c) { setStatus("", false); banner(`Не нашёл страну «${input}». Проверьте написание или выберите из подсказок в поле ввода.`); return; }
+  busy = true; $("#go").disabled = true;
+  const wait = 5500 - (Date.now() - lastCall);
+  if (wait > 0) { setStatus("Источник разрешает один запрос в 5 секунд, жду…", true); await new Promise(r => setTimeout(r, wait)); }
+  const seen = new Set();
+  const add = arr => arr.filter(a => {
+    const k = (a.title || "").toLowerCase().slice(0, 70);
+    if (!a.title || seen.has(k)) return false; seen.add(k); return true;
+  });
+  current = { c, items: [] }; filter = "all";
+  let failed = 0;
+  for (const [lang, label] of [["russian", "русских"], ["english", "английских"]]) {
+    const wait2 = 5500 - (Date.now() - lastCall);
+    if (wait2 > 0) await new Promise(r => setTimeout(r, wait2));
+    setStatus(`Ищу публикации в ${label} СМИ: ${c.ru}… это может занять до 30 секунд`, true);
+    try {
+      current.items = current.items.concat(add(await fetchLang(c.en, lang)));
+      render();
+    } catch { failed++; }
+  }
+  if (failed === 2) {
+    setStatus("", false);
+    banner("Не удалось получить новости: источник не ответил или попросил подождать. Повторите через полминуты.");
+  } else {
+    setStatus(`Готово · ${current.items.length} публикаций за 7 дней` + (failed ? " · часть источников не ответила" : ""), false);
+  }
+  busy = false; $("#go").disabled = false;
+}
+
+async function fetchLang(en, lang) {
+  const url = "https://api.gdeltproject.org/api/v2/doc/doc?query=" + encodeURIComponent(en + " sourcelang:" + lang) + "&mode=artlist&format=json&maxrecords=50&timespan=7d&sort=hybridrel";
+  lastCall = Date.now();
+  const r = await fetch(url);
+  const txt = await r.text();
+  lastCall = Date.now();
+  if (!r.ok) throw new Error("http");
+  const data = JSON.parse(txt);
+  return data.articles || [];
+}
+
+function render() {
+  const { c, items } = current;
+  const out = $("#out"); out.textContent = "";
+  const box = el("div"); box.style.cssText = "display:flex;flex-direction:column;gap:16px";
+  const head = el("div", "head");
+  const h = el("div"); h.append(el("h2", null, c.ru)); h.append(el("div", "meta", "Последние 7 дней · по заметности"));
+  head.append(h);
+  const fl = el("div", "chips");
+  [["all", "Все"], ["Russian", "Русские"], ["English", "Английские"]].forEach(([v, label]) => {
+    const n = v === "all" ? items.length : items.filter(i => i.language === v).length;
+    const b = el("button", "chip", `${label} · ${n}`); b.type = "button";
+    b.setAttribute("aria-pressed", String(filter === v));
+    b.onclick = () => { filter = v; render(); };
+    fl.append(b);
+  });
+  head.append(fl);
+  box.append(head);
+
+  const shown = items.filter(i => filter === "all" || i.language === filter);
+  if (!shown.length) { box.append(el("p", "meta", "За последние 7 дней публикаций не найдено.")); out.append(box); return; }
+  const ol = el("ol", "list");
+  shown.forEach(a => {
+    const li = el("li", "item");
+    const body = el("div", "body");
+    const link = el("a", "t", a.title); link.href = a.url; link.target = "_blank"; link.rel = "noopener";
+    body.append(link);
+    const m = el("div", "meta");
+    if (LANG[a.language]) m.append(el("span", "tag", LANG[a.language]));
+    m.append(document.createTextNode([a.domain, a.sourcecountry, fmtDate(a.seendate)].filter(Boolean).join(" · ")));
+    body.append(m);
+    li.append(body);
+    if (a.socialimage && /^https:/.test(a.socialimage)) {
+      const img = el("img", "thumb"); img.src = a.socialimage; img.alt = ""; img.loading = "lazy"; img.referrerPolicy = "no-referrer";
+      img.onerror = () => { img.remove(); li.classList.add("noimg"); };
+      li.append(img);
+    } else li.classList.add("noimg");
+    ol.append(li);
+  });
+  box.append(ol);
+  out.append(box);
+}
+</script>
+</body>
+</html>
