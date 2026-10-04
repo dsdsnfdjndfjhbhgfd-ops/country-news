@@ -35,9 +35,13 @@ async function gdelt(query) {
   return null;
 }
 
+// Split the list between parallel jobs: SHARD=0..SHARDS-1 (each job runs on its own runner, so GDELT limits apply separately)
+const SHARDS = Number(process.env.SHARDS || 1), SHARD = Number(process.env.SHARD || 0);
+const mine = Object.entries(COUNTRIES).filter((_, i) => i % SHARDS === SHARD);
+
 await mkdir("data", { recursive: true });
 let ok = 0;
-for (const [code, name] of Object.entries(COUNTRIES)) {
+for (const [code, name] of mine) {
   console.log(code, name);
   const ru = await gdelt(`${name} sourcelang:russian`);
   const en = await gdelt(`${name} sourcelang:english`);
@@ -47,5 +51,5 @@ for (const [code, name] of Object.entries(COUNTRIES)) {
   await writeFile(`data/${code}.json`, JSON.stringify({ updated: new Date().toISOString(), complete: !!(ru && en), items }));
   ok++;
 }
-console.log(`Saved ${ok} of ${Object.keys(COUNTRIES).length} countries`);
+console.log(`Saved ${ok} of ${mine.length} countries`);
 if (!ok) process.exit(1);

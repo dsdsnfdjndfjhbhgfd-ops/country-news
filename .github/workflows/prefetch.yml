@@ -2,7 +2,7 @@ name: Обновить новости популярных стран
 
 on:
   schedule:
-    - cron: "17 */3 * * *"
+    - cron: "*/15 * * * *"
   workflow_dispatch:
 
 permissions:
@@ -13,9 +13,13 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  prefetch:
+  collect:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 14
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -23,6 +27,26 @@ jobs:
           node-version: 20
       - name: Собрать новости
         run: node scripts/prefetch.mjs
+        env:
+          SHARD: ${{ matrix.shard }}
+          SHARDS: 3
+      - uses: actions/upload-artifact@v4
+        with:
+          name: data-${{ matrix.shard }}
+          path: data/
+          retention-days: 1
+
+  save:
+    needs: collect
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: data-*
+          path: data
+          merge-multiple: true
       - name: Сохранить
         run: |
           git config user.name "github-actions[bot]"
