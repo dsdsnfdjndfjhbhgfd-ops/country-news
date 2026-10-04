@@ -59,6 +59,8 @@ ol.list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
 .item a.t{color:var(--ink);text-decoration:none;font-weight:700;font-size:18px;line-height:1.35}
 .item a.t:hover{color:var(--accent);text-decoration:underline}
 .item .thumb{width:112px;aspect-ratio:4/3;object-fit:cover;border-radius:4px;background:var(--line)}
+.more a{color:var(--muted)}
+.more a:hover{color:var(--accent)}
 .tag{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;padding:1px 6px;border-radius:3px;background:var(--accent-soft);color:var(--accent);margin-right:6px}
 .empty{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}
 .step{padding:16px;background:var(--paper);border:1px solid var(--line);border-radius:6px;display:flex;flex-direction:column;gap:6px}
@@ -74,7 +76,7 @@ footer a{color:var(--muted)}
   <header>
     <div class="eyebrow">Сводка по стране · новости за 7 дней</div>
     <h1>Что происходит <span>сейчас</span> в любой стране</h1>
-    <p class="lede">Напишите страну по-русски или по-английски. Сайт покажет самые заметные публикации о ней за последнюю неделю из мировых СМИ.</p>
+    <p class="lede">Напишите страну по-русски или по-английски. Сайт покажет только главные события недели: то, о чём пишут многие издания, и только серьёзные темы. Спорт и шоу-бизнес отсеиваются.</p>
   </header>
 
   <form id="f" autocomplete="off">
@@ -89,11 +91,11 @@ footer a{color:var(--muted)}
     <div class="empty">
       <div class="step"><span class="meta">Шаг 1</span><p>Введите страну или нажмите на одну из кнопок выше.</p></div>
       <div class="step"><span class="meta">Шаг 2</span><p>Сайт найдёт публикации о ней за 7 дней в базе мировых СМИ GDELT.</p></div>
-      <div class="step"><span class="meta">Шаг 3</span><p>Сверху самые заметные. Можно оставить только русские или английские источники.</p></div>
+      <div class="step"><span class="meta">Шаг 3</span><p>Похожие публикации объединяются в одно событие. Остаются до 10 главных: политика, экономика, безопасность, общество.</p></div>
     </div>
   </div>
 
-  <footer>Данные: <a href="https://www.gdeltproject.org/" target="_blank" rel="noopener">GDELT Project</a>. Порядок по заметности публикаций, без редакторского отбора.</footer>
+  <footer>Данные: <a href="https://www.gdeltproject.org/" target="_blank" rel="noopener">GDELT Project</a>. Важность определяется автоматически: по числу изданий, которые пишут о событии, и по его теме.</footer>
 </div>
 
 <script>
@@ -150,36 +152,103 @@ function fmtDate(s) {
 }
 const LANG = { Russian: "RU", English: "EN" };
 
-let busy = false, lastCall = 0, current = null, filter = "all";
+// ---------- Importance filter ----------
+// Topic dictionaries: word stems (Russian + English). A headline's topic decides whether it counts as important.
+const TOPICS = [
+  ["Безопасность", ["войн","воен","армия","армии","удар","атак","ракет","дрон","беспилот","обстрел","фронт","террор","взрыв","нато","оборон","мобилиз","перемир","конфликт","war","militar","army","strike","attack","missile","drone","troops","terror","explos","nato","defen","ceasefire","conflict","shell","invasion","nuclear","ядерн"]],
+  ["Политика", ["президент","премьер","правительств","министр","парламент","дума","выбор","голосован","партия","партии","закон","указ","отставк","оппозиц","протест","митинг","конституц","суд ","референдум","president","prime minister","government","minister","parliament","election","vote","party","law","decree","resign","opposition","protest","constitution","court","referendum","cabinet","coup","переворот"]],
+  ["Экономика", ["экономик","ввп","инфляц","ставк","цб ","центробанк","бюджет","налог","рубл","доллар","нефт","газ","экспорт","импорт","пошлин","тариф","санкц","кризис","рынок","биржа","инвест","зарплат","пенси","цены","economy","economic","gdp","inflation","rate","central bank","budget","tax","oil","gas","export","import","tariff","sanction","crisis","market","invest","price","debt","долг","trade","торгов"]],
+  ["Международные отношения", ["переговор","визит","саммит","посол","мид","дипломат","соглашен","договор","оон","евросоюз","ес ","талибан","отношени","talks","visit","summit","ambassador","foreign minister","diplomat","agreement","treaty","united nations","un ","european union","eu ","relations","bilateral","negotiat"]],
+  ["Общество", ["катастроф","авари","землетряс","наводнен","пожар","погиб","жертв","эвакуац","эпидем","вирус","забастов","миграц","мигрант","disaster","crash","earthquake","flood","fire","killed","dead","victims","evacuat","epidemic","outbreak","strike action","migra","refugee","беженц"]]
+];
+// Soft news: dropped unless many outlets cover it
+const SOFT = ["футбол","хоккей","матч","чемпионат","турнир","олимпи","спорт","сборн","гол ","тренер","звезд","певиц","певец","актер","актрис","фильм","сериал","шоу","концерт","свадьб","развод","гороскоп","рецепт","погода","синоптик","мода","блогер","football","soccer","hockey","match","championship","tournament","olymp","sport","coach","celebrity","singer","actor","actress","movie","film","series","show","concert","wedding","divorce","horoscope","recipe","weather","fashion","festival","фестивал","award","премия","box office","tennis","теннис","basketball","баскетбол","f1","formula"];
+const STOP = new Set("about after again also amid and are been before being between could from have into more news over says said than that their them there they this those through under were what when where which while will with would year years week today после перед также более может могут были было будет будут которые который которая через почему чтобы этого этой этом если между около заявил заявила стало сообщил сообщили сегодня неделе году года".split(" "));
+
+function low(s) { return (s || "").toLowerCase().replace(/ё/g, "е"); }
+function stems(title, countryStems) {
+  const words = low(title).match(/[a-zа-я0-9]+/g) || [];
+  const out = new Set();
+  for (const w of words) {
+    if (w.length < 4 || STOP.has(w)) continue;
+    const s = w.slice(0, 6);
+    if (countryStems.some(c => s.startsWith(c) || c.startsWith(s))) continue;
+    out.add(s);
+  }
+  return out;
+}
+function norm(title) { return " " + (low(title).match(/[a-zа-я0-9%]+/g) || []).join(" ") + " "; }
+function topicOf(title) {
+  const t = norm(title);
+  let best = null, hits = 0;
+  for (const [name, keys] of TOPICS) {
+    const n = keys.reduce((k, w) => k + (t.includes(" " + w) ? 1 : 0), 0);
+    if (n > hits) { hits = n; best = name; }
+  }
+  return best;
+}
+function isSoft(title) { const t = norm(title); return SOFT.some(w => t.includes(" " + w)); }
+
+function cluster(items, c) {
+  const countryStems = [low(c.ru), low(c.en)].flatMap(n => n.split(/\s+/)).filter(w => w.length >= 4).map(w => w.slice(0, 5));
+  const groups = [];
+  for (const a of items) {
+    const st = stems(a.title, countryStems);
+    if (st.size < 2) continue;
+    let home = null, bestScore = 0;
+    for (const g of groups) {
+      if (g.lang !== a.language) continue;
+      let shared = 0; for (const s of st) if (g.stems.has(s)) shared++;
+      const j = shared / Math.min(st.size, g.core.size);
+      if ((shared >= 3 || (shared >= 2 && j >= 0.5)) && j > bestScore) { bestScore = j; home = g; }
+    }
+    if (home) { home.items.push(a); for (const s of st) home.stems.add(s); }
+    else groups.push({ lang: a.language, core: st, stems: new Set(st), items: [a] });
+  }
+  for (const g of groups) {
+    g.domains = new Set(g.items.map(i => i.domain)).size;
+    g.lead = g.items[0];
+    g.topic = g.items.map(i => topicOf(i.title)).find(Boolean) || null;
+    g.soft = g.items.every(i => isSoft(i.title));
+    g.score = g.domains * 2 + (g.topic ? 3 : 0) - (g.soft ? 6 : 0);
+  }
+  return groups
+    .filter(g => (g.topic && !g.soft) || g.domains >= 4)
+    .filter(g => g.domains >= 2 || g.topic)
+    .sort((x, y) => y.score - x.score || y.items.length - x.items.length)
+    .slice(0, 10);
+}
+
+let busy = false, lastCall = 0, current = null;
 
 async function run(input) {
   if (busy) return;
   const c = resolve(input);
   if (!c) { setStatus("", false); banner(`Не нашёл страну «${input}». Проверьте написание или выберите из подсказок в поле ввода.`); return; }
   busy = true; $("#go").disabled = true;
-  const wait = 5500 - (Date.now() - lastCall);
-  if (wait > 0) { setStatus("Источник разрешает один запрос в 5 секунд, жду…", true); await new Promise(r => setTimeout(r, wait)); }
   const seen = new Set();
   const add = arr => arr.filter(a => {
-    const k = (a.title || "").toLowerCase().slice(0, 70);
+    const k = low(a.title).slice(0, 70);
     if (!a.title || seen.has(k)) return false; seen.add(k); return true;
   });
-  current = { c, items: [] }; filter = "all";
+  current = { c, items: [], done: false };
   let failed = 0;
   for (const [lang, label] of [["russian", "русских"], ["english", "английских"]]) {
-    const wait2 = 5500 - (Date.now() - lastCall);
-    if (wait2 > 0) await new Promise(r => setTimeout(r, wait2));
+    const wait = 5500 - (Date.now() - lastCall);
+    if (wait > 0) { setStatus("Источник разрешает один запрос в 5 секунд, жду…", true); await new Promise(r => setTimeout(r, wait)); }
     setStatus(`Ищу публикации в ${label} СМИ: ${c.ru}… это может занять до 30 секунд`, true);
     try {
       current.items = current.items.concat(add(await fetchLang(c.en, lang)));
       render();
     } catch { failed++; }
   }
+  current.done = true;
   if (failed === 2) {
     setStatus("", false);
     banner("Не удалось получить новости: источник не ответил или попросил подождать. Повторите через полминуты.");
   } else {
-    setStatus(`Готово · ${current.items.length} публикаций за 7 дней` + (failed ? " · часть источников не ответила" : ""), false);
+    render();
+    setStatus(`Готово · ${current.groups.length} важных событий из ${current.items.length} публикаций` + (failed ? " · часть источников не ответила" : ""), false);
   }
   busy = false; $("#go").disabled = false;
 }
@@ -195,7 +264,7 @@ async function fetchLang(en, lang) {
 }
 
 async function fetchOnce(en, lang) {
-  const url = "https://api.gdeltproject.org/api/v2/doc/doc?query=" + encodeURIComponent(en + " sourcelang:" + lang) + "&mode=artlist&format=json&maxrecords=50&timespan=7d&sort=hybridrel";
+  const url = "https://api.gdeltproject.org/api/v2/doc/doc?query=" + encodeURIComponent(en + " sourcelang:" + lang) + "&mode=artlist&format=json&maxrecords=100&timespan=7d&sort=hybridrel";
   lastCall = Date.now();
   const r = await fetch(url);
   const txt = await r.text();
@@ -207,37 +276,49 @@ async function fetchOnce(en, lang) {
 
 function render() {
   const { c, items } = current;
+  const groups = current.groups = cluster(items, c);
   const out = $("#out"); out.textContent = "";
   const box = el("div"); box.style.cssText = "display:flex;flex-direction:column;gap:16px";
   const head = el("div", "head");
-  const h = el("div"); h.append(el("h2", null, c.ru)); h.append(el("div", "meta", "Последние 7 дней · по заметности"));
+  const h = el("div"); h.append(el("h2", null, c.ru));
+  h.append(el("div", "meta", "Главное за 7 дней · отбор по числу изданий и теме"));
   head.append(h);
-  const fl = el("div", "chips");
-  [["all", "Все"], ["Russian", "Русские"], ["English", "Английские"]].forEach(([v, label]) => {
-    const n = v === "all" ? items.length : items.filter(i => i.language === v).length;
-    const b = el("button", "chip", `${label} · ${n}`); b.type = "button";
-    b.setAttribute("aria-pressed", String(filter === v));
-    b.onclick = () => { filter = v; render(); };
-    fl.append(b);
-  });
-  head.append(fl);
   box.append(head);
 
-  const shown = items.filter(i => filter === "all" || i.language === filter);
-  if (!shown.length) { box.append(el("p", "meta", "За последние 7 дней публикаций не найдено.")); out.append(box); return; }
+  if (!groups.length) {
+    box.append(el("p", "meta", current.done ? "Важных событий за последние 7 дней не найдено." : "Собираю публикации…"));
+    out.append(box); return;
+  }
   const ol = el("ol", "list");
-  shown.forEach(a => {
+  groups.forEach((g, i) => {
+    const a = g.lead;
     const li = el("li", "item");
     const body = el("div", "body");
+    const m0 = el("div", "meta");
+    m0.append(el("span", "tag", String(i + 1).padStart(2, "0")));
+    if (g.topic) m0.append(el("span", "tag", g.topic));
+    m0.append(document.createTextNode(g.domains > 1 ? `пишут ${g.domains} ${plural(g.domains, "издание", "издания", "изданий")}` : "одно издание"));
+    body.append(m0);
     const link = el("a", "t", a.title); link.href = a.url; link.target = "_blank"; link.rel = "noopener";
     body.append(link);
     const m = el("div", "meta");
     if (LANG[a.language]) m.append(el("span", "tag", LANG[a.language]));
-    m.append(document.createTextNode([a.domain, a.sourcecountry, fmtDate(a.seendate)].filter(Boolean).join(" · ")));
+    m.append(document.createTextNode([a.domain, fmtDate(a.seendate)].filter(Boolean).join(" · ")));
     body.append(m);
+    const more = g.items.slice(1, 4);
+    if (more.length) {
+      const s = el("div", "meta more");
+      s.append(document.createTextNode("Также: "));
+      more.forEach((x, k) => {
+        const l = el("a", null, x.domain); l.href = x.url; l.target = "_blank"; l.rel = "noopener"; l.title = x.title;
+        s.append(l); if (k < more.length - 1) s.append(document.createTextNode(", "));
+      });
+      body.append(s);
+    }
     li.append(body);
-    if (a.socialimage && /^https:/.test(a.socialimage)) {
-      const img = el("img", "thumb"); img.src = a.socialimage; img.alt = ""; img.loading = "lazy"; img.referrerPolicy = "no-referrer";
+    const pic = g.items.find(x => x.socialimage && /^https:/.test(x.socialimage));
+    if (pic) {
+      const img = el("img", "thumb"); img.src = pic.socialimage; img.alt = ""; img.loading = "lazy"; img.referrerPolicy = "no-referrer";
       img.onerror = () => { img.remove(); li.classList.add("noimg"); };
       li.append(img);
     } else li.classList.add("noimg");
@@ -245,6 +326,13 @@ function render() {
   });
   box.append(ol);
   out.append(box);
+}
+
+function plural(n, one, few, many) {
+  const m10 = n % 10, m100 = n % 100;
+  if (m10 === 1 && m100 !== 11) return one;
+  if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return few;
+  return many;
 }
 </script>
 </body>
