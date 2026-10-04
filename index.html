@@ -162,7 +162,7 @@ const TOPICS = [
   ["Общество", ["катастроф","авари","землетряс","наводнен","пожар","погиб","жертв","эвакуац","эпидем","вирус","забастов","миграц","мигрант","disaster","crash","earthquake","flood","fire","killed","dead","victims","evacuat","epidemic","outbreak","strike action","migra","refugee","беженц"]]
 ];
 // Soft news: dropped unless many outlets cover it
-const SOFT = ["футбол","хоккей","матч","чемпионат","турнир","олимпи","спорт","сборн","гол ","тренер","звезд","певиц","певец","актер","актрис","фильм","сериал","шоу","концерт","свадьб","развод","гороскоп","рецепт","погода","синоптик","мода","блогер","football","soccer","hockey","match","championship","tournament","olymp","sport","coach","celebrity","singer","actor","actress","movie","film","series","show","concert","wedding","divorce","horoscope","recipe","weather","fashion","festival","фестивал","award","премия","box office","tennis","теннис","basketball","баскетбол","f1","formula"];
+const SOFT = ["футбол","хоккей","матч","чемпионат","турнир","олимпи","спорт","сборн","гол ","тренер","звезд","певиц","певец","актер","актрис","фильм","сериал","шоу","концерт","свадьб","развод","гороскоп","рецепт","погода","синоптик","мода","блогер","football","soccer","hockey","match","championship","tournament","olymp","sport","coach","celebrity","singer","actor","actress","movie","film","series","show","concert","wedding","divorce","horoscope","recipe","weather","fashion","festival","фестивал","award","премия","box office","tennis","теннис","basketball","баскетбол","f1","formula","games","medal","медал","gold medal","climbing","athlet","атлет","boxing","бокс","ufc","chess","шахмат","marathon","марафон","cup","кубок","league","лига","игры","player","игрок"];
 const STOP = new Set("about after again also amid and are been before being between could from have into more news over says said than that their them there they this those through under were what when where which while will with would year years week today после перед также более может могут были было будет будут которые который которая через почему чтобы этого этой этом если между около заявил заявила стало сообщил сообщили сегодня неделе году года".split(" "));
 
 function low(s) { return (s || "").toLowerCase().replace(/ё/g, "е"); }
@@ -209,14 +209,15 @@ function cluster(items, c) {
     g.domains = new Set(g.items.map(i => i.domain)).size;
     g.lead = g.items[0];
     g.topic = g.items.map(i => topicOf(i.title)).find(Boolean) || null;
-    g.soft = g.items.every(i => isSoft(i.title));
+    g.soft = g.items.some(i => isSoft(i.title));
     g.score = g.domains * 2 + (g.topic ? 3 : 0) - (g.soft ? 6 : 0);
   }
-  return groups
-    .filter(g => (g.topic && !g.soft) || g.domains >= 4)
-    .filter(g => g.domains >= 2 || g.topic)
-    .sort((x, y) => y.score - x.score || y.items.length - x.items.length)
-    .slice(0, 10);
+  const ranked = groups
+    .filter(g => !g.soft && (g.topic || g.domains >= 5))
+    .sort((x, y) => y.score - x.score || y.items.length - x.items.length);
+  const multi = ranked.filter(g => g.domains >= 2);
+  // Prefer events covered by several outlets; top up with single-source ones only if few
+  return (multi.length >= 5 ? multi : multi.concat(ranked.filter(g => g.domains < 2).slice(0, 5 - multi.length))).slice(0, 10);
 }
 
 let busy = false, lastCall = 0, current = null;
@@ -257,14 +258,14 @@ async function fetchLang(en, lang) {
   for (let attempt = 1; ; attempt++) {
     try { return await fetchOnce(en, lang); }
     catch (e) {
-      if (attempt >= 3) throw e;
-      await new Promise(r => setTimeout(r, 6000 + Math.random() * 2000));
+      if (attempt >= 4) throw e;
+      await new Promise(r => setTimeout(r, 8000 + Math.random() * 4000));
     }
   }
 }
 
 async function fetchOnce(en, lang) {
-  const url = "https://api.gdeltproject.org/api/v2/doc/doc?query=" + encodeURIComponent(en + " sourcelang:" + lang) + "&mode=artlist&format=json&maxrecords=100&timespan=7d&sort=hybridrel";
+  const url = "https://api.gdeltproject.org/api/v2/doc/doc?query=" + encodeURIComponent(en + " sourcelang:" + lang) + "&mode=artlist&format=json&maxrecords=75&timespan=7d&sort=hybridrel";
   lastCall = Date.now();
   const r = await fetch(url);
   const txt = await r.text();
