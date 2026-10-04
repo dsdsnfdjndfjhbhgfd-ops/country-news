@@ -185,6 +185,16 @@ async function run(input) {
 }
 
 async function fetchLang(en, lang) {
+  for (let attempt = 1; ; attempt++) {
+    try { return await fetchOnce(en, lang); }
+    catch (e) {
+      if (attempt >= 3) throw e;
+      await new Promise(r => setTimeout(r, 6000 + Math.random() * 2000));
+    }
+  }
+}
+
+async function fetchOnce(en, lang) {
   const url = "https://api.gdeltproject.org/api/v2/doc/doc?query=" + encodeURIComponent(en + " sourcelang:" + lang) + "&mode=artlist&format=json&maxrecords=50&timespan=7d&sort=hybridrel";
   lastCall = Date.now();
   const r = await fetch(url);
