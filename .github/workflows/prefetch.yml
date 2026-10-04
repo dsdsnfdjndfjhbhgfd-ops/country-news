@@ -27,8 +27,16 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
-          git add data
-          git diff --cached --quiet && exit 0
-          git commit -m "Обновить новости $(date -u +'%Y-%m-%d %H:%M')"
-          git pull --rebase
-          git push
+          # Put fresh files on top of the latest main, so parallel commits never conflict
+          cp -r data "$RUNNER_TEMP/fresh"
+          for i in 1 2 3; do
+            git fetch -q origin main
+            git reset -q --hard origin/main
+            mkdir -p data && cp "$RUNNER_TEMP"/fresh/*.json data/
+            git add data
+            git diff --cached --quiet && exit 0
+            git commit -q -m "Обновить новости $(date -u +'%Y-%m-%d %H:%M')"
+            git push -q origin HEAD:main && exit 0
+            sleep 5
+          done
+          exit 1
