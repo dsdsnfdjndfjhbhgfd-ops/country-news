@@ -133,7 +133,7 @@ footer a{color:var(--muted)}
       </span>
       <datalist id="countries"></datalist>
     </form>
-    <p class="lede">Главные события недели по выбранной стране. До 15 событий. По умолчанию остаётся только то, о чём пишут сразу несколько изданий: политика, экономика, безопасность, общество. Период и новости из одного издания настраиваются над лентой.</p>
+    <p class="lede">Главные события недели по выбранной стране. До 30 событий. Сначала то, о чём пишут сразу несколько изданий, в конце новости из одного издания. Только серьёзные темы: политика, экономика, безопасность, общество. Период и новости из одного издания настраиваются над лентой.</p>
     <div class="quick" id="quick"><span>Часто ищут:</span></div>
   </section>
 
@@ -267,8 +267,9 @@ function cluster(items, c, singles) {
   }
   const ranked = groups.filter(g => !g.soft && (g.topic || g.domains >= 5))
     .sort((x, y) => y.score - x.score || y.items.length - x.items.length);
-  if (singles) return ranked.slice(0, 30);
   const multi = ranked.filter(g => g.domains >= 2);
+  // Single-outlet stories always go after the ones several outlets cover
+  if (singles) return multi.slice(0, 15).concat(ranked.filter(g => g.domains < 2)).slice(0, 30);
   return (multi.length >= 8 ? multi : multi.concat(ranked.filter(g => g.domains < 2).slice(0, 8 - multi.length))).slice(0, 15);
 }
 
@@ -387,9 +388,9 @@ function meter(n, color) {
 // ---------- Viewer settings: period and single-outlet stories ----------
 const PERIODS = [["today", "Сегодня"], ["yesterday", "Вчера"], ["3d", "3 дня"], ["week", "Неделя"]];
 const PERIOD_TEXT = { today: "за сегодня", yesterday: "за вчера", "3d": "за 3 дня", week: "за неделю" };
-const prefs = { period: "week", singles: false };
-try { Object.assign(prefs, JSON.parse(localStorage.getItem("cn:prefs")) || {}); } catch {}
-function savePrefs() { try { localStorage.setItem("cn:prefs", JSON.stringify(prefs)); } catch {} }
+const prefs = { period: "week", singles: true };
+try { Object.assign(prefs, JSON.parse(localStorage.getItem("cn:prefs2")) || {}); } catch {}
+function savePrefs() { try { localStorage.setItem("cn:prefs2", JSON.stringify(prefs)); } catch {} }
 function seenTime(s) {
   const m = /^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})/.exec(s || ""); if (!m) return NaN;
   return Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]);
