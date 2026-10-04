@@ -3,12 +3,8 @@
 import { writeFile, mkdir } from "node:fs/promises";
 
 const COUNTRIES = {
-  RU: "Russia", US: "United States", CN: "China", UA: "Ukraine", KZ: "Kazakhstan",
-  DE: "Germany", TR: "Turkey", IL: "Israel", IN: "India", BY: "Belarus",
-  FR: "France", JP: "Japan", GB: "United Kingdom", IR: "Iran", UZ: "Uzbekistan",
-  KG: "Kyrgyzstan", AM: "Armenia", AZ: "Azerbaijan", GE: "Georgia", PL: "Poland",
-  IT: "Italy", ES: "Spain", BR: "Brazil", KR: "South Korea", KP: "North Korea",
-  SA: "Saudi Arabia", AE: "United Arab Emirates", EG: "Egypt", MD: "Moldova", TJ: "Tajikistan"
+  RU: "Russia", US: "United States", CN: "China", UA: "Ukraine", IL: "Israel",
+  IR: "Iran", DE: "Germany", GB: "United Kingdom", FR: "France", TR: "Turkey"
 };
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -21,7 +17,7 @@ async function gdelt(query) {
     last = Date.now();
     try {
       const url = "https://api.gdeltproject.org/api/v2/doc/doc?query=" + encodeURIComponent(query) +
-        "&mode=artlist&format=json&maxrecords=75&timespan=7d&sort=hybridrel";
+        "&mode=artlist&format=json&maxrecords=250&timespan=2d&sort=hybridrel";
       const r = await fetch(url, { signal: AbortSignal.timeout(60000) });
       const txt = await r.text();
       last = Date.now();
