@@ -286,19 +286,16 @@ async function gdeltOnce(query, signal) {
   return JSON.parse(txt).articles || [];
 }
 // GDELT allows about one request per 5 s: requests start 5.5 s apart but then run in parallel
-// Retries continue only while the overall deadline allows
-async function gdelt(query, signal, deadline) {
+// GDELT allows about one request per 5 s: requests start 5.5 s apart but then run in parallel
+async function gdelt(query) {
   for (let attempt = 1; ; attempt++) {
     const start = Math.max(Date.now(), nextSlot);
-    if (start > deadline - 2000) throw new Error("deadline");
     nextSlot = start + 5500;
     await sleep(start - Date.now());
-    if (signal.aborted) throw new Error("aborted");
-    try { return await gdeltOnce(query, signal); }
-    catch (e) { if (signal.aborted) throw e; await sleep(1500); }
+    try { return await gdeltOnce(query); }
+    catch (e) { if (attempt >= 3) throw e; await sleep(3000 + Math.random() * 3000); }
   }
 }
-const LIVE_LIMIT_MS = 15000;
 
 function dedupe(items) {
   const seen = new Set();
@@ -326,18 +323,15 @@ async function run(input) {
   }
 
   skeleton(c);
-  setStatus(`Ищу публикации, не дольше 15 секунд.`, true);
+  setStatus(`Ищу публикации. Для этой страны данные собираются на лету, обычно 15–30 секунд.`, true);
   let items = [], failed = 0;
-  const ctl = new AbortController(), deadline = Date.now() + LIVE_LIMIT_MS;
-  const timer = setTimeout(() => ctl.abort(), LIVE_LIMIT_MS);
   const take = arr => { items = dedupe(items.concat(arr)); if (id === runId) render(c, items, { partial: true }); };
   await Promise.all(["russian", "english"].map(lang =>
-    gdelt(`${c.en} sourcelang:${lang}`, ctl.signal, deadline).then(take).catch(() => { failed++; })
+    gdelt(`${c.en} sourcelang:${lang}`).then(take).catch(() => { failed++; })
   ));
-  clearTimeout(timer);
   if (id !== runId) return;
   setStatus("");
-  if (failed === 2) { notice("Источник новостей не ответил за 15 секунд. Попробуйте ещё раз через полминуты."); return; }
+  if (failed === 2) { notice("Источник новостей сейчас не отвечает. Попробуйте ещё раз через полминуты."); return; }
   if (!failed) cacheSet(c.code, items);
   render(c, items, { failed });
 }
