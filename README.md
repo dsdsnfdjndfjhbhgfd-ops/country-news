@@ -1,4 +1,4 @@
-# Сводка по стране
+# ev.news
 
 Сайт: https://dsdsnfdjndfjhbhgfd-ops.github.io/country-news/ (главная о проекте), лента: `news.html#RU`
 

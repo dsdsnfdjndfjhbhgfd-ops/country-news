@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Сводка по стране</title>
+<title>ev.news</title>
 <meta name="description" content="Главные политические, военные и экономические события 10 ключевых стран за последние двое суток из 16 изданий.">
 <script>
 // Old links like …/country-news/#RU open the feed directly
@@ -42,7 +42,8 @@ a{color:inherit}
 a:focus-visible,button:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
 
 .topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
-.brand{font-weight:800;font-size:18px;text-decoration:none;letter-spacing:-.01em}
+.brand{font-weight:800;font-size:22px;text-decoration:none;letter-spacing:-.02em}
+.brand span{color:var(--accent)}
 .nav{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
 .nav a{font-weight:500;text-decoration:none;color:var(--muted)}
 .nav a:hover{color:var(--accent)}
@@ -103,7 +104,7 @@ footer a{color:var(--muted)}
 <body>
 <div class="wrap">
   <header class="topbar">
-    <a class="brand" href="./">Сводка по стране</a>
+    <a class="brand" href="./">ev<span>.news</span></a>
     <nav class="nav">
       <a href="news.html#RU">Лента</a>
       <a href="#how">Как это работает</a>
@@ -162,7 +163,7 @@ footer a{color:var(--muted)}
   </section>
 
   <footer>
-    <span>Сводка по стране. Данные обновляются автоматически.</span>
+    <span>ev.news. Данные обновляются автоматически.</span>
     <a href="https://github.com/dsdsnfdjndfjhbhgfd-ops/country-news" target="_blank" rel="noopener">Исходный код на GitHub</a>
   </footer>
 </div>

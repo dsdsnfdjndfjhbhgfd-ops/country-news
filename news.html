@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Сводка по стране</title>
+<title>ev.news · лента</title>
 <meta name="description" content="Политика, безопасность и экономика ключевых стран за последние 2 дня.">
 <script>try{var t=localStorage.getItem("cn:theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -43,9 +43,11 @@ a{color:inherit}
 .wrap{max-width:880px;margin:0 auto;display:flex;flex-direction:column;gap:clamp(28px,5vw,44px)}
 
 .topbar{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:calc(-1 * clamp(14px,3vw,28px))}
-.home{font-weight:800;font-size:17px;text-decoration:none;display:flex;align-items:baseline;gap:8px}
-.home span{font-weight:500;font-size:14px;color:var(--muted)}
-.home:hover span{color:var(--accent)}
+.home{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.brand{font-weight:800;font-size:22px;text-decoration:none;letter-spacing:-.02em}
+.brand span{color:var(--accent)}
+.to-main{font:700 14px var(--sans);text-decoration:none;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:7px 14px}
+.to-main:hover{border-color:var(--accent);color:var(--accent)}
 .theme{display:inline-flex;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:3px;gap:2px}
 .theme button{font:500 14px var(--sans);color:var(--muted);background:none;border:0;border-radius:999px;padding:6px 12px;cursor:pointer}
 .theme button:hover{color:var(--ink)}
@@ -152,7 +154,10 @@ footer a{color:var(--muted)}
 <body>
 <div class="wrap">
   <div class="topbar">
-    <a class="home" href="./">Сводка по стране<span>о проекте</span></a>
+    <div class="home">
+      <a class="brand" href="./">ev<span>.news</span></a>
+      <a class="to-main" href="./">← На главную</a>
+    </div>
     <div class="theme" role="group" aria-label="Тема оформления">
       <button type="button" data-t="auto" title="Как в системе">Авто</button>
       <button type="button" data-t="light" title="Светлая тема">Светлая</button>
