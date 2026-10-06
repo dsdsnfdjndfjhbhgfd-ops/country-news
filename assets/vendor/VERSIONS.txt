@@ -1,0 +1,2 @@
+supabase-js 2.109.0
+world-atlas 2.0.2 (Natural Earth 1:110m land)
