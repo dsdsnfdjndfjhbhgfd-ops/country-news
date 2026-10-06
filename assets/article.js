@@ -233,22 +233,6 @@ function render(c, g, groups, d) {
     cov.append(ol);
     main.append(cov);
   }
-
-  // A few other important events in the same country
-  const more = groups.filter(x => x !== g && x.domains >= 2).slice(0, 6);
-  if (more.length) {
-    const sec = el("section", "others");
-    sec.append(el("h2", null, `Ещё о стране: ${c.ru}`), el("p", null, "Другие события, о которых пишут несколько изданий."));
-    const ol = el("ol");
-    for (const x of more) {
-      const li = el("li");
-      li.append(el("span", "meta", `${x.topic ? x.topic[0] + ", " : ""}пишут ${x.domains} ${plural(x.domains, "издание", "издания", "изданий")}`));
-      const l = el("a", "t", cleanTitle(x.lead.title)); l.href = eventLink(c.code, x.lead.url);
-      li.append(l); ol.append(li);
-    }
-    sec.append(ol);
-    main.append(sec);
-  }
 }
 
 // English headline in Russian when Chrome's on-device translator is ready and the reader wants it
