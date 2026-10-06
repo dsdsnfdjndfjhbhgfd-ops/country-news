@@ -1,0 +1,81 @@
+name: Сайт и новости
+
+# Every 15 minutes: collect news, keep only the latest copy of the data in the "data" branch
+# (overwritten each time, no history), then publish the site with that data to GitHub Pages.
+# A push to main republishes the site with the current data, without collecting.
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write   # overwrite the data branch
+  pages: write      # publish the site
+  id-token: write   # required by GitHub Pages deployments
+
+concurrency:
+  group: site
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Взять последние данные
+        run: |
+          if git ls-remote --exit-code --heads origin data >/dev/null; then
+            git fetch -q --depth 1 origin data
+            rm -rf data && mkdir data
+            git --work-tree=data checkout FETCH_HEAD -- .
+            git reset -q
+            echo "Данные взяты из ветки data"
+          else
+            echo "Ветки data ещё нет: начинаем с данных из main"
+          fi
+
+      - uses: actions/setup-node@v4
+        if: github.event_name != 'push'
+        with:
+          node-version: 20
+
+      - name: Собрать новости
+        if: github.event_name != 'push'
+        run: node scripts/prefetch.mjs
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+
+      - name: Перезаписать ветку data
+        if: github.event_name != 'push'
+        env:
+          TOKEN: ${{ github.token }}
+        run: |
+          cd data
+          git init -q -b data
+          git config user.name "github-actions[bot]"
+          git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -q -m "Новости на $(date -u +'%Y-%m-%d %H:%M') UTC"
+          git push -q -f "https://x-access-token:${TOKEN}@github.com/${GITHUB_REPOSITORY}.git" data
+          rm -rf .git
+
+      - name: Подготовить сайт
+        run: |
+          mkdir -p "$RUNNER_TEMP/site"
+          cp -r index.html news.html account.html assets data "$RUNNER_TEMP/site/"
+          rm -rf "$RUNNER_TEMP/site/data/full"   # the collector's working copies are not needed by the site
+          touch "$RUNNER_TEMP/site/.nojekyll"
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: ${{ runner.temp }}/site
+      - id: deploy
+        uses: actions/deploy-pages@v4
