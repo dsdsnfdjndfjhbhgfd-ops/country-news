@@ -21,10 +21,10 @@
 
   async function loadUserData() {
     const [p, s] = await Promise.all([
-      sb.from("profiles").select("countries, settings").eq("id", user.id).maybeSingle(),
+      sb.from("profiles").select("countries, settings, display_name").eq("id", user.id).maybeSingle(),
       sb.from("saved").select("*").order("created_at", { ascending: false })
     ]);
-    profile = { countries: p.data?.countries || [], settings: p.data?.settings || {} };
+    profile = { countries: p.data?.countries || [], settings: p.data?.settings || {}, displayName: p.data?.display_name || "" };
     if (!p.data) await sb.from("profiles").upsert({ id: user.id }); // accounts made before the trigger existed
     saved.clear();
     for (const row of s.data || []) saved.set(row.url, row);
@@ -57,6 +57,7 @@
     [/invalid.*email|email.*invalid|unable to validate email/i, "Проверьте адрес почты."],
     [/same.*password|different from the old/i, "Новый пароль должен отличаться от старого."],
     [/saved_limit_reached/i, "Можно сохранить не больше 500 новостей. Уберите старые в кабинете."],
+    [/comment_rate_limit/i, "Слишком часто: не больше 5 комментариев в минуту. Подождите немного."],
     [/violates check constraint|check constraint/i, "Сервер не принял эти данные. Обновите страницу и попробуйте снова."],
     [/network|fetch/i, "Нет связи с сервером входа. Проверьте интернет и попробуйте снова."]
   ];
@@ -90,6 +91,7 @@
     get recovery() { return recovery; },
     get countries() { return profile.countries.slice(); },
     get settings() { return { ...profile.settings }; },
+    get displayName() { return profile.displayName || ""; },
     onChange(fn) { listeners.add(fn); return () => listeners.delete(fn); },
     human,
 
@@ -142,6 +144,45 @@
       profile.settings = { ...profile.settings, ...patch };
       clearTimeout(settingsTimer);
       settingsTimer = setTimeout(flushSettings, 400);
+    },
+
+    async setDisplayName(name) {
+      if (!user) throw new Error("Войдите в аккаунт.");
+      const clean = String(name || "").trim().replace(/\s+/g, " ");
+      if (clean.length < 2 || clean.length > 40) throw new Error("Имя должно быть от 2 до 40 символов.");
+      const { error } = await sb.from("profiles").upsert({ id: user.id, display_name: clean, updated_at: new Date().toISOString() });
+      if (error) throw new Error(human(error));
+      profile.displayName = clean;
+    },
+
+    // ---------- Comments ----------
+    async listComments(urls) {
+      need();
+      const { data, error } = await sb.from("comments").select("id, url, body, author_name, created_at, user_id")
+        .in("url", urls.slice(0, 100)).order("created_at", { ascending: true }).limit(300);
+      if (error) throw new Error(human(error));
+      return data || [];
+    },
+    async addComment(url, country, body) {
+      if (!user) throw new Error("Войдите, чтобы комментировать.");
+      const text = String(body || "").trim();
+      if (!text) throw new Error("Напишите комментарий.");
+      if (text.length > 1000) throw new Error("Комментарий длиннее 1000 символов.");
+      const { data, error } = await sb.from("comments").insert({ url, country, body: text }).select("id, url, body, author_name, created_at, user_id").single();
+      if (error) throw new Error(human(error));
+      return data;
+    },
+    async removeComment(id) {
+      need();
+      const { error } = await sb.from("comments").delete().eq("id", id);
+      if (error) throw new Error(human(error));
+    },
+    async commentCounts(urls) {
+      if (!sb || !user || !urls.length) return {};
+      const { data, error } = await sb.rpc("comment_counts", { urls: urls.slice(0, 500) });
+      if (error) { console.error(error); return {}; }
+      const out = {}; for (const r of data || []) out[r.url] = Number(r.n) || 0;
+      return out;
     },
 
     isSaved(url) { return saved.has(url); },

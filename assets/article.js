@@ -63,6 +63,8 @@ function openWindow(url) {
   // With noopener the call returns null even on success, so trust it unless the browser lacks pop-up windows (phones)
   return !/Android|iPhone|iPad|Mobile/i.test(navigator.userAgent);
 }
+// Summaries from older collections may still carry HTML tags from double-encoded feeds
+function plainText(t) { return String(t || "").replace(/<[^>]+>/g, " ").replace(/&nbsp;/g, " ").replace(/\s+/g, " ").trim(); }
 function eventLink(code, url) { return `article.html?c=${code}&u=${encodeURIComponent(url)}`; }
 
 const params = new URLSearchParams(location.search);
@@ -168,7 +170,7 @@ function render(c, g, groups, d) {
   // The lead outlet's own summary, or another outlet's summary of the same event
   const withDesc = d.desc[a.url] ? a : g.items.find(x => d.desc[x.url]);
   if (withDesc) {
-    box.append(el("p", null, d.desc[withDesc.url]));
+    box.append(el("p", null, plainText(d.desc[withDesc.url])));
     if (withDesc !== a) box.append(el("span", "label", `Анонс: ${withDesc.source || withDesc.domain}`));
   } else box.append(el("p", null, "Издания не дали анонса в своих лентах. Полный текст доступен на сайте издания."));
   // Choose an outlet: its article opens in a separate window
@@ -215,6 +217,8 @@ function render(c, g, groups, d) {
   box.append(act);
   main.append(box);
 
+  main.append(commentsSection(c, g));
+
   // Every outlet that wrote about it
   const others = g.items.filter(x => x !== a);
   if (others.length) {
@@ -227,12 +231,91 @@ function render(c, g, groups, d) {
       if (x.language === "English") who.append(document.createTextNode(", на английском"));
       const l = el("a", "t", cleanTitle(x.title)); l.href = safeUrl(x.url); l.target = "_blank"; l.rel = "noopener";
       li.append(who, l);
-      if (d.desc[x.url]) li.append(el("p", "d", d.desc[x.url]));
+      if (d.desc[x.url]) li.append(el("p", "d", plainText(d.desc[x.url])));
       ol.append(li);
     }
     cov.append(ol);
     main.append(cov);
   }
+}
+
+// ---------- Comments ----------
+function since(iso) {
+  const min = Math.round((Date.now() - Date.parse(iso)) / 60000);
+  if (min < 1) return "только что";
+  if (min < 60) return `${min} ${plural(min, "минуту", "минуты", "минут")} назад`;
+  const h = Math.round(min / 60);
+  if (h < 24) return `${h} ${plural(h, "час", "часа", "часов")} назад`;
+  return new Date(iso).toLocaleString("ru-RU", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
+}
+
+function commentsSection(c, g) {
+  const urls = g.items.map(i => i.url);
+  const sec = el("section", "comments"); sec.id = "comments";
+  const h = el("h2", null, "Комментарии");
+  const list = el("ol", "c-list");
+  const empty = el("p", "c-empty", "Пока никто не прокомментировал. Напишите первым.");
+  empty.hidden = true;
+
+  const form = el("form", "c-form"); form.noValidate = true;
+  const nameRow = el("div", "c-name");
+  const nameLabel = el("label", null, "Ваше имя в комментариях"); nameLabel.htmlFor = "c-name";
+  const nameInput = el("input"); nameInput.id = "c-name"; nameInput.maxLength = 40; nameInput.placeholder = "Например, Алексей"; nameInput.autocomplete = "nickname";
+  nameRow.append(nameLabel, nameInput);
+  nameRow.hidden = !!Account.displayName;
+  const area = el("textarea"); area.id = "c-body"; area.rows = 3; area.maxLength = 1000; area.placeholder = "Что вы думаете об этом событии?";
+  area.setAttribute("aria-label", "Текст комментария");
+  const row = el("div", "c-row");
+  const counter = el("span", "c-count", "0 / 1000");
+  const send = el("button", "c-send", "Отправить"); send.type = "submit";
+  row.append(counter, send);
+  const msg = el("p", "c-msg"); msg.setAttribute("role", "status");
+  form.append(nameRow, area, row, msg);
+  area.addEventListener("input", () => { counter.textContent = `${area.value.length} / 1000`; });
+
+  const items = [];
+  function paint() {
+    list.textContent = "";
+    h.textContent = items.length ? `Комментарии (${items.length})` : "Комментарии";
+    empty.hidden = items.length > 0;
+    for (const cm of items) {
+      const li = el("li");
+      const head = el("div", "c-head");
+      head.append(el("b", null, cm.author_name || "Читатель"), el("span", null, since(cm.created_at)));
+      if (Account.user && cm.user_id === Account.user.id) {
+        const del = el("button", "c-del", "Удалить"); del.type = "button";
+        del.onclick = async () => {
+          del.disabled = true;
+          try { await Account.removeComment(cm.id); items.splice(items.indexOf(cm), 1); paint(); }
+          catch (e) { del.disabled = false; msg.textContent = e.message; msg.className = "c-msg err"; }
+        };
+        head.append(del);
+      }
+      li.append(head, el("p", "c-body", cm.body));
+      list.append(li);
+    }
+  }
+
+  form.addEventListener("submit", async e => {
+    e.preventDefault();
+    msg.className = "c-msg"; msg.textContent = "";
+    if (!area.value.trim()) { msg.textContent = "Напишите комментарий."; msg.classList.add("err"); area.focus(); return; }
+    send.disabled = true;
+    try {
+      if (!Account.displayName) await Account.setDisplayName(nameInput.value);
+      nameRow.hidden = true;
+      const cm = await Account.addComment(g.lead.url, c.code, area.value);
+      items.push(cm); paint();
+      area.value = ""; counter.textContent = "0 / 1000";
+    } catch (err) { msg.textContent = err.message; msg.classList.add("err"); }
+    finally { send.disabled = false; }
+  });
+
+  sec.append(h, list, empty, form);
+  Account.listComments(urls)
+    .then(rows => { items.push(...rows); paint(); if (location.hash === "#comments") sec.scrollIntoView(); })
+    .catch(e => { empty.hidden = false; empty.textContent = "Не удалось загрузить комментарии: " + e.message; });
+  return sec;
 }
 
 // English headline in Russian when Chrome's on-device translator is ready and the reader wants it

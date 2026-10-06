@@ -52,7 +52,9 @@ const decode = s => s
   .replace(/<[^>]+>/g, " ")
   .replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;|&apos;/g, "'").replace(/&nbsp;/g, " ")
   .replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(+n)).replace(/&#x([0-9a-f]+);/gi, (_, n) => String.fromCodePoint(parseInt(n, 16)))
-  .replace(/&amp;/g, "&").replace(/\s+/g, " ").trim();
+  .replace(/&amp;/g, "&")
+  .replace(/<[^>]+>/g, " ")   // some feeds encode their HTML twice: strip tags revealed by decoding
+  .replace(/\s+/g, " ").trim();
 const raw = (b, name) => { const m = b.match(new RegExp(`<${name}(?:\\s[^>]*)?>([\\s\\S]*?)</${name}>`)); return m ? m[1] : ""; };
 const tag = (b, name) => decode(raw(b, name));
 const attr = (b, re) => (b.match(re) || [])[1] || "";

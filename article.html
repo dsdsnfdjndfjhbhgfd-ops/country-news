@@ -183,6 +183,28 @@ footer a{color:var(--muted)}
 .btn-main{display:inline-block;font:700 16px var(--sans);text-decoration:none;border-radius:999px;padding:12px 22px;background:var(--ink);color:var(--surface)}
 .btn-main:hover{background:var(--accent);color:var(--on-accent)}
 .actions .translate{display:inline;margin:0;font-size:15px;color:var(--muted)}
+.comments h2{margin:0 0 10px;font-size:22px;font-weight:800}
+.c-list{list-style:none;margin:0 0 14px;padding:0;display:flex;flex-direction:column;gap:10px}
+.c-list li{padding:14px 16px;background:var(--surface);border:1px solid var(--line);border-radius:12px}
+.c-head{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;font-size:14px;color:var(--muted)}
+.c-head b{color:var(--ink);font-size:15px}
+.c-del{margin-left:auto;font:500 13px var(--sans);color:var(--muted);background:none;border:0;cursor:pointer;text-decoration:underline;text-underline-offset:3px}
+.c-del:hover{color:var(--t-security)}
+.c-body{margin:6px 0 0;white-space:pre-wrap;overflow-wrap:anywhere;font-size:16px;line-height:1.55}
+.c-empty{margin:0 0 14px;color:var(--muted)}
+.c-form{display:flex;flex-direction:column;gap:8px}
+.c-name[hidden]{display:none}
+.c-name{display:flex;flex-direction:column;gap:6px}
+.c-name label{font-size:14px;font-weight:700}
+.c-form input,.c-form textarea{width:100%;font:500 16px var(--sans);color:var(--ink);background:var(--surface);border:2px solid var(--line);border-radius:12px;padding:11px 12px;resize:vertical}
+.c-form input:focus,.c-form textarea:focus{outline:none;border-color:var(--accent)}
+.c-row{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.c-count{font-size:13px;color:var(--muted)}
+.c-send{font:700 15px var(--sans);color:var(--surface);background:var(--ink);border:0;border-radius:999px;padding:10px 20px;cursor:pointer}
+.c-send:hover{background:var(--accent);color:var(--on-accent)}
+.c-send:disabled{opacity:.5;cursor:wait}
+.c-msg{margin:0;font-size:14px;min-height:1px}
+.c-msg.err{color:var(--t-security)}
 .cover h2,.others h2{margin:0 0 4px;font-size:22px;font-weight:800}
 .cover > p,.others > p{margin:0 0 12px;color:var(--muted);font-size:15px}
 .cover ol,.others ol{list-style:none;margin:0;padding:0;border-top:2px solid var(--ink)}

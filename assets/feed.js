@@ -304,6 +304,7 @@ function render(c, allItems, info) {
     return;
   }
   const ol = el("ol", "events");
+  const discuss = []; // comment links, filled with counts after the list is drawn
   let lastSlot = -1;
   groups.forEach((g, i) => {
     if (view.sort === "time" && g.slot !== lastSlot) {
@@ -372,6 +373,10 @@ function render(c, allItems, info) {
       } catch (e) { sv.disabled = false; sv.textContent = e.message; }
     };
     facts.append(sv);
+    const cl = el("a", "c-link", "Обсудить");
+    cl.href = `article.html?c=${c.code}&u=${encodeURIComponent(a.url)}#comments`;
+    facts.append(cl);
+    discuss.push({ cl, urls: g.items.map(x => x.url) });
     li.append(body);
 
     const pic = g.items.find(x => x.socialimage && /^https:/.test(x.socialimage));
@@ -384,6 +389,7 @@ function render(c, allItems, info) {
   });
   out.append(ol);
   translateTitles();
+  fillCommentCounts(discuss);
   if (list.length > FEED_SIZE) {
     const more = el("button", "more", view.all ? `Показать только ${FEED_SIZE} главных` : `Показать все события (${list.length})`);
     more.type = "button";
@@ -392,6 +398,15 @@ function render(c, allItems, info) {
       if (view.all) rerender(); else { render(shown.c, shown.allItems, shown.info); $(".res-head").scrollIntoView(); }
     };
     out.append(more);
+  }
+}
+
+// "Комментарии: N" under events people have discussed
+async function fillCommentCounts(discuss) {
+  const counts = await Account.commentCounts([...new Set(discuss.flatMap(d => d.urls))]);
+  for (const d of discuss) {
+    const n = d.urls.reduce((k, u) => k + (counts[u] || 0), 0);
+    if (n && d.cl.isConnected) { d.cl.textContent = `Комментарии: ${n}`; d.cl.classList.add("has"); }
   }
 }
 
