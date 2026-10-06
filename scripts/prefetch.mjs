@@ -20,6 +20,9 @@ const SOURCES = [
   { name: "БелТА", url: "https://www.belta.by/rss", lang: "Russian" },
   { name: "Tengrinews", url: "https://tengrinews.kz/news.rss", lang: "Russian" },
   { name: "Курсив", url: "https://kz.kursiv.media/feed/", lang: "Russian" },
+  { name: "Взгляд", url: "https://vz.ru/rss.xml", lang: "Russian" },
+  { name: "Российская газета", url: "https://rg.ru/xml/index.xml", lang: "Russian" },
+  { name: "УНИАН", url: "https://rss.unian.net/site/news_rus.rss", lang: "Russian" },
   // English
   { name: "BBC News", url: "https://feeds.bbci.co.uk/news/world/rss.xml", lang: "English" },
   { name: "The Guardian", url: "https://www.theguardian.com/world/rss", lang: "English" },
@@ -36,7 +39,24 @@ const SOURCES = [
   { name: "The Times of India", url: "https://timesofindia.indiatimes.com/rssfeeds/-2128936835.cms", lang: "English" },
   { name: "The Japan Times", url: "https://www.japantimes.co.jp/feed/", lang: "English" },
   { name: "Notes from Poland", url: "https://notesfrompoland.com/feed/", lang: "English" },
-  { name: "The Kyiv Independent", url: "https://kyivindependent.com/news-archive/rss/", lang: "English" }
+  { name: "The Kyiv Independent", url: "https://kyivindependent.com/news-archive/rss/", lang: "English" },
+  { name: "Euronews", url: "https://www.euronews.com/rss", lang: "English" },
+  { name: "ABC News", url: "https://abcnews.go.com/abcnews/internationalheadlines", lang: "English" },
+  { name: "CBS News", url: "https://www.cbsnews.com/latest/rss/world", lang: "English" },
+  { name: "NPR", url: "https://feeds.npr.org/1004/rss.xml", lang: "English" },
+  { name: "Financial Times", url: "https://www.ft.com/world?format=rss", lang: "English" },
+  { name: "Le Monde", url: "https://www.lemonde.fr/en/rss/une.xml", lang: "English" },
+  { name: "Anadolu Agency", url: "https://www.aa.com.tr/en/rss/default?cat=world", lang: "English" },
+  { name: "Haaretz", url: "https://www.haaretz.com/srv/haaretz-latest-headlines", lang: "English" },
+  { name: "Tehran Times", url: "https://www.tehrantimes.com/rss", lang: "English" },
+  { name: "Ukrinform", url: "https://www.ukrinform.net/rss/block-lastnews", lang: "English" },
+  { name: "Ukrainska Pravda", url: "https://www.pravda.com.ua/eng/rss/", lang: "English" },
+  { name: "Hindustan Times", url: "https://www.hindustantimes.com/feeds/rss/world-news/rssfeed.xml", lang: "English" },
+  { name: "The Hindu", url: "https://www.thehindu.com/news/international/feeder/default.rss", lang: "English" },
+  { name: "Japan Today", url: "https://japantoday.com/feed", lang: "English" },
+  { name: "Kazinform", url: "https://www.inform.kz/rss/eng.xml", lang: "English" },
+  { name: "The Astana Times", url: "https://astanatimes.com/feed/", lang: "English" },
+  { name: "CGTN", url: "https://www.cgtn.com/subscribe/rss/section/world.xml", lang: "English" }
 ];
 
 // How a country is recognised in a headline or summary. Words match from their start
