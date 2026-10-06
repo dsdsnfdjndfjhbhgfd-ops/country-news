@@ -1,5 +1,6 @@
 name: feedcheck
-on: { push: { branches: [feedcheck] } }
+on: { push: { branches: [feedcheck], paths: [check.mjs, .github/workflows/check.yml] } }
+permissions: { contents: write }
 jobs:
   c:
     runs-on: ubuntu-latest
@@ -7,4 +8,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: 20 }
-      - run: node check.mjs | sort
+      - run: |
+          node check.mjs | sort > result.txt
+          git config user.name bot; git config user.email bot@x
+          git add result.txt; git commit -qm result; git push -q
