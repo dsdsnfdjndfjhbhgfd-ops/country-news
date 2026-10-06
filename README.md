@@ -1,6 +1,6 @@
 # Сводка по стране
 
-Сайт: https://dsdsnfdjndfjhbhgfd-ops.github.io/country-news/
+Сайт: https://dsdsnfdjndfjhbhgfd-ops.github.io/country-news/ (главная о проекте), лента: `news.html#RU`
 
 Вводишь страну и видишь главные события недели: только то, о чём пишут несколько изданий, без спорта и шоу-бизнеса.
 

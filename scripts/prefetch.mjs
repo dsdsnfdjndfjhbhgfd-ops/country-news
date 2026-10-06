@@ -223,3 +223,19 @@ for (let i = 0; i < queue.length; i += BATCH) {
 }
 console.log(`Explained ${explained} events`);
 await writeFile("data/why.json", JSON.stringify({ updated: new Date().toISOString(), model: process.env.ANTHROPIC_API_KEY ? "claude" : "github-models", lastError, items: why }));
+
+// ---------- Small summary for the home page ----------
+const status = { updated: new Date().toISOString(), sources: SOURCES.map(s => ({ name: s.name, lang: s.lang })), countries: {} };
+for (const code of Object.keys(COUNTRIES)) {
+  let items = [];
+  try { items = JSON.parse(await readFile(`data/${code}.json`, "utf8")).items || []; } catch {}
+  const c = { code, ru: NAMES[code][0], en: EN[code], loc: NAMES[code][1] };
+  const events = core.cluster(items, c, true, Infinity);
+  const top = events[0];
+  status.countries[code] = {
+    items: items.length, events: events.length,
+    top: top ? { title: top.lead.title, domains: top.domains, topic: top.topic[0] } : null
+  };
+}
+await writeFile("data/status.json", JSON.stringify(status));
+console.log("Status saved");

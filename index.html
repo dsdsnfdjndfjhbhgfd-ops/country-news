@@ -4,22 +4,24 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Сводка по стране</title>
-<meta name="description" content="Политика, безопасность и экономика ключевых стран за последние 2 дня.">
-<script>try{var t=localStorage.getItem("cn:theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}</script>
+<meta name="description" content="Главные политические, военные и экономические события 10 ключевых стран за последние двое суток из 16 изданий.">
+<script>
+// Old links like …/country-news/#RU open the feed directly
+if (/^#[A-Z]{2}$/.test(location.hash)) location.replace("news.html" + location.hash);
+try{var t=localStorage.getItem("cn:theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="preconnect" href="https://api.gdeltproject.org" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;700;800&family=Literata:opsz,wght@7..72,500;7..72,700&display=swap">
 <style>
 /*
-  Layout: the search field IS the headline ("Что происходит в [стране]"), left-aligned.
-  Below it a ranked list of events; the lead event is set larger. Each event carries a
-  coverage meter: one block per outlet writing about it, so importance is visible at a glance.
+  Layout: left-aligned single column. A statement headline, then the live board of the
+  10 countries (each with its top story right now), then how it works, sources and limits.
 */
 :root{
   --bg:#edf0f5; --surface:#ffffff; --ink:#172033; --muted:#5b667a; --line:#d3d9e3;
   --accent:#2b50e8; --marker:#ffe066; --meter-off:#d9dee8;
-  --t-politics:#2b50e8; --t-economy:#0b7a5a; --t-security:#c0362c; --t-intl:#7a3fd1; --t-society:#a35d00;
+  --t-politics:#2b50e8; --t-economy:#0b7a5a; --t-security:#c0362c;
   --sans:"Onest",system-ui,-apple-system,"Segoe UI",sans-serif;
   --serif:"Literata",Georgia,"Times New Roman",serif;
   color-scheme:light;
@@ -27,164 +29,145 @@
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
   --bg:#10151f; --surface:#171e2b; --ink:#e7ebf2; --muted:#94a0b4; --line:#273145;
   --accent:#8ea6ff; --marker:#c9a22a; --meter-off:#2a3346;
-  --t-politics:#8ea6ff; --t-economy:#4fd1a5; --t-security:#ff8a7a; --t-intl:#c3a2ff; --t-society:#f0b45a;
-  color-scheme:dark}}
+  --t-politics:#8ea6ff; --t-economy:#4fd1a5; --t-security:#ff8a7a; color-scheme:dark}}
 :root[data-theme="dark"]{
   --bg:#10151f; --surface:#171e2b; --ink:#e7ebf2; --muted:#94a0b4; --line:#273145;
   --accent:#8ea6ff; --marker:#c9a22a; --meter-off:#2a3346;
-  --t-politics:#8ea6ff; --t-economy:#4fd1a5; --t-security:#ff8a7a; --t-intl:#c3a2ff; --t-society:#f0b45a;
-  color-scheme:dark}
+  --t-politics:#8ea6ff; --t-economy:#4fd1a5; --t-security:#ff8a7a; color-scheme:dark}
 *{box-sizing:border-box}
-[hidden]{display:none!important}
 html,body{margin:0}
-body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:17px;line-height:1.5;padding-inline:20px;padding-block:clamp(28px,6vw,72px) 72px;-webkit-font-smoothing:antialiased}
-img{max-width:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:17px;line-height:1.55;padding-inline:20px;padding-block:20px 72px;-webkit-font-smoothing:antialiased}
 a{color:inherit}
-.wrap{max-width:880px;margin:0 auto;display:flex;flex-direction:column;gap:clamp(28px,5vw,44px)}
+.wrap{max-width:960px;margin:0 auto;display:flex;flex-direction:column;gap:clamp(48px,8vw,88px)}
+a:focus-visible,button:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
 
-.topbar{display:flex;justify-content:flex-end;margin-bottom:calc(-1 * clamp(14px,3vw,28px))}
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.brand{font-weight:800;font-size:18px;text-decoration:none;letter-spacing:-.01em}
+.nav{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.nav a{font-weight:500;text-decoration:none;color:var(--muted)}
+.nav a:hover{color:var(--accent)}
 .theme{display:inline-flex;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:3px;gap:2px}
 .theme button{font:500 14px var(--sans);color:var(--muted);background:none;border:0;border-radius:999px;padding:6px 12px;cursor:pointer}
 .theme button:hover{color:var(--ink)}
 .theme button[aria-pressed="true"]{background:var(--ink);color:var(--surface)}
-.hero{display:flex;flex-direction:column;gap:18px}
-.ask{margin:0;font-weight:800;font-size:clamp(34px,7.4vw,76px);line-height:1.02;letter-spacing:-.025em;display:flex;flex-wrap:wrap;align-items:baseline;gap:0 .28em}
-.ask label{white-space:nowrap}
-.field{position:relative;flex:1 1 6em;min-width:0;display:flex;align-items:baseline}
-#country{font:inherit;letter-spacing:inherit;color:var(--accent);background:transparent;border:0;padding:0 0 .04em;width:100%;min-width:0;
-  background-image:linear-gradient(var(--marker),var(--marker));background-size:100% .2em;background-repeat:no-repeat;background-position:0 92%}
-#country::placeholder{color:var(--accent);opacity:.35}
-#country:focus{outline:none;background-size:100% .34em}
-#go{flex:none;align-self:center;margin-left:.2em;font:700 16px/1 var(--sans);letter-spacing:0;color:var(--surface);background:var(--ink);border:0;border-radius:999px;padding:14px 22px;cursor:pointer}
-#go:hover{background:var(--accent)}
-#go:disabled{opacity:.45;cursor:wait}
-button:focus-visible,a:focus-visible,#country:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
-.lede{margin:0;max-width:56ch;color:var(--muted);font-size:18px}
-.quick{display:flex;flex-wrap:wrap;gap:4px 16px;font-size:16px}
-.quick button{font:500 16px var(--sans);background:none;border:0;padding:2px 0;color:var(--ink);cursor:pointer;text-decoration:underline;text-decoration-color:var(--line);text-underline-offset:4px;text-decoration-thickness:2px}
-.quick button:hover{text-decoration-color:var(--accent);color:var(--accent)}
-.quick span{color:var(--muted)}
 
-.status{min-height:24px;font-size:15px;color:var(--muted);display:flex;align-items:center;gap:10px}
-.spinner{width:14px;height:14px;border-radius:50%;border:2px solid var(--line);border-top-color:var(--accent);animation:spin .8s linear infinite;flex:none}
-@keyframes spin{to{transform:rotate(360deg)}}
-.notice{padding:14px 16px;border-radius:10px;background:var(--surface);border:1px solid var(--line);font-size:16px}
+.hero{display:flex;flex-direction:column;gap:22px;padding-top:clamp(12px,4vw,40px)}
+.hero h1{margin:0;font-weight:800;font-size:clamp(36px,7vw,72px);line-height:1.03;letter-spacing:-.03em;max-width:15ch;text-wrap:balance}
+.hero h1 mark{background:linear-gradient(transparent 70%,var(--marker) 70%);color:inherit;padding:0 .04em}
+.hero p{margin:0;font-size:clamp(18px,2.2vw,21px);color:var(--muted);max-width:58ch}
+.cta{display:flex;flex-wrap:wrap;gap:12px;align-items:center}
+.btn{display:inline-block;font-weight:700;font-size:17px;text-decoration:none;border-radius:999px;padding:14px 24px;background:var(--ink);color:var(--surface)}
+.btn:hover{background:var(--accent);color:#fff}
+.btn.ghost{background:transparent;color:var(--ink);border:2px solid var(--line);padding:12px 22px}
+.btn.ghost:hover{border-color:var(--accent);color:var(--accent);background:transparent}
+.live{display:flex;align-items:center;gap:8px;font-size:15px;color:var(--ink);font-weight:500;min-height:24px}
+.live::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--t-economy);flex:none}
 
-.res-head{display:flex;justify-content:space-between;align-items:baseline;gap:8px 16px;flex-wrap:wrap;padding-bottom:12px;border-bottom:3px solid var(--ink)}
-.res-head h2{margin:0;font-weight:800;font-size:clamp(26px,4vw,34px);letter-spacing:-.015em}
-.res-head p{margin:0;color:var(--muted);font-size:15px}
-.res-head p.updated{flex-basis:100%;display:flex;align-items:center;gap:8px;color:var(--ink);font-weight:500}
-.res-head p.updated::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--t-economy);flex:none}
-.events{list-style:none;margin:0;padding:0}
-.ev{display:grid;grid-template-columns:minmax(0,1fr) 132px;gap:6px 22px;padding:22px 0;border-bottom:1px solid var(--line)}
-.ev.noimg{grid-template-columns:minmax(0,1fr)}
-.ev .body{min-width:0;display:flex;flex-direction:column;gap:8px}
-.ev h3{margin:0;font-family:var(--serif);font-weight:700;font-size:21px;line-height:1.3;letter-spacing:-.005em;text-wrap:pretty}
-.ev h3 a{text-decoration:none}
-.ev h3 a:hover{color:var(--accent);text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:3px}
-.ev .thumb{width:132px;aspect-ratio:4/3;object-fit:cover;border-radius:8px;background:var(--line)}
-.ev.lead{grid-template-columns:minmax(0,1fr);padding-top:26px}
-.ev.lead h3{font-size:clamp(25px,3.6vw,34px);line-height:1.18}
-.ev.lead .thumb{width:100%;aspect-ratio:16/8;border-radius:12px;order:-1;margin-bottom:8px}
-.facts{display:flex;align-items:center;flex-wrap:wrap;gap:6px 14px;font-size:14px;color:var(--muted)}
-.topic{font-weight:700;color:var(--tc,var(--muted))}
-.meter{display:inline-flex;gap:3px;align-items:center}
+section h2{margin:0 0 6px;font-weight:800;font-size:clamp(26px,3.6vw,36px);letter-spacing:-.02em}
+section > p.sub{margin:0 0 22px;color:var(--muted);max-width:60ch}
+
+.board{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+@media (max-width:620px){.board{grid-template-columns:minmax(0,1fr)}}
+.card{display:flex;flex-direction:column;gap:10px;padding:18px;background:var(--surface);border:1px solid var(--line);border-radius:14px;text-decoration:none;min-width:0}
+.card:hover{border-color:var(--accent)}
+.card .row{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.card b{font-size:20px;font-weight:800}
+.card .n{font-size:14px;color:var(--muted);white-space:nowrap}
+.card .top{font-family:var(--serif);font-weight:700;font-size:16px;line-height:1.35;margin:0}
+.card .topic{font-size:13px;font-weight:700;color:var(--tc,var(--muted))}
+.card .go{margin-top:auto;font-size:14px;font-weight:700;color:var(--accent)}
+
+.steps{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;counter-reset:s}
+.steps li{counter-increment:s;padding:20px;border-top:3px solid var(--ink);background:var(--surface);border-radius:0 0 12px 12px}
+.steps li::before{content:counter(s);display:block;font-weight:800;font-size:34px;line-height:1;color:var(--accent);margin-bottom:10px}
+.steps h3{margin:0 0 6px;font-size:18px}
+.steps p{margin:0;font-size:15px;color:var(--muted)}
+.meter{display:inline-flex;gap:3px;vertical-align:middle;margin-right:4px}
 .meter i{width:10px;height:10px;border-radius:2px;background:var(--meter-off)}
-.meter i.on{background:var(--tc,var(--ink))}
-.src{font-size:14px;color:var(--muted)}
-.why{margin:0;font-size:16px;line-height:1.5;color:var(--ink);max-width:68ch;padding-left:12px;border-left:3px solid var(--tc,var(--accent))}
-.why b{font-weight:700}
-.ev.lead .why{font-size:17px}
-.fresh{font-weight:700;font-size:12px;color:var(--surface);background:var(--t-economy);border-radius:4px;padding:1px 6px}
-.src a{color:var(--muted);text-underline-offset:3px}
-.src a:hover{color:var(--accent)}
-.lang{font-weight:700;font-size:12px;color:var(--muted);border:1px solid var(--line);border-radius:4px;padding:0 5px}
+.meter i.on{background:var(--t-security)}
 
-.sk{display:grid;grid-template-columns:minmax(0,1fr) 132px;gap:22px;padding:22px 0;border-bottom:1px solid var(--line)}
-.sk div{display:flex;flex-direction:column;gap:10px}
-.sk b{display:block;height:14px;border-radius:4px;background:var(--line);animation:pulse 1.4s ease-in-out infinite}
-.sk b.h{height:22px;width:92%}.sk b.h2{height:22px;width:64%}.sk b.s{width:34%}
-.sk i{display:block;aspect-ratio:4/3;border-radius:8px;background:var(--line);animation:pulse 1.4s ease-in-out infinite}
-@keyframes pulse{50%{opacity:.45}}
+.src{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}
+.src div{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px 20px}
+.src h3{margin:0 0 10px;font-size:17px}
+.src ul{margin:0;padding:0;list-style:none;display:flex;flex-wrap:wrap;gap:6px}
+.src li{font-size:15px;padding:4px 10px;border-radius:999px;background:var(--bg)}
 
-.controls{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px 20px;padding:14px 0 4px}
-.seg{display:inline-flex;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:3px;gap:2px;flex-wrap:wrap}
-.seg button{font:500 15px var(--sans);color:var(--muted);background:none;border:0;border-radius:999px;padding:7px 14px;cursor:pointer}
-.seg button:hover{color:var(--ink)}
-.seg button[aria-pressed="true"]{background:var(--ink);color:var(--surface)}
-.switch{display:inline-flex;align-items:center;gap:10px;font-size:15px;color:var(--ink);cursor:pointer;user-select:none}
-.switch input{position:absolute;opacity:0;width:1px;height:1px}
-.switch .track{width:40px;height:24px;border-radius:999px;background:var(--meter-off);position:relative;flex:none;transition:background .15s}
-.switch .track::after{content:"";position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:var(--surface);box-shadow:0 1px 2px rgba(0,0,0,.25);transition:transform .15s}
-.switch input:checked + .track{background:var(--accent)}
-.switch input:checked + .track::after{transform:translateX(16px)}
-.switch input:focus-visible + .track{outline:3px solid var(--accent);outline-offset:2px}
-@media (prefers-reduced-motion:reduce){.switch .track,.switch .track::after{transition:none}}
-.period{font-weight:700;font-size:15px}
-.slot{display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:4px 12px;padding:26px 0 6px;border-bottom:2px solid var(--ink)}
-.slot h3{margin:0;font-size:19px;font-weight:800}
-.slot span{font-size:14px;color:var(--muted)}
-.ctl-group{display:flex;flex-wrap:wrap;gap:10px}
-.more{display:block;width:100%;margin-top:18px;padding:14px;font:700 16px var(--sans);color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:12px;cursor:pointer}
-.more:hover{border-color:var(--accent);color:var(--accent)}
-.how{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
-.how div{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px}
-.how h3{margin:0 0 6px;font-size:17px}
-.how p{margin:0;font-size:15px;color:var(--muted)}
-.how .meter{margin-bottom:10px}
+.limits{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:10px;max-width:70ch}
+.limits li::marker{color:var(--muted)}
 
-footer{font-size:14px;color:var(--muted);border-top:1px solid var(--line);padding-top:16px;max-width:70ch}
+footer{font-size:14px;color:var(--muted);border-top:1px solid var(--line);padding-top:16px;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
 footer a{color:var(--muted)}
-
-@media (max-width:560px){
-  .ev{grid-template-columns:minmax(0,1fr) 84px;gap:6px 14px}
-  .ev .thumb{width:84px}
-  .ev h3{font-size:19px}
-  .sk{grid-template-columns:minmax(0,1fr) 84px}
-  #go{padding:12px 18px;font-size:15px}
-}
-@media (prefers-reduced-motion:reduce){.spinner,.sk b,.sk i{animation:none}}
+@media (max-width:560px){.btn{font-size:16px;padding:12px 20px}.btn.ghost{padding:10px 18px}}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <div class="topbar">
-    <div class="theme" role="group" aria-label="Тема оформления">
-      <button type="button" data-t="auto" title="Как в системе">Авто</button>
-      <button type="button" data-t="light" title="Светлая тема">Светлая</button>
-      <button type="button" data-t="dark" title="Тёмная тема">Тёмная</button>
-    </div>
-  </div>
+  <header class="topbar">
+    <a class="brand" href="./">Сводка по стране</a>
+    <nav class="nav">
+      <a href="news.html#RU">Лента</a>
+      <a href="#how">Как это работает</a>
+      <div class="theme" role="group" aria-label="Тема оформления">
+        <button type="button" data-t="auto" title="Как в системе">Авто</button>
+        <button type="button" data-t="light" title="Светлая тема">Светлая</button>
+        <button type="button" data-t="dark" title="Тёмная тема">Тёмная</button>
+      </div>
+    </nav>
+  </header>
+
   <section class="hero">
-    <form id="f" autocomplete="off" class="ask" role="search">
-      <label for="country">Что происходит в</label>
-      <span class="field">
-        <input id="country" name="country" list="countries" placeholder="России" required enterkeyhint="search">
-        <button id="go" type="submit">Показать</button>
-      </span>
-      <datalist id="countries"></datalist>
-    </form>
-    <p class="lede">Главные события последних двух дней по ключевым странам: политика, безопасность и экономика. До 25 новостей. Только проверенные издания. Сначала то, о чём пишут сразу несколько из них, в конце новости из одного издания.</p>
-    <div class="quick" id="quick"><span>Страны:</span></div>
+    <h1>Главное о <mark>10 странах</mark> за последние двое суток</h1>
+    <p>Сайт сам читает 16 российских и зарубежных изданий, раскладывает новости по странам и оставляет только политику, безопасность и экономику. Сверху то, о чём пишут сразу несколько редакций, и к каждому событию — короткое пояснение, почему оно важно.</p>
+    <div class="cta">
+      <a class="btn" href="news.html#RU">Открыть ленту</a>
+      <a class="btn ghost" href="#how">Как это работает</a>
+    </div>
+    <div class="live" id="live">Загружаю последние данные…</div>
   </section>
 
-  <div class="status" id="status" aria-live="polite"></div>
+  <section>
+    <h2>Что происходит сейчас</h2>
+    <p class="sub">Главное событие по каждой стране в эту минуту. Нажмите на страну, чтобы открыть её ленту.</p>
+    <div class="board" id="board"></div>
+  </section>
 
-  <main id="out">
-    <div class="how">
-      <div><span class="meter"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i><i></i></span><h3>Важность видна сразу</h3><p>Каждый квадратик — отдельное издание, которое написало о событии. Больше квадратиков, больше внимания.</p></div>
-      <div><h3>Без шума</h3><p>Только политика, безопасность и экономика. Спорт, шоу-бизнес и прочее отсеиваются, повторы одной новости склеиваются.</p></div>
-      <div><h3>Открывается сразу</h3><p>Новости по 10 странам собираются заранее каждые 15 минут, ждать загрузки не нужно.</p></div>
+  <section id="how">
+    <h2>Как это работает</h2>
+    <p class="sub">Всё происходит автоматически, без редактора. Сборщик запускается на GitHub примерно каждые 15–20 минут.</p>
+    <ol class="steps">
+      <li><h3>Сбор</h3><p>Забираем свежие материалы прямо из лент 16 изданий и храним их 48 часов.</p></li>
+      <li><h3>Страны</h3><p>Новость относится к стране, если та названа в заголовке или хотя бы дважды в анонсе: по названию, столице, именам лидеров.</p></li>
+      <li><h3>Отбор</h3><p>Похожие заголовки склеиваются в одно событие. Спорт, шоу-бизнес и прочее отсеиваются. Важность: <span class="meter" aria-hidden="true"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></span>сколько изданий пишут, тема и свежесть.</p></li>
+      <li><h3>Пояснение</h3><p>По типу события (санкции, удары, выборы, переговоры и другие) и по тому, кто о нём пишет, составляется короткое объяснение его значения.</p></li>
+    </ol>
+  </section>
+
+  <section>
+    <h2>Откуда новости</h2>
+    <p class="sub">Только выбранные издания, без агрегаторов и соцсетей. Ссылка в каждой новости ведёт на первоисточник.</p>
+    <div class="src" id="sources">
+      <div><h3>На русском</h3><ul><li>ТАСС</li><li>РИА Новости</li><li>Интерфакс</li><li>Коммерсантъ</li><li>РБК</li><li>Ведомости</li><li>BBC Русская служба</li><li>DW на русском</li></ul></div>
+      <div><h3>На английском</h3><ul><li>BBC News</li><li>The Guardian</li><li>The New York Times</li><li>Al Jazeera</li><li>Deutsche Welle</li><li>France 24</li><li>Politico Europe</li><li>CNBC</li></ul></div>
     </div>
-  </main>
+  </section>
 
-  <footer>Источники: ТАСС, РИА Новости, Интерфакс, Коммерсантъ, РБК, Ведомости, BBC Русская служба, DW на русском, BBC News, The Guardian, The New York Times, Al Jazeera, Deutsche Welle, France 24, Politico Europe, CNBC. Новости за последние 2 дня, обновление каждые 15 минут. Важность определяется автоматически: по числу изданий, теме и свежести. Пояснения «Почему это важно» составляются автоматически по типу события и тому, кто о нём пишет; подробности смотрите в первоисточнике.</footer>
+  <section>
+    <h2>Что стоит знать</h2>
+    <ul class="limits">
+      <li>Отбор и пояснения автоматические. Они опираются на заголовки и анонсы, а не на полный текст статей, поэтому изредка новость попадает не в ту страну или тема определяется неточно.</li>
+      <li>Пояснение говорит, чем важен такой тип событий, а не разбирает конкретную новость. Подробности всегда в первоисточнике.</li>
+      <li>Число изданий показывает, насколько широко событие освещают, но не подтверждает, что оно произошло именно так.</li>
+      <li>Издания держат в лентах только последние материалы, поэтому сайт видит то, что вышло, пока он работает.</li>
+    </ul>
+  </section>
+
+  <footer>
+    <span>Сводка по стране. Данные обновляются автоматически.</span>
+    <a href="https://github.com/dsdsnfdjndfjhbhgfd-ops/country-news" target="_blank" rel="noopener">Исходный код на GitHub</a>
+  </footer>
 </div>
 
-<script src="assets/core.js"></script>
 <script>
-const $ = s => document.querySelector(s);
-// Theme: auto (system), light or dark; remembered in this browser
 function applyTheme(t) {
   if (t === "light" || t === "dark") document.documentElement.dataset.theme = t; else delete document.documentElement.dataset.theme;
   document.querySelectorAll(".theme button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.t === (t || "auto"))));
@@ -193,354 +176,48 @@ function applyTheme(t) {
 let savedTheme = "auto"; try { savedTheme = localStorage.getItem("cn:theme") || "auto"; } catch {}
 applyTheme(savedTheme);
 document.querySelectorAll(".theme button").forEach(b => b.onclick = () => applyTheme(b.dataset.t));
-const QUICK = ["Россия","США","Китай","Украина","Израиль","Иран","Германия","Великобритания","Франция","Турция"];
-// Countries collected ahead of time by the GitHub Action (scripts/prefetch.mjs)
-const PREFETCHED = new Set("RU US CN UA IL IR DE GB FR TR".split(" "));
-const ALIASES = { "сша":"US","америка":"US","штаты":"US","usa":"US","uk":"GB","англия":"GB","британия":"GB","великобритания":"GB","оаэ":"AE","uae":"AE","эмираты":"AE","корея":"KR","южная корея":"KR","северная корея":"KP","кндр":"KP","чехия":"CZ","молдавия":"MD","киргизия":"KG","белоруссия":"BY" };
-const EN_FIX = { US:"United States", GB:"United Kingdom", KP:"North Korea", KR:"South Korea", CZ:"Czech Republic", MM:"Myanmar", CD:"Democratic Republic of the Congo", CG:"Republic of the Congo", CI:"Ivory Coast", PS:"Palestine", TR:"Turkey", AE:"United Arab Emirates" };
-// Prepositional case for the headline ("в Казахстане")
-const LOC = { RU:"России", US:"США", CN:"Китае", UA:"Украине", KZ:"Казахстане", DE:"Германии", TR:"Турции", IL:"Израиле", IN:"Индии", BY:"Беларуси", FR:"Франции", JP:"Японии", GB:"Великобритании", IR:"Иране", UZ:"Узбекистане", KG:"Киргизии", AM:"Армении", AZ:"Азербайджане", GE:"Грузии", PL:"Польше", IT:"Италии", ES:"Испании", BR:"Бразилии", KR:"Южной Корее", KP:"КНДР", SA:"Саудовской Аравии", AE:"ОАЭ", EG:"Египте", MD:"Молдове", TJ:"Таджикистане" };
 
-const ruNames = new Intl.DisplayNames(["ru"], { type: "region" });
-const enNames = new Intl.DisplayNames(["en"], { type: "region" });
-const index = new Map(); const ruList = [];
-const A = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-for (const a of A) for (const b of A) {
-  const code = a + b; let ru, en;
-  try { ru = ruNames.of(code); en = enNames.of(code); } catch { continue; }
-  if (!ru || ru === code || !en || en === code || !PREFETCHED.has(code)) continue;
-  index.set(low(ru), code); index.set(low(en), code);
-  ruList.push(ru);
-}
-for (const [k, v] of Object.entries(ALIASES)) if (PREFETCHED.has(v)) index.set(k, v);
-for (const [k, v] of Object.entries(LOC)) if (PREFETCHED.has(k)) index.set(low(v), k);
-const dl = $("#countries");
-[...new Set(ruList)].sort((x, y) => x.localeCompare(y, "ru")).forEach(n => { const o = document.createElement("option"); o.value = n; dl.append(o); });
-
-function resolve(input) {
-  const code = index.get(low(input));
-  if (!code) return null;
-  return { code, ru: ruNames.of(code), en: EN_FIX[code] || enNames.of(code), loc: LOC[code] || "" };
-}
-
-const quick = $("#quick");
-QUICK.forEach(name => {
-  const b = document.createElement("button");
-  b.type = "button"; b.textContent = name;
-  b.onclick = () => run(name);
-  quick.append(b);
-});
-$("#f").addEventListener("submit", e => { e.preventDefault(); const v = $("#country").value.trim(); if (v) run(v); });
-
+const COUNTRIES = [["RU", "Россия"], ["US", "США"], ["CN", "Китай"], ["UA", "Украина"], ["IL", "Израиль"], ["IR", "Иран"], ["DE", "Германия"], ["GB", "Великобритания"], ["FR", "Франция"], ["TR", "Турция"]];
+const TOPIC_COLOR = { "Политика": "--t-politics", "Безопасность": "--t-security", "Экономика": "--t-economy" };
 function el(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
-function setStatus(text, loading) {
-  const s = $("#status"); s.textContent = "";
-  if (loading) s.append(el("span", "spinner"));
-  if (text) s.append(el("span", null, text));
-}
-function notice(text) { const o = $("#out"); o.textContent = ""; o.append(el("div", "notice", text)); }
-function skeleton(c) {
-  const o = $("#out"); o.textContent = "";
-  const head = el("div", "res-head"); head.append(el("h2", null, c.ru)); head.append(el("p", null, "Собираю публикации"));
-  o.append(head);
-  for (let i = 0; i < 4; i++) {
-    const r = el("div", "sk"); const d = el("div");
-    d.append(el("b", "s"), el("b", "h"), el("b", "h2"), el("b", "s"));
-    r.append(d, el("i")); o.append(r);
-  }
-}
-
-
-// ---------- Data loading ----------
-const CACHE_MS = 30 * 60 * 1000;
-function cacheGet(code) {
-  try { const v = JSON.parse(localStorage.getItem("cn:" + code)); if (v && Date.now() - v.at < CACHE_MS) return v; } catch {}
-  return null;
-}
-function cacheSet(code, items, at) { try { localStorage.setItem("cn:" + code, JSON.stringify({ at: at || Date.now(), items })); } catch {} }
-
-// AI explanations "why it matters", keyed by article URL (written by the collector)
-let WHY = {};
-async function loadWhy() {
-  try { const r = await fetch("data/why.json?t=" + Date.now(), { cache: "no-store" }); if (r.ok) WHY = (await r.json()).items || {}; } catch {}
-}
-function whyFor(g, c) { for (const i of g.items) if (WHY[i.url]) return WHY[i.url].why; return explain(g, c); }
-
-async function loadPrefetched(code) {
-  if (!PREFETCHED.has(code)) return null;
-  try {
-    const [r] = await Promise.all([fetch("data/" + code + ".json?t=" + Date.now(), { cache: "no-store" }), loadWhy()]);
-    if (!r.ok) return null;
-    const d = await r.json();
-    return Array.isArray(d.items) && d.items.length ? d : null;
-  } catch { return null; }
-}
-
-let nextSlot = 0;
-const sleep = ms => new Promise(r => setTimeout(r, ms));
-async function gdeltOnce(query, signal) {
-  const url = "https://api.gdeltproject.org/api/v2/doc/doc?query=" + encodeURIComponent(query) + "&mode=artlist&format=json&maxrecords=250&timespan=2d&sort=hybridrel";
-  const r = await fetch(url, { signal });
-  const txt = await r.text();
-  if (!r.ok) throw new Error("http");
-  return JSON.parse(txt).articles || [];
-}
-// GDELT allows about one request per 5 s: requests start 5.5 s apart but then run in parallel
-// GDELT allows about one request per 5 s: requests start 5.5 s apart but then run in parallel
-async function gdelt(query) {
-  for (let attempt = 1; ; attempt++) {
-    const start = Math.max(Date.now(), nextSlot);
-    nextSlot = start + 5500;
-    await sleep(start - Date.now());
-    try { return await gdeltOnce(query); }
-    catch (e) { if (attempt >= 3) throw e; await sleep(3000 + Math.random() * 3000); }
-  }
-}
-
-function dedupe(items) {
-  const seen = new Set();
-  return items.filter(a => { const k = low(a.title).slice(0, 70); if (!a.title || seen.has(k)) return false; seen.add(k); return true; });
-}
-
-let runId = 0;
-async function run(input) {
-  const c = resolve(input);
-  if (!c) { setStatus(""); notice(`Страны «${input}» нет в списке. Доступны: ${QUICK.join(", ")}.`); return; }
-  const id = ++runId;
-  view.all = false;
-  $("#country").value = LOC[c.code] || c.ru;
-  try { history.replaceState(null, "", "#" + c.code); } catch {}
-
-  const cached = PREFETCHED.has(c.code) ? null : cacheGet(c.code);
-  if (cached) { setStatus(""); render(c, cached.items, { at: cached.at }); return; }
-
-  const pre = await loadPrefetched(c.code);
-  if (id !== runId) return;
-  if (pre) {
-    const items = dedupe(pre.items), at = Date.parse(pre.updated);
-    setStatus(""); render(c, items, { at });
-    cacheSet(c.code, items, at);
-    return;
-  }
-
-  skeleton(c);
-  setStatus(`Ищу публикации. Для этой страны данные собираются на лету, обычно 15–30 секунд.`, true);
-  let items = [], failed = 0;
-  const take = arr => { items = dedupe(items.concat(arr)); if (id === runId) render(c, items, { partial: true }); };
-  await Promise.all(["russian", "english"].map(lang =>
-    gdelt(`${c.en} sourcelang:${lang}`).then(take).catch(() => { failed++; })
-  ));
-  if (id !== runId) return;
-  setStatus("");
-  if (failed === 2) { notice("Источник новостей сейчас не отвечает. Попробуйте ещё раз через полминуты."); return; }
-  if (!failed) cacheSet(c.code, items);
-  render(c, items, { failed });
-}
-
-// ---------- Rendering ----------
-function fmtDate(s) {
-  const m = /^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})/.exec(s || ""); if (!m) return "";
-  return new Date(Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5])).toLocaleString("ru-RU", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
-}
-function ago(ts) {
-  const min = Math.round((Date.now() - ts) / 60000);
-  if (!isFinite(min)) return "";
-  if (min < 2) return "только что";
-  if (min < 60) return `${min} ${plural(min, "минуту", "минуты", "минут")} назад`;
-  const h = Math.round(min / 60);
-  return `${h} ${plural(h, "час", "часа", "часов")} назад`;
-}
+function plural(n, one, few, many) { const a = n % 10, b = n % 100; return a === 1 && b !== 11 ? one : a >= 2 && a <= 4 && (b < 12 || b > 14) ? few : many; }
 function cleanTitle(t) {
   t = String(t || "");
   for (const sep of [" :: ", " | ", " – ", " - "]) { const i = t.indexOf(sep, 30); if (i > 0) t = t.slice(0, i); }
-  t = t.replace(/\s+([,.:;!?»)%])/g, "$1").replace(/([«(])\s+/g, "$1");
-  return t.length > 170 ? t.slice(0, 167).replace(/\s+\S*$/, "") + "…" : t;
-}
-function plural(n, one, few, many) {
-  const m10 = n % 10, m100 = n % 100;
-  if (m10 === 1 && m100 !== 11) return one;
-  if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return few;
-  return many;
-}
-function meter(n, color) {
-  const m = el("span", "meter");
-  m.setAttribute("role", "img");
-  m.setAttribute("aria-label", `Пишут ${n} ${plural(n, "издание", "издания", "изданий")}`);
-  if (color) m.style.setProperty("--tc", `var(${color})`);
-  for (let k = 0; k < 8; k++) m.append(el("i", k < n ? "on" : ""));
-  return m;
+  return t.length > 140 ? t.slice(0, 137).replace(/\s+\S*$/, "") + "…" : t;
 }
 
-// ---------- Viewer settings: period and single-outlet stories ----------
-const PERIODS = [["today", "Сегодня"], ["yesterday", "Вчера"], ["3d", "3 дня"], ["week", "Неделя"]];
-const PERIOD_TEXT = { "2d": "за 2 дня", today: "за сегодня", yesterday: "за вчера", "3d": "за 3 дня", week: "за неделю" };
-const prefs = { period: "2d", singles: true };
-// Feed view: sphere filter, sort order and whether to show every event
-const view = { sphere: "all", sort: "importance", all: false };
-const FEED_SIZE = 25;
-try { prefs.singles = (JSON.parse(localStorage.getItem("cn:prefs2")) || {}).singles !== false; } catch {}
-function savePrefs() { try { localStorage.setItem("cn:prefs2", JSON.stringify(prefs)); } catch {} }
-function inPeriod(items) {
-  const from2d = Date.now() - 48 * 3600000;
-  if (prefs.period === "2d") return items.filter(a => seenTime(a.seendate) >= from2d);
-  const midnight = new Date(); midnight.setHours(0, 0, 0, 0);
-  const t0 = midnight.getTime(), day = 86400000;
-  const [from, to] = { today: [t0, Infinity], yesterday: [t0 - day, t0], "3d": [t0 - 2 * day, Infinity], week: [-Infinity, Infinity] }[prefs.period] || [-Infinity, Infinity];
-  return items.filter(a => { const t = seenTime(a.seendate); return isNaN(t) ? prefs.period === "week" : t >= from && t < to; });
-}
-function seg(label, options, current, onPick) {
-  const g = el("div", "seg"); g.setAttribute("role", "group"); g.setAttribute("aria-label", label);
-  for (const [v, text] of options) {
-    const b = el("button", null, text); b.type = "button";
-    b.setAttribute("aria-pressed", String(current === v));
-    b.onclick = () => onPick(v);
-    g.append(b);
-  }
-  return g;
-}
-function controls(rerender, counts) {
-  const box = el("div", "controls");
-  const left = el("div", "ctl-group");
-  left.append(seg("Сфера", [["all", `Все · ${counts.all}`], ...["Политика", "Безопасность", "Экономика"].map(t => [t, `${t} · ${counts[t] || 0}`])],
-    view.sphere, v => { view.sphere = v; rerender(); }));
-  left.append(seg("Сортировка", [["importance", "По важности"], ["time", "Сначала новые"]], view.sort, v => { view.sort = v; rerender(); }));
-  box.append(left);
-  const sw = el("label", "switch");
-  const cb = el("input"); cb.type = "checkbox"; cb.id = "singles"; cb.checked = prefs.singles;
-  cb.onchange = () => { prefs.singles = cb.checked; savePrefs(); rerender(); };
-  sw.append(cb, el("span", "track"), el("span", null, "Новости из одного издания"));
-  box.append(sw);
-  return box;
-}
-
-const SLOTS = [[1, "За последний час"], [3, "1–3 часа назад"], [6, "3–6 часов назад"], [12, "6–12 часов назад"], [24, "12–24 часа назад"], [Infinity, "Больше суток назад"]];
-function timeSlot(t) { const h = (Date.now() - t) / 3600000; return SLOTS.findIndex(([max]) => h < max); }
-let shown = null;
-function render(c, allItems, info) {
-  shown = { c, allItems, info };
-  const items = inPeriod(allItems);
-  const everything = cluster(items, c, prefs.singles, Infinity);
-  const counts = { all: everything.length };
-  for (const g of everything) counts[g.topic[0]] = (counts[g.topic[0]] || 0) + 1;
-  let list = view.sphere === "all" ? everything : everything.filter(g => g.topic[0] === view.sphere);
-  // "Newest first": split into time slots, most important first within each slot
-  if (view.sort === "time") {
-    for (const g of list) g.slot = timeSlot(g.newest);
-    list = [...list].sort((x, y) => x.slot - y.slot || y.domains - x.domains || y.score - x.score || y.newest - x.newest);
-  }
-  const groups = view.all ? list : list.slice(0, FEED_SIZE);
-  const out = $("#out"); out.textContent = "";
-  const head = el("div", "res-head");
-  head.append(el("h2", null, c.ru));
-  let meta = (groups.length < list.length ? `Показано ${groups.length} из ${list.length} событий` : `${list.length} ${plural(list.length, "событие", "события", "событий")}`) + ` из ${items.length} ${plural(items.length, "публикации", "публикаций", "публикаций")} ${PERIOD_TEXT[prefs.period]}`;
-  if (info.partial) meta = "Загружаю остальные источники…";
-  if (info.failed) meta += ". Часть источников не ответила";
-  head.append(el("p", null, meta));
-  if (info.at) {
-    const up = el("p", "updated");
-    const paint = () => {
-      const t = new Date(info.at), next = new Date(info.at + 15 * 60000);
-      const hm = d => d.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
-      const day = t.toDateString() === new Date().toDateString() ? "" : " " + t.toLocaleDateString("ru-RU", { day: "numeric", month: "long" });
-      up.textContent = `Новости обновлены${day} в ${hm(t)}, ${ago(info.at)}. ` +
-        (next > Date.now() ? `Следующее обновление около ${hm(next)}.` : "Следующее обновление ожидается в ближайшие минуты.");
-    };
-    paint();
-    clearInterval(window.__upTimer); window.__upTimer = setInterval(() => up.isConnected ? paint() : clearInterval(window.__upTimer), 30000);
-    head.append(up);
-  }
-  out.append(head);
-  const rerender = () => { const y = window.scrollY; render(shown.c, shown.allItems, shown.info); window.scrollTo(0, y); };
-  out.append(controls(rerender, counts));
-
-  if (!groups.length) {
-    if (!info.partial) out.append(el("div", "notice", false
-      ? "За последнюю неделю важных событий не найдено. Попробуйте позже или выберите другую страну."
-      : `Важных событий ${PERIOD_TEXT[prefs.period]} не найдено.` + (prefs.singles ? " Данные обновляются каждые 15 минут, загляните позже." : " Включите новости из одного издания.")));
-    return;
-  }
-  const ol = el("ol", "events");
-  let lastSlot = -1;
-  groups.forEach((g, i) => {
-    if (view.sort === "time" && g.slot !== lastSlot) {
-      lastSlot = g.slot;
-      const n = groups.filter(x => x.slot === g.slot).length;
-      const h = el("li", "slot"); h.append(el("h3", null, SLOTS[g.slot][1]), el("span", null, `${n} ${plural(n, "событие", "события", "событий")}, сначала важные`));
-      ol.append(h);
+function drawBoard(status) {
+  const board = document.getElementById("board"); board.textContent = "";
+  for (const [code, name] of COUNTRIES) {
+    const s = status && status.countries && status.countries[code];
+    const a = el("a", "card"); a.href = "news.html#" + code;
+    const row = el("div", "row"); row.append(el("b", null, name));
+    if (s) row.append(el("span", "n", `${s.events} ${plural(s.events, "событие", "события", "событий")}`));
+    a.append(row);
+    if (s && s.top) {
+      const tp = el("span", "topic", s.top.topic + (s.top.domains > 1 ? `, пишут ${s.top.domains} ${plural(s.top.domains, "издание", "издания", "изданий")}` : ""));
+      tp.style.setProperty("--tc", `var(${TOPIC_COLOR[s.top.topic] || "--muted"})`);
+      a.append(tp, el("p", "top", cleanTitle(s.top.title)));
     }
-    const a = g.lead;
-    const li = el("li", "ev" + (i === 0 && view.sort !== "time" ? " lead" : ""));
-    const body = el("div", "body");
-    const color = g.topic ? g.topic[1] : null;
-    if (color) li.style.setProperty("--tc", `var(${color})`);
-
-    const facts = el("div", "facts");
-    if (g.topic) { const t = el("span", "topic", g.topic[0]); t.style.setProperty("--tc", `var(${color})`); facts.append(t); }
-    facts.append(meter(g.domains, color));
-    facts.append(el("span", null, g.domains > 1 ? `пишут ${g.domains} ${plural(g.domains, "издание", "издания", "изданий")}` : "одно издание"));
-    if (g.fresh) facts.append(el("span", "fresh", "Новое"));
-    body.append(facts);
-
-    const h = el("h3"); const link = el("a", null, cleanTitle(a.title));
-    link.href = a.url; link.target = "_blank"; link.rel = "noopener";
-    h.append(link); body.append(h);
-    const why = whyFor(g, c);
-    if (why) { const w = el("p", "why"); w.append(el("b", null, "Почему это важно. ")); w.append(document.createTextNode(why)); body.append(w); }
-
-    const src = el("div", "src");
-    if (a.language === "English") { src.append(el("span", "lang", "EN")); src.append(document.createTextNode(" ")); }
-    src.append(document.createTextNode(`${a.source || a.domain}, ${fmtDate(a.seendate)}`));
-    const doms = new Set([a.source || a.domain]);
-    const more = g.items.filter(x => !doms.has(x.source || x.domain) && doms.add(x.source || x.domain)).slice(0, 3);
-    if (more.length) {
-      src.append(document.createTextNode(". Также: "));
-      more.forEach((x, k) => {
-        const l = el("a", null, x.source || x.domain); l.href = x.url; l.target = "_blank"; l.rel = "noopener"; l.title = cleanTitle(x.title);
-        src.append(l); if (k < more.length - 1) src.append(document.createTextNode(", "));
-      });
-    }
-    body.append(src);
-    li.append(body);
-
-    const pic = g.items.find(x => x.socialimage && /^https:/.test(x.socialimage));
-    if (pic) {
-      const img = el("img", "thumb"); img.src = pic.socialimage; img.alt = ""; img.loading = i < 2 ? "eager" : "lazy"; img.decoding = "async"; img.referrerPolicy = "no-referrer";
-      img.onerror = () => { img.remove(); li.classList.add("noimg"); };
-      li.append(img);
-    } else li.classList.add("noimg");
-    ol.append(li);
-  });
-  out.append(ol);
-  if (list.length > FEED_SIZE) {
-    const more = el("button", "more", view.all ? `Показать только ${FEED_SIZE} главных` : `Показать все события (${list.length})`);
-    more.type = "button";
-    more.onclick = () => {
-      view.all = !view.all;
-      if (view.all) rerender(); else { render(shown.c, shown.allItems, shown.info); $(".res-head").scrollIntoView(); }
-    };
-    out.append(more);
+    a.append(el("span", "go", "Открыть ленту"));
+    board.append(a);
   }
 }
 
-// Keep an open page current: re-read the data every 5 minutes and when the tab comes back
-async function refresh() {
-  if (!shown || !PREFETCHED.has(shown.c.code) || document.visibilityState !== "visible") return;
-  const c = shown.c, pre = await loadPrefetched(c.code);
-  if (!pre || !shown || shown.c.code !== c.code) return;
-  const y = window.scrollY;
-  render(c, dedupe(pre.items), { at: Date.parse(pre.updated) });
-  window.scrollTo(0, y);
-}
-setInterval(refresh, 5 * 60000);
-let hiddenAt = 0;
-document.addEventListener("visibilitychange", () => {
-  if (document.visibilityState === "hidden") hiddenAt = Date.now();
-  else if (Date.now() - hiddenAt > 60000) refresh();
-});
-
-// Open a country straight from the link, e.g. …/country-news/#KZ
-const fromHash = location.hash.slice(1).toUpperCase();
-if (/^[A-Z]{2}$/.test(fromHash)) { try { const n = ruNames.of(fromHash); if (n && n !== fromHash) run(n); } catch {} }
+drawBoard(null);
+fetch("data/status.json?t=" + Date.now(), { cache: "no-store" })
+  .then(r => r.ok ? r.json() : Promise.reject())
+  .then(s => {
+    drawBoard(s);
+    const t = new Date(s.updated), min = Math.round((Date.now() - t) / 60000);
+    const total = Object.values(s.countries).reduce((n, c) => n + c.items, 0);
+    document.getElementById("live").textContent =
+      `Последнее обновление в ${t.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" })}` +
+      (min >= 1 ? ` (${min} ${plural(min, "минуту", "минуты", "минут")} назад)` : " (только что)") +
+      `. В базе ${total.toLocaleString("ru-RU")} ${plural(total, "публикация", "публикации", "публикаций")} за двое суток.`;
+  })
+  .catch(() => { document.getElementById("live").textContent = "Данные обновляются каждые 15–20 минут."; });
 </script>
 </body>
 </html>
