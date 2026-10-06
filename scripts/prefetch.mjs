@@ -300,7 +300,7 @@ async function ask(text) {
       // "High demand" (503) is usually brief: wait a little and try this model once more
       if (r.status === 503) { await new Promise(res => setTimeout(res, 8000)); r = await call(); }
       const body = await r.text();
-      if (!r.ok) throw new Error(`HTTP ${r.status}: ${body.replace(/\s+/g, " ").slice(0, 300)}`);
+      if (!r.ok) throw new Error(`HTTP ${r.status}: ${body.replace(/\s+/g, " ").slice(0, r.status === 429 ? 900 : 300)}`);
       let data; try { data = JSON.parse(body); } catch { throw new Error(`not JSON: ${body.slice(0, 120)}`); }
       // Some models put their reasoning in <think> tags; keep only the answer
       const content = (data.choices?.[0]?.message?.content || "").replace(/<think>[\s\S]*?<\/think>/g, "");
