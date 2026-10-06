@@ -256,7 +256,7 @@ async function modelList() {
         .filter(id => /^gemini-/.test(id) && !/(image|tts|embedding|live|audio|vision|robotics|computer|thinking|exp|customtools|preview-\d)/i.test(id));
       const ver = id => parseFloat((id.match(/gemini-(\d+(?:\.\d+)?)/) || [])[1]) || 0;
       const tier = id => /flash-lite/.test(id) ? 1 : /flash/.test(id) ? 0 : 2; // plain flash first, pro last (small free limits)
-      const pick = ids.sort((x, y) => tier(x) - tier(y) || ver(y) - ver(x) || x.localeCompare(y)).slice(0, 4);
+      const pick = ids.sort((x, y) => tier(x) - tier(y) || ver(y) - ver(x) || x.localeCompare(y)).slice(0, 7);
       console.log("Gemini models available: " + ids.slice(0, 12).join(", ") + " | trying: " + pick.join(", "));
       return pick;
     } catch (e) { console.log("Could not list Gemini models: " + e.message); return []; }
@@ -289,11 +289,14 @@ async function ask(text) {
   const errors = [];
   for (const model of models) {
     try {
-      const r = await fetch(LLM_BASE + "/chat/completions", {
+      const call = () => fetch(LLM_BASE + "/chat/completions", {
         method: "POST", signal: AbortSignal.timeout(120000),
         headers: { "Authorization": `Bearer ${LLM_KEY}`, "Content-Type": "application/json", "HTTP-Referer": "https://github.com/dsdsnfdjndfjhbhgfd-ops/country-news", "X-Title": "ev.news" },
         body: JSON.stringify({ model, temperature: 0.2, max_tokens: 3000, messages: [{ role: "user", content: text }] })
       });
+      let r = await call();
+      // "High demand" (503) is usually brief: wait a little and try this model once more
+      if (r.status === 503) { await new Promise(res => setTimeout(res, 8000)); r = await call(); }
       const body = await r.text();
       if (!r.ok) throw new Error(`HTTP ${r.status}: ${body.replace(/\s+/g, " ").slice(0, 300)}`);
       let data; try { data = JSON.parse(body); } catch { throw new Error(`not JSON: ${body.slice(0, 120)}`); }
