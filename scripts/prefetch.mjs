@@ -247,7 +247,20 @@ ${lines}`;
 // Which models to try on an OpenAI-compatible service
 async function modelList() {
   if (process.env.LLM_MODEL) return process.env.LLM_MODEL.split(",").map(m => m.trim()).filter(Boolean);
-  if (LLM_BASE.includes("generativelanguage.googleapis.com")) return ["gemini-2.5-flash", "gemini-2.5-flash-lite"];
+  if (LLM_BASE.includes("generativelanguage.googleapis.com")) {
+    // Google retires model names often: ask the service which ones this key can use, newest "flash" first
+    try {
+      const r = await fetch(LLM_BASE + "/models", { signal: AbortSignal.timeout(20000), headers: { Authorization: `Bearer ${LLM_KEY}` } });
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      const ids = ((await r.json()).data || []).map(m => String(m.id).replace(/^models\//, ""))
+        .filter(id => /^gemini-/.test(id) && !/(image|tts|embedding|live|audio|vision|robotics|computer|thinking|exp|customtools|preview-\d)/i.test(id));
+      const ver = id => parseFloat((id.match(/gemini-(\d+(?:\.\d+)?)/) || [])[1]) || 0;
+      const tier = id => /flash-lite/.test(id) ? 1 : /flash/.test(id) ? 0 : 2; // plain flash first, pro last (small free limits)
+      const pick = ids.sort((x, y) => tier(x) - tier(y) || ver(y) - ver(x) || x.localeCompare(y)).slice(0, 4);
+      console.log("Gemini models available: " + ids.slice(0, 12).join(", ") + " | trying: " + pick.join(", "));
+      return pick;
+    } catch (e) { console.log("Could not list Gemini models: " + e.message); return []; }
+  }
   if (!LLM_BASE.includes("openrouter.ai")) return [LLM_BASE.includes("deepseek.com") ? "deepseek-chat" : ""].filter(Boolean);
   try {
     const r = await fetch(LLM_BASE + "/models", { signal: AbortSignal.timeout(20000) });
@@ -282,7 +295,7 @@ async function ask(text) {
         body: JSON.stringify({ model, temperature: 0.2, max_tokens: 3000, messages: [{ role: "user", content: text }] })
       });
       const body = await r.text();
-      if (!r.ok) throw new Error(`HTTP ${r.status}: ${body.slice(0, 160)}`);
+      if (!r.ok) throw new Error(`HTTP ${r.status}: ${body.replace(/\s+/g, " ").slice(0, 300)}`);
       let data; try { data = JSON.parse(body); } catch { throw new Error(`not JSON: ${body.slice(0, 120)}`); }
       // Some models put their reasoning in <think> tags; keep only the answer
       const content = (data.choices?.[0]?.message?.content || "").replace(/<think>[\s\S]*?<\/think>/g, "");
