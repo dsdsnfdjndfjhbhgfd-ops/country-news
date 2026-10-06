@@ -1,7 +1,7 @@
 // Collects news from a fixed list of trusted outlets (their own RSS feeds), keeps the last
 // 48 hours, sorts items by country and saves data/<CODE>.json for the site.
 // Feeds only hold their latest items, so each run merges with what earlier runs saved.
-import { readFile, writeFile, mkdir } from "node:fs/promises";
+import { readFile, writeFile, mkdir, rm } from "node:fs/promises";
 import vm from "node:vm";
 
 const SOURCES = [
@@ -179,15 +179,7 @@ for (const [code, res] of Object.entries(matchers)) {
 }
 if (!fresh.length) { console.log("No outlet answered"); process.exit(1); }
 
-// ---------- "Why it matters": short AI explanations for the top events ----------
-// Works with any OpenAI-compatible service, set through repository secrets/variables:
-//   LLM_API_KEY   key of the service (OpenRouter by default, free ":free" models such as DeepSeek)
-//   LLM_BASE_URL  optional, default https://openrouter.ai/api/v1 (DeepSeek itself: https://api.deepseek.com)
-//   LLM_MODEL     optional, one or several model ids separated by commas, tried in order.
-//                 Not set on OpenRouter = the free DeepSeek models available at the moment.
-// ANTHROPIC_API_KEY (Claude) also works. With no key, or when the service fails or is out of its
-// free limit, the site keeps using the built-in rules from assets/core.js.
-// Explanations are cached by article URL, so each event is explained once.
+// ---------- Names used for grouping events ----------
 const NAMES = {
   RU: ["Россия", "России"], US: ["США", "США"], CN: ["Китай", "Китае"], UA: ["Украина", "Украине"],
   IL: ["Израиль", "Израиле"], IR: ["Иран", "Иране"], DE: ["Германия", "Германии"],
@@ -196,115 +188,10 @@ const NAMES = {
   MA: ["Марокко", "Марокко"], SA: ["Саудовская Аравия", "Саудовской Аравии"], BR: ["Бразилия", "Бразилии"]
 };
 const EN = { RU: "Russia", US: "United States", CN: "China", UA: "Ukraine", IL: "Israel", IR: "Iran", DE: "Germany", GB: "United Kingdom", FR: "France", TR: "Turkey", IN: "India", JP: "Japan", PL: "Poland", BY: "Belarus", KZ: "Kazakhstan", MA: "Morocco", SA: "Saudi Arabia", BR: "Brazil" };
-const PER_RUN = 24, BATCH = 12, TOP = 12;
-
 const core = vm.createContext({ Date, Math, Set, Map, JSON });
 vm.runInContext(await readFile("assets/core.js", "utf8"), core);
-
-let why = {};
-try { why = JSON.parse(await readFile("data/why.json", "utf8")).items || {}; } catch {}
-for (const [u, v] of Object.entries(why)) if (now - (v.at || 0) > 3 * 86400000) delete why[u];
-
-const todo = [];
-for (const code of Object.keys(COUNTRIES)) {
-  let items = [];
-  try { items = JSON.parse(await readFile(`data/full/${code}.json`, "utf8")).items || []; } catch {}
-  const c = { code, ru: NAMES[code][0], en: EN[code], loc: NAMES[code][1] };
-  for (const g of core.cluster(items, c, true).slice(0, TOP)) {
-    if (g.items.some(i => why[i.url])) continue;
-    todo.push({ code, g });
-  }
-}
-todo.sort((a, b) => (b.g.domains >= 2) - (a.g.domains >= 2) || b.g.score - a.g.score);
-const LLM_KEY = process.env.LLM_API_KEY || "";
-const LLM_BASE = (process.env.LLM_BASE_URL || "https://openrouter.ai/api/v1").replace(/\/+$/, "");
-const HAS_AI = !!(LLM_KEY || process.env.ANTHROPIC_API_KEY);
-const queue = HAS_AI ? todo.slice(0, PER_RUN) : [];
-console.log(`Events without explanation: ${todo.length}, explaining ${queue.length}` + (HAS_AI ? "" : " (no AI key: the site uses its rules)"));
-
-function prompt(batch) {
-  const lines = batch.map((x, i) => {
-    const g = x.g, srcs = [...new Set(g.items.map(a => a.source))].slice(0, 4).join(", ");
-    const desc = g.items.map(a => a.desc).find(Boolean) || "";
-    return `${i + 1}. Страна: ${NAMES[x.code][0]}. Заголовок: ${g.lead.title}` + (desc ? `. Анонс: ${desc}` : "") + `. Источники: ${srcs}.`;
-  }).join("\n");
-  return `Ты редактор новостной сводки. Для каждой новости ниже напиши по-русски 1–2 коротких предложения: почему это событие важно для указанной страны (возможные последствия для её политики, безопасности, экономики или жизни людей).
-Пиши нейтрально, без оценок и без пересказа заголовка. Опирайся только на заголовок и анонс, не выдумывай фактов, цифр и имён. Не начинай со слов «Это важно, потому что».
-Ответь только JSON: {"items":[{"id":1,"why":"..."}]}
-
-${lines}`;
-}
-
-// Which models to try on an OpenAI-compatible service
-async function modelList() {
-  if (process.env.LLM_MODEL) return process.env.LLM_MODEL.split(",").map(m => m.trim()).filter(Boolean);
-  if (!LLM_BASE.includes("openrouter.ai")) return [LLM_BASE.includes("deepseek.com") ? "deepseek-chat" : ""].filter(Boolean);
-  try {
-    const r = await fetch(LLM_BASE + "/models", { signal: AbortSignal.timeout(20000) });
-    const ids = ((await r.json()).data || []).map(m => m.id).filter(id => /:free$/.test(id));
-    const rank = id => /deepseek/i.test(id) ? 0 : /(qwen|llama|gemma|mistral)/i.test(id) ? 1 : 2;
-    // Plain chat models first: "thinking" models are slow and often run out of tokens
-    const plain = id => /(r1|reason|think)/i.test(id) ? 1 : 0;
-    return ids.sort((x, y) => rank(x) - rank(y) || plain(x) - plain(y)).slice(0, 4);
-  } catch (e) { console.log("Could not list free models: " + e.message); return []; }
-}
-
-let usedModel = "";
-async function ask(text) {
-  if (!LLM_KEY && process.env.ANTHROPIC_API_KEY) {
-    const r = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST", signal: AbortSignal.timeout(90000),
-      headers: { "x-api-key": process.env.ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01", "content-type": "application/json" },
-      body: JSON.stringify({ model: process.env.ANTHROPIC_MODEL || "claude-haiku-4-5", max_tokens: 3000, messages: [{ role: "user", content: text }] })
-    });
-    if (!r.ok) throw new Error(`Claude HTTP ${r.status}: ${(await r.text()).slice(0, 200)}`);
-    usedModel = "claude";
-    return (await r.json()).content?.[0]?.text || "";
-  }
-  const models = await modelList();
-  if (!models.length) throw new Error("no model to ask");
-  const errors = [];
-  for (const model of models) {
-    try {
-      const r = await fetch(LLM_BASE + "/chat/completions", {
-        method: "POST", signal: AbortSignal.timeout(120000),
-        headers: { "Authorization": `Bearer ${LLM_KEY}`, "Content-Type": "application/json", "HTTP-Referer": "https://github.com/dsdsnfdjndfjhbhgfd-ops/country-news", "X-Title": "ev.news" },
-        body: JSON.stringify({ model, temperature: 0.2, max_tokens: 3000, messages: [{ role: "user", content: text }] })
-      });
-      const body = await r.text();
-      if (!r.ok) throw new Error(`HTTP ${r.status}: ${body.slice(0, 160)}`);
-      let data; try { data = JSON.parse(body); } catch { throw new Error(`not JSON: ${body.slice(0, 120)}`); }
-      // Some models put their reasoning in <think> tags; keep only the answer
-      const content = (data.choices?.[0]?.message?.content || "").replace(/<think>[\s\S]*?<\/think>/g, "");
-      if (!content.includes("{")) throw new Error(`no JSON in answer: ${body.slice(0, 120)}`);
-      usedModel = model;
-      return content;
-    } catch (e) { errors.push(`${model}: ${e.message}`); }
-  }
-  throw new Error(errors.join(" | "));
-}
-
-let explained = 0, lastError = "";
-for (let i = 0; i < queue.length; i += BATCH) {
-  const batch = queue.slice(i, i + BATCH);
-  try {
-    const out = await ask(prompt(batch));
-    const json = JSON.parse(out.slice(out.indexOf("{"), out.lastIndexOf("}") + 1));
-    for (const r of json.items || []) {
-      const x = batch[Number(r.id) - 1];
-      const text = String(r.why || "").trim();
-      if (!x || text.length < 20) continue;
-      why[x.g.lead.url] = { why: text.slice(0, 400), at: now, country: x.code, title: x.g.lead.title };
-      explained++;
-    }
-  } catch (e) {
-    console.log("Explanations failed: " + e.message);
-    lastError = e.message;
-    break;
-  }
-}
-console.log(`Explained ${explained} events`);
-await writeFile("data/why.json", JSON.stringify({ updated: new Date().toISOString(), model: usedModel || (HAS_AI ? "unavailable" : "rules"), lastError, items: why }));
+// The site no longer shows "why it matters" texts: drop the old file from the data
+await rm("data/why.json", { force: true });
 
 // ---------- Small summary for the home page ----------
 const status = { updated: new Date().toISOString(), sources: SOURCES.map(s => ({ name: s.name, lang: s.lang })), countries: {} };

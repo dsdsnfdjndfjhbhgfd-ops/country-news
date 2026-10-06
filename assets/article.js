@@ -1,6 +1,6 @@
 // Event page: article.html?c=RU&u=<article url>
 // Rebuilds the same event the feed showed (same 48-hour window, same grouping in core.js)
-// and shows who reports it, why it matters, the outlets' own summaries and where to read in full.
+// and shows who reports it, the outlets' own summaries and where to read in full.
 const $ = s => document.querySelector(s);
 
 function applyTheme(t) {
@@ -97,12 +97,11 @@ async function load() {
   let v = "";
   try { const r = await fetch("data/status.json?t=" + Date.now(), { cache: "no-store" }); if (r.ok) v = (await r.json()).updated || ""; } catch {}
   v = encodeURIComponent(v || String(Math.floor(Date.now() / 60000)));
-  const [data, desc, why] = await Promise.all([
+  const [data, desc] = await Promise.all([
     fetchJson(`data/${code}.json?v=${v}`),
-    fetchJson(`data/desc/${code}.json?v=${v}`).catch(() => ({})),
-    fetchJson(`data/why.json?v=${v}`).then(j => j.items || {}).catch(() => ({}))
+    fetchJson(`data/desc/${code}.json?v=${v}`).catch(() => ({}))
   ]);
-  return { items: dedupe(data.items || []), desc, why };
+  return { items: dedupe(data.items || []), desc };
 }
 
 let shown = false;
@@ -164,9 +163,6 @@ function render(c, g, groups, d) {
     main.append(img);
   }
 
-  const whyText = (g.items.map(i => d.why[i.url]).find(Boolean) || {}).why || (g.items.length ? explain(g, c) : "");
-  if (whyText) { const w = el("p", "why"); w.append(el("b", null, "Почему это важно. ")); w.append(document.createTextNode(whyText)); main.append(w); }
-
   // The outlet's own summary from its feed, plus where to read the full article
   const box = el("section", "lead-box");
   box.append(el("span", "label", `${a.source || a.domain}, ${fmtDate(a.seendate)}`));
@@ -210,7 +206,7 @@ function render(c, g, groups, d) {
     try {
       const now = await Account.toggleSaved(already ? { url: already.url } : {
         url: a.url, title, source: a.source || a.domain, country: c.code,
-        topic: g.topic ? g.topic[0] : null, why: whyText || null, published_at: new Date(g.newest || Date.now()).toISOString()
+        topic: g.topic ? g.topic[0] : null, why: null, published_at: new Date(g.newest || Date.now()).toISOString()
       });
       sv.textContent = now ? "Сохранено" : "Сохранить"; sv.setAttribute("aria-pressed", String(now));
     } catch (e) { sv.textContent = e.message; }

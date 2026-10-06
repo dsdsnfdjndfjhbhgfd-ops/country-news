@@ -49,11 +49,6 @@ jobs:
       - name: Собрать новости
         if: github.event_name != 'push'
         run: node scripts/prefetch.mjs
-        env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          LLM_API_KEY: ${{ secrets.LLM_API_KEY }}       # OpenRouter / DeepSeek key for the "why it matters" texts
-          LLM_BASE_URL: ${{ vars.LLM_BASE_URL }}        # optional, default OpenRouter
-          LLM_MODEL: ${{ vars.LLM_MODEL }}              # optional, default: free DeepSeek models
 
       - name: Перезаписать ветку data
         if: github.event_name != 'push'

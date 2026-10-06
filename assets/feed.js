@@ -77,7 +77,6 @@ function skeleton(c) {
 // ---------- Data loading ----------
 // data/status.json is tiny and always read fresh. Its "updated" stamp versions the bigger
 // files, so the browser reuses them from its cache until the collector writes new ones.
-let WHY = {}, whyVersion = "";
 async function dataVersion() {
   try {
     const r = await fetch("data/status.json?t=" + Date.now(), { cache: "no-store" });
@@ -85,17 +84,12 @@ async function dataVersion() {
   } catch {}
   return String(Math.floor(Date.now() / 60000)); // fallback: a new version every minute
 }
-async function loadWhy(v) {
-  if (v === whyVersion) return;
-  try { const r = await fetch("data/why.json?v=" + encodeURIComponent(v)); if (r.ok) { WHY = (await r.json()).items || {}; whyVersion = v; } } catch {}
-}
-function whyFor(g, c) { for (const i of g.items) if (WHY[i.url]) return WHY[i.url].why; return explain(g, c); }
 
 async function loadPrefetched(code) {
   if (!PREFETCHED.has(code)) return null;
   try {
     const v = await dataVersion();
-    const [r] = await Promise.all([fetch(`data/${code}.json?v=${encodeURIComponent(v)}`), loadWhy(v)]);
+    const r = await fetch(`data/${code}.json?v=${encodeURIComponent(v)}`);
     if (!r.ok) return null;
     const d = await r.json();
     return Array.isArray(d.items) && d.items.length ? d : null;
@@ -332,8 +326,6 @@ function render(c, allItems, info) {
     const foreign = Translate.isForeign(a.title, a.language);
     if (foreign) { link.dataset.orig = cleanTitle(a.title); link.lang = "en"; }
     h.append(link); body.append(h);
-    const why = whyFor(g, c);
-    if (why) { const w = el("p", "why"); w.append(el("b", null, "Почему это важно. ")); w.append(document.createTextNode(why)); body.append(w); }
 
     const src = el("div", "src");
     if (a.language === "English") { src.append(el("span", "lang", "EN")); src.append(document.createTextNode(" ")); }
@@ -368,7 +360,7 @@ function render(c, allItems, info) {
       try {
         await Account.toggleSaved(already ? { url: already.url } : {
           url: a.url, title: cleanTitle(a.title), source: a.source || a.domain, country: c.code,
-          topic: g.topic ? g.topic[0] : null, why: whyFor(g, c) || null, published_at: new Date(g.newest).toISOString()
+          topic: g.topic ? g.topic[0] : null, why: null, published_at: new Date(g.newest).toISOString()
         });
       } catch (e) { sv.disabled = false; sv.textContent = e.message; }
     };
