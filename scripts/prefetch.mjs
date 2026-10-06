@@ -177,13 +177,28 @@ async function ask(text) {
     return (await r.json()).content?.[0]?.text || "";
   }
   if (!process.env.GITHUB_TOKEN) throw new Error("no model credentials");
-  const r = await fetch("https://models.github.ai/inference/chat/completions", {
-    method: "POST", signal: AbortSignal.timeout(90000),
-    headers: { "Authorization": `Bearer ${process.env.GITHUB_TOKEN}`, "Content-Type": "application/json", "Accept": "application/json" },
-    body: JSON.stringify({ model: process.env.GH_MODEL || "openai/gpt-4.1-mini", temperature: 0.2, response_format: { type: "json_object" }, messages: [{ role: "user", content: text }] })
-  });
-  if (!r.ok) throw new Error(`GitHub Models HTTP ${r.status}: ${(await r.text()).slice(0, 200)}`);
-  return (await r.json()).choices?.[0]?.message?.content || "";
+  // GitHub Models: current endpoint first, then the older Azure-hosted one
+  const tries = [
+    ["https://models.github.ai/inference/chat/completions", process.env.GH_MODEL || "openai/gpt-4.1-mini"],
+    ["https://models.inference.ai.azure.com/chat/completions", "gpt-4o-mini"]
+  ];
+  const errors = [];
+  for (const [url, model] of tries) {
+    try {
+      const r = await fetch(url, {
+        method: "POST", signal: AbortSignal.timeout(90000),
+        headers: { "Authorization": `Bearer ${process.env.GITHUB_TOKEN}`, "Content-Type": "application/json", "Accept": "application/json", "X-GitHub-Api-Version": "2022-11-28" },
+        body: JSON.stringify({ model, temperature: 0.2, response_format: { type: "json_object" }, messages: [{ role: "user", content: text }] })
+      });
+      const body = await r.text();
+      if (!r.ok) throw new Error(`HTTP ${r.status}: ${body.slice(0, 160)}`);
+      let data; try { data = JSON.parse(body); } catch { throw new Error(`not JSON: ${body.slice(0, 120)}`); }
+      const content = data.choices?.[0]?.message?.content;
+      if (!content) throw new Error(`empty answer: ${body.slice(0, 120)}`);
+      return content;
+    } catch (e) { errors.push(`${new URL(url).host} ${e.message}`); }
+  }
+  throw new Error(errors.join(" | "));
 }
 
 let explained = 0, lastError = "";
