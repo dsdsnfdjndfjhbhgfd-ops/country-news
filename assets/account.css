@@ -24,7 +24,6 @@
 .acc-oauth:hover{border-color:var(--accent);color:var(--accent)}
 .acc-oauth:disabled{opacity:.6;cursor:wait}
 .acc-ico{display:inline-grid;place-items:center;min-width:24px;height:24px;padding:0 4px;border-radius:6px;font-size:12px;font-weight:800;color:#fff;background:#4a5568}
-.acc-google .acc-ico{background:#d93025}
 .acc-github .acc-ico{background:#24292f}
 .acc-or{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:13px;margin:4px 0}
 .acc-or::before,.acc-or::after{content:"";flex:1;height:1px;background:var(--line)}

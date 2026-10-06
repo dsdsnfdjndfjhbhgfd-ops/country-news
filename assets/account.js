@@ -66,7 +66,7 @@
   function need() { if (!sb) throw new Error("Вход сейчас недоступен: не загрузился модуль входа. Обновите страницу."); }
 
   // Which social sign-ins are switched on in Supabase (public endpoint, no secrets)
-  const PROVIDERS = [["google", "Google"], ["github", "GitHub"]];
+  const PROVIDERS = [["github", "GitHub"]];
   const providersReady = fetch(SUPABASE_URL + "/auth/v1/settings", { headers: { apikey: SUPABASE_KEY } })
     .then(r => r.ok ? r.json() : {}).then(j => j.external || {}).catch(() => ({}));
 
@@ -226,7 +226,7 @@
       for (const [id, name] of PROVIDERS) {
         if (!on[id]) continue;
         const b = el("button", "acc-oauth acc-" + id); b.type = "button";
-        b.append(el("span", "acc-ico", id === "google" ? "G" : "GH"), document.createTextNode("Войти через " + name));
+        b.append(el("span", "acc-ico", "GH"), document.createTextNode("Войти через " + name));
         b.onclick = async () => {
           b.disabled = true; msg.className = "acc-msg"; msg.textContent = "Переходим на " + name + "…";
           try { await Account.signInWith(id); } catch (err) { msg.textContent = err.message; msg.classList.add("err"); b.disabled = false; }
