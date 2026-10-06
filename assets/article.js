@@ -282,11 +282,18 @@ function commentsSection(c, g) {
       const li = el("li");
       const head = el("div", "c-head");
       head.append(el("b", null, cm.author_name || "Читатель"), el("span", null, since(cm.created_at)));
-      if (Account.user && cm.user_id === Account.user.id) {
-        const del = el("button", "c-del", "Удалить"); del.type = "button";
+      const own = Account.user && cm.user_id === Account.user.id;
+      if (own || Account.isAdmin) {
+        const del = el("button", "c-del", own ? "Удалить" : "Удалить как админ"); del.type = "button";
         del.onclick = async () => {
           del.disabled = true;
-          try { await Account.removeComment(cm.id); items.splice(items.indexOf(cm), 1); paint(); }
+          try {
+            await Account.removeComment(cm.id);
+            // The database silently skips rows it does not allow; re-read to be sure it is gone
+            const still = (await Account.listComments(urls)).some(x => x.id === cm.id);
+            if (still) throw new Error("Не получилось удалить: нет прав.");
+            items.splice(items.indexOf(cm), 1); paint();
+          }
           catch (e) { del.disabled = false; msg.textContent = e.message; msg.className = "c-msg err"; }
         };
         head.append(del);

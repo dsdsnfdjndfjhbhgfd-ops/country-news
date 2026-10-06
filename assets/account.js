@@ -10,7 +10,7 @@
     ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
     : null;
 
-  let user = null, recovery = false;
+  let user = null, recovery = false, admin = false;
   let profile = { countries: [], settings: {} };
   const saved = new Map(); // url -> row
   const listeners = new Set();
@@ -20,10 +20,12 @@
   function notify(event) { for (const fn of listeners) { try { fn(event); } catch (e) { console.error(e); } } }
 
   async function loadUserData() {
-    const [p, s] = await Promise.all([
+    const [p, s, adm] = await Promise.all([
       sb.from("profiles").select("countries, settings, display_name").eq("id", user.id).maybeSingle(),
-      sb.from("saved").select("*").order("created_at", { ascending: false })
+      sb.from("saved").select("*").order("created_at", { ascending: false }),
+      sb.rpc("am_i_admin").then(r => r, () => ({ data: false }))
     ]);
+    admin = adm?.data === true;
     profile = { countries: p.data?.countries || [], settings: p.data?.settings || {}, displayName: p.data?.display_name || "" };
     if (!p.data) await sb.from("profiles").upsert({ id: user.id }); // accounts made before the trigger existed
     saved.clear();
@@ -35,7 +37,7 @@
     user = session?.user || null;
     if (event === "PASSWORD_RECOVERY") recovery = true;
     if (user && user.id !== before) { try { await loadUserData(); } catch (e) { console.error(e); } }
-    if (!user) { profile = { countries: [], settings: {} }; saved.clear(); }
+    if (!user) { profile = { countries: [], settings: {} }; saved.clear(); admin = false; }
     resolveReady();
     notify(event);
   }
@@ -92,6 +94,8 @@
     get countries() { return profile.countries.slice(); },
     get settings() { return { ...profile.settings }; },
     get displayName() { return profile.displayName || ""; },
+    // Admins may delete any comment (checked again by the database on every delete)
+    get isAdmin() { return admin; },
     onChange(fn) { listeners.add(fn); return () => listeners.delete(fn); },
     human,
 

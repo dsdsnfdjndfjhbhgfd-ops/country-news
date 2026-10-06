@@ -14,6 +14,7 @@ function render() {
   const left = el("div"); left.append(el("h1", null, "Кабинет"), el("p", null, Account.user.email));
   const out = el("button", "btn", "Выйти"); out.type = "button";
   out.onclick = async () => { await Account.signOut(); };
+  if (Account.isAdmin) left.append(el("p", "admin-note", "Вы администратор: можете удалять любые комментарии на страницах событий."));
   who.append(left, out);
   main.append(who);
 
