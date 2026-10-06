@@ -38,7 +38,7 @@ function topicOf(title) {
 }
 function isSoft(title) { const t = norm(title); return SOFT.some(w => t.includes(" " + w)); }
 
-function cluster(items, c, singles) {
+function cluster(items, c, singles, limit = 25) {
   const countryStems = [low(c.ru), low(c.en), low(c.loc || "")].flatMap(n => n.split(/\s+/)).filter(w => w.length >= 4).map(w => w.slice(0, 5));
   const groups = [];
   for (const a of items) {
@@ -69,8 +69,8 @@ function cluster(items, c, singles) {
     .sort((x, y) => y.score - x.score || y.items.length - x.items.length);
   const multi = ranked.filter(g => g.domains >= 2);
   // Single-outlet stories always go after the ones several outlets cover
-  if (singles) return multi.concat(ranked.filter(g => g.domains < 2)).slice(0, 25);
-  return (multi.length >= 8 ? multi : multi.concat(ranked.filter(g => g.domains < 2).slice(0, 8 - multi.length))).slice(0, 25);
+  if (singles) return multi.concat(ranked.filter(g => g.domains < 2)).slice(0, limit);
+  return (multi.length >= 8 ? multi : multi.concat(ranked.filter(g => g.domains < 2).slice(0, 8 - multi.length))).slice(0, limit);
 }
 
 // ---------- "Why it matters" without AI ----------

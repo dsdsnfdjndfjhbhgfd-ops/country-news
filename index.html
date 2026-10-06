@@ -121,6 +121,9 @@ button:focus-visible,a:focus-visible,#country:focus-visible{outline:3px solid va
 .switch input:focus-visible + .track{outline:3px solid var(--accent);outline-offset:2px}
 @media (prefers-reduced-motion:reduce){.switch .track,.switch .track::after{transition:none}}
 .period{font-weight:700;font-size:15px}
+.ctl-group{display:flex;flex-wrap:wrap;gap:10px}
+.more{display:block;width:100%;margin-top:18px;padding:14px;font:700 16px var(--sans);color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:12px;cursor:pointer}
+.more:hover{border-color:var(--accent);color:var(--accent)}
 .how{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
 .how div{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px}
 .how h3{margin:0 0 6px;font-size:17px}
@@ -301,6 +304,7 @@ async function run(input) {
   const c = resolve(input);
   if (!c) { setStatus(""); notice(`Страны «${input}» нет в списке. Доступны: ${QUICK.join(", ")}.`); return; }
   const id = ++runId;
+  view.all = false;
   $("#country").value = LOC[c.code] || c.ru;
   try { history.replaceState(null, "", "#" + c.code); } catch {}
 
@@ -368,6 +372,9 @@ function meter(n, color) {
 const PERIODS = [["today", "Сегодня"], ["yesterday", "Вчера"], ["3d", "3 дня"], ["week", "Неделя"]];
 const PERIOD_TEXT = { "2d": "за 2 дня", today: "за сегодня", yesterday: "за вчера", "3d": "за 3 дня", week: "за неделю" };
 const prefs = { period: "2d", singles: true };
+// Feed view: sphere filter, sort order and whether to show every event
+const view = { sphere: "all", sort: "importance", all: false };
+const FEED_SIZE = 25;
 try { prefs.singles = (JSON.parse(localStorage.getItem("cn:prefs2")) || {}).singles !== false; } catch {}
 function savePrefs() { try { localStorage.setItem("cn:prefs2", JSON.stringify(prefs)); } catch {} }
 function inPeriod(items) {
@@ -378,13 +385,28 @@ function inPeriod(items) {
   const [from, to] = { today: [t0, Infinity], yesterday: [t0 - day, t0], "3d": [t0 - 2 * day, Infinity], week: [-Infinity, Infinity] }[prefs.period] || [-Infinity, Infinity];
   return items.filter(a => { const t = seenTime(a.seendate); return isNaN(t) ? prefs.period === "week" : t >= from && t < to; });
 }
-function controls(rerender) {
+function seg(label, options, current, onPick) {
+  const g = el("div", "seg"); g.setAttribute("role", "group"); g.setAttribute("aria-label", label);
+  for (const [v, text] of options) {
+    const b = el("button", null, text); b.type = "button";
+    b.setAttribute("aria-pressed", String(current === v));
+    b.onclick = () => onPick(v);
+    g.append(b);
+  }
+  return g;
+}
+function controls(rerender, counts) {
   const box = el("div", "controls");
+  const left = el("div", "ctl-group");
+  left.append(seg("Сфера", [["all", `Все · ${counts.all}`], ...["Политика", "Безопасность", "Экономика"].map(t => [t, `${t} · ${counts[t] || 0}`])],
+    view.sphere, v => { view.sphere = v; rerender(); }));
+  left.append(seg("Сортировка", [["importance", "По важности"], ["time", "Сначала новые"]], view.sort, v => { view.sort = v; rerender(); }));
+  box.append(left);
   const sw = el("label", "switch");
   const cb = el("input"); cb.type = "checkbox"; cb.id = "singles"; cb.checked = prefs.singles;
   cb.onchange = () => { prefs.singles = cb.checked; savePrefs(); rerender(); };
   sw.append(cb, el("span", "track"), el("span", null, "Новости из одного издания"));
-  box.append(el("span", "period", "Последние 2 дня"), sw);
+  box.append(sw);
   return box;
 }
 
@@ -392,11 +414,16 @@ let shown = null;
 function render(c, allItems, info) {
   shown = { c, allItems, info };
   const items = inPeriod(allItems);
-  const groups = cluster(items, c, prefs.singles);
+  const everything = cluster(items, c, prefs.singles, Infinity);
+  const counts = { all: everything.length };
+  for (const g of everything) counts[g.topic[0]] = (counts[g.topic[0]] || 0) + 1;
+  let list = view.sphere === "all" ? everything : everything.filter(g => g.topic[0] === view.sphere);
+  if (view.sort === "time") list = [...list].sort((x, y) => y.newest - x.newest);
+  const groups = view.all ? list : list.slice(0, FEED_SIZE);
   const out = $("#out"); out.textContent = "";
   const head = el("div", "res-head");
   head.append(el("h2", null, c.ru));
-  let meta = `${groups.length} ${plural(groups.length, "событие", "события", "событий")} из ${items.length} ${plural(items.length, "публикации", "публикаций", "публикаций")} ${PERIOD_TEXT[prefs.period]}`;
+  let meta = (groups.length < list.length ? `Показано ${groups.length} из ${list.length} событий` : `${list.length} ${plural(list.length, "событие", "события", "событий")}`) + ` из ${items.length} ${plural(items.length, "публикации", "публикаций", "публикаций")} ${PERIOD_TEXT[prefs.period]}`;
   if (info.partial) meta = "Загружаю остальные источники…";
   if (info.failed) meta += ". Часть источников не ответила";
   head.append(el("p", null, meta));
@@ -414,7 +441,8 @@ function render(c, allItems, info) {
     head.append(up);
   }
   out.append(head);
-  out.append(controls(() => render(shown.c, shown.allItems, shown.info)));
+  const rerender = () => { const y = window.scrollY; render(shown.c, shown.allItems, shown.info); window.scrollTo(0, y); };
+  out.append(controls(rerender, counts));
 
   if (!groups.length) {
     if (!info.partial) out.append(el("div", "notice", false
@@ -467,6 +495,15 @@ function render(c, allItems, info) {
     ol.append(li);
   });
   out.append(ol);
+  if (list.length > FEED_SIZE) {
+    const more = el("button", "more", view.all ? `Показать только ${FEED_SIZE} главных` : `Показать все события (${list.length})`);
+    more.type = "button";
+    more.onclick = () => {
+      view.all = !view.all;
+      if (view.all) rerender(); else { render(shown.c, shown.allItems, shown.info); $(".res-head").scrollIntoView(); }
+    };
+    out.append(more);
+  }
 }
 
 // Keep an open page current: re-read the data every 5 minutes and when the tab comes back
