@@ -121,6 +121,9 @@ button:focus-visible,a:focus-visible,#country:focus-visible{outline:3px solid va
 .switch input:focus-visible + .track{outline:3px solid var(--accent);outline-offset:2px}
 @media (prefers-reduced-motion:reduce){.switch .track,.switch .track::after{transition:none}}
 .period{font-weight:700;font-size:15px}
+.slot{display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:4px 12px;padding:26px 0 6px;border-bottom:2px solid var(--ink)}
+.slot h3{margin:0;font-size:19px;font-weight:800}
+.slot span{font-size:14px;color:var(--muted)}
 .ctl-group{display:flex;flex-wrap:wrap;gap:10px}
 .more{display:block;width:100%;margin-top:18px;padding:14px;font:700 16px var(--sans);color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:12px;cursor:pointer}
 .more:hover{border-color:var(--accent);color:var(--accent)}
@@ -410,6 +413,8 @@ function controls(rerender, counts) {
   return box;
 }
 
+const SLOTS = [[1, "За последний час"], [3, "1–3 часа назад"], [6, "3–6 часов назад"], [12, "6–12 часов назад"], [24, "12–24 часа назад"], [Infinity, "Больше суток назад"]];
+function timeSlot(t) { const h = (Date.now() - t) / 3600000; return SLOTS.findIndex(([max]) => h < max); }
 let shown = null;
 function render(c, allItems, info) {
   shown = { c, allItems, info };
@@ -418,7 +423,11 @@ function render(c, allItems, info) {
   const counts = { all: everything.length };
   for (const g of everything) counts[g.topic[0]] = (counts[g.topic[0]] || 0) + 1;
   let list = view.sphere === "all" ? everything : everything.filter(g => g.topic[0] === view.sphere);
-  if (view.sort === "time") list = [...list].sort((x, y) => y.newest - x.newest);
+  // "Newest first": split into time slots, most important first within each slot
+  if (view.sort === "time") {
+    for (const g of list) g.slot = timeSlot(g.newest);
+    list = [...list].sort((x, y) => x.slot - y.slot || y.domains - x.domains || y.score - x.score || y.newest - x.newest);
+  }
   const groups = view.all ? list : list.slice(0, FEED_SIZE);
   const out = $("#out"); out.textContent = "";
   const head = el("div", "res-head");
@@ -451,9 +460,16 @@ function render(c, allItems, info) {
     return;
   }
   const ol = el("ol", "events");
+  let lastSlot = -1;
   groups.forEach((g, i) => {
+    if (view.sort === "time" && g.slot !== lastSlot) {
+      lastSlot = g.slot;
+      const n = groups.filter(x => x.slot === g.slot).length;
+      const h = el("li", "slot"); h.append(el("h3", null, SLOTS[g.slot][1]), el("span", null, `${n} ${plural(n, "событие", "события", "событий")}, сначала важные`));
+      ol.append(h);
+    }
     const a = g.lead;
-    const li = el("li", "ev" + (i === 0 ? " lead" : ""));
+    const li = el("li", "ev" + (i === 0 && view.sort !== "time" ? " lead" : ""));
     const body = el("div", "body");
     const color = g.topic ? g.topic[1] : null;
     if (color) li.style.setProperty("--tc", `var(${color})`);
