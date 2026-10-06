@@ -1,0 +1,47 @@
+name: Обновить сторонние файлы
+
+# Run by hand. Downloads pinned copies of third-party files into assets/vendor/,
+# so the site does not load scripts from other servers at run time.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  vendor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Скачать файлы
+        run: |
+          set -euo pipefail
+          mkdir -p assets/vendor "$RUNNER_TEMP/pkg"
+          cd "$RUNNER_TEMP/pkg"
+          SB=$(npm view @supabase/supabase-js@2 version | tail -1)
+          npm pack "@supabase/supabase-js@$SB" >/dev/null
+          tar xzf supabase-supabase-js-*.tgz
+          test -s package/dist/umd/supabase.js
+          WA=$(npm view world-atlas@2 version | tail -1)
+          npm pack "world-atlas@$WA" >/dev/null
+          tar xzf world-atlas-*.tgz --one-top-level=wa
+          test -s wa/package/land-110m.json
+          cd "$GITHUB_WORKSPACE"
+          cp "$RUNNER_TEMP/pkg/package/dist/umd/supabase.js" assets/vendor/supabase.js
+          cp "$RUNNER_TEMP/pkg/wa/package/land-110m.json" assets/vendor/land-110m.json
+          printf 'supabase-js %s\nworld-atlas %s (Natural Earth 1:110m land)\n' "$SB" "$WA" > assets/vendor/VERSIONS.txt
+          cat assets/vendor/VERSIONS.txt
+          ls -la assets/vendor
+      - name: Сохранить
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
+          git add assets/vendor
+          git diff --cached --quiet && exit 0
+          git commit -q -m "Обновить сторонние файлы: $(head -1 assets/vendor/VERSIONS.txt)"
+          for i in 1 2 3; do git pull -q --rebase origin main && git push -q origin HEAD:main && exit 0; sleep 5; done
+          exit 1
