@@ -1,0 +1,2 @@
+# News data lives in the "data" branch (overwritten on every run, no history)
+data/
