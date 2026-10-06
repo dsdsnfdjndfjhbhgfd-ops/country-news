@@ -7,7 +7,7 @@ let savedTheme = "auto"; try { savedTheme = localStorage.getItem("cn:theme") || 
 applyTheme(savedTheme);
 document.querySelectorAll(".theme button").forEach(b => b.onclick = () => { applyTheme(b.dataset.t); Account.saveSettings({ theme: b.dataset.t }); });
 
-const COUNTRIES = [["RU", "Россия"], ["US", "США"], ["CN", "Китай"], ["UA", "Украина"], ["IL", "Израиль"], ["IR", "Иран"], ["DE", "Германия"], ["GB", "Великобритания"], ["FR", "Франция"], ["TR", "Турция"]];
+const COUNTRIES = [["RU", "Россия"], ["US", "США"], ["CN", "Китай"], ["UA", "Украина"], ["IL", "Израиль"], ["IR", "Иран"], ["DE", "Германия"], ["GB", "Великобритания"], ["FR", "Франция"], ["TR", "Турция"], ["IN", "Индия"], ["JP", "Япония"], ["PL", "Польша"], ["BY", "Беларусь"], ["KZ", "Казахстан"]];
 const TOPIC_COLOR = { "Политика": "--t-politics", "Безопасность": "--t-security", "Экономика": "--t-economy" };
 function el(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
 function plural(n, one, few, many) { const a = n % 10, b = n % 100; return a === 1 && b !== 11 ? one : a >= 2 && a <= 4 && (b < 12 || b > 14) ? few : many; }

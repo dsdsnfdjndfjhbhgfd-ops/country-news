@@ -37,7 +37,12 @@ const COUNTRIES = {
   DE: ["германи", "фрг!", "берлин", "мерц", "бундестаг", "germany", "german", "berlin", "merz", "bundestag"],
   GB: ["великобритан", "британ", "лондон", "стармер", "britain", "british", "uk!", "london", "starmer"],
   FR: ["франци", "париж", "макрон", "france", "french", "paris", "macron"],
-  TR: ["турци", "анкар", "стамбул", "эрдоган", "turkey", "türkiye", "turkish", "ankara", "istanbul", "erdogan"]
+  TR: ["турци", "анкар", "стамбул", "эрдоган", "turkey", "türkiye", "turkish", "ankara", "istanbul", "erdogan"],
+  IN: ["индия", "индии", "индию", "индией", "индийск", "нью-дели", "дели!", "моди!", "india!", "indian!", "indians!", "new delhi", "delhi!", "modi!"],
+  JP: ["япони", "японск", "японц", "токио", "такаити", "japan", "tokyo", "takaichi"],
+  PL: ["польш", "польск", "поляк", "варшав", "туск!", "туска!", "туском!", "туску!", "навроцк", "poland", "polish!", "warsaw", "tusk!", "nawrocki"],
+  BY: ["беларус", "белорус", "минск", "лукашенк", "belarus", "minsk", "lukashenko"],
+  KZ: ["казахстан", "казахск", "астан", "алмат", "токаев", "kazakh", "astana", "almaty", "tokayev"]
 };
 const WINDOW_MS = 48 * 3600 * 1000;
 
@@ -139,9 +144,10 @@ if (!fresh.length) { console.log("No outlet answered"); process.exit(1); }
 const NAMES = {
   RU: ["Россия", "России"], US: ["США", "США"], CN: ["Китай", "Китае"], UA: ["Украина", "Украине"],
   IL: ["Израиль", "Израиле"], IR: ["Иран", "Иране"], DE: ["Германия", "Германии"],
-  GB: ["Великобритания", "Великобритании"], FR: ["Франция", "Франции"], TR: ["Турция", "Турции"]
+  GB: ["Великобритания", "Великобритании"], FR: ["Франция", "Франции"], TR: ["Турция", "Турции"],
+  IN: ["Индия", "Индии"], JP: ["Япония", "Японии"], PL: ["Польша", "Польше"], BY: ["Беларусь", "Беларуси"], KZ: ["Казахстан", "Казахстане"]
 };
-const EN = { RU: "Russia", US: "United States", CN: "China", UA: "Ukraine", IL: "Israel", IR: "Iran", DE: "Germany", GB: "United Kingdom", FR: "France", TR: "Turkey" };
+const EN = { RU: "Russia", US: "United States", CN: "China", UA: "Ukraine", IL: "Israel", IR: "Iran", DE: "Germany", GB: "United Kingdom", FR: "France", TR: "Turkey", IN: "India", JP: "Japan", PL: "Poland", BY: "Belarus", KZ: "Kazakhstan" };
 const PER_RUN = 24, BATCH = 12, TOP = 12;
 
 const core = vm.createContext({ Date, Math, Set, Map, JSON });
