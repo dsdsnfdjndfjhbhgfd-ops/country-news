@@ -5,8 +5,8 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://bsgidggxlzinntgdnxgt.supabase.co wss://bsgidggxlzinntgdnxgt.supabase.co https://dns.google; object-src 'none'; base-uri 'self'; form-action 'self'; frame-src 'none'">
 <meta name="referrer" content="strict-origin-when-cross-origin">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>ev.news · лента</title>
-<meta name="description" content="Политика, безопасность и экономика ключевых стран за последние 2 дня.">
+<title>ev.news · событие</title>
+<meta name="description" content="Событие: кто о нём пишет, почему это важно и где читать полностью.">
 <script src="assets/boot.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -157,6 +157,35 @@ footer a{color:var(--muted)}
   #go{padding:12px 18px;font-size:15px}
 }
 @media (prefers-reduced-motion:reduce){.spinner,.sk b,.sk i{animation:none}}
+
+/* ---------- Event page ---------- */
+.crumbs{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:15px}
+.crumbs a{color:var(--accent);font-weight:700;text-decoration:none}
+.crumbs a:hover{text-decoration:underline;text-underline-offset:3px}
+.art{display:flex;flex-direction:column;gap:22px;max-width:760px}
+.art h1{margin:0;font-family:var(--serif);font-weight:700;font-size:clamp(28px,4.4vw,44px);line-height:1.15;letter-spacing:-.01em;text-wrap:balance}
+.art h1.translated::after{content:" перевод";font:500 13px var(--sans);color:var(--muted);vertical-align:middle;margin-left:8px}
+.art .orig{margin:-10px 0 0;color:var(--muted);font-size:15px}
+.art .hero-img{width:100%;aspect-ratio:16/8;object-fit:cover;border-radius:14px;background:var(--line)}
+.art .why{font-size:18px}
+.lead-box{display:flex;flex-direction:column;gap:10px;padding:20px;background:var(--surface);border:1px solid var(--line);border-radius:14px}
+.lead-box .label{font-size:14px;color:var(--muted);font-weight:700}
+.lead-box p{margin:0;font-size:17px;line-height:1.6}
+.actions{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.btn-main{display:inline-block;font:700 16px var(--sans);text-decoration:none;border-radius:999px;padding:12px 22px;background:var(--ink);color:var(--surface)}
+.btn-main:hover{background:var(--accent);color:var(--on-accent)}
+.actions .translate{display:inline;margin:0;font-size:15px;color:var(--muted)}
+.cover h2,.others h2{margin:0 0 4px;font-size:22px;font-weight:800}
+.cover > p,.others > p{margin:0 0 12px;color:var(--muted);font-size:15px}
+.cover ol,.others ol{list-style:none;margin:0;padding:0;border-top:2px solid var(--ink)}
+.cover li{padding:14px 0;border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:4px}
+.cover .who{font-size:14px;color:var(--muted)}
+.cover .who b{color:var(--ink)}
+.cover a.t,.others a.t{font-family:var(--serif);font-weight:700;font-size:18px;line-height:1.35;text-decoration:none;color:var(--ink)}
+.cover a.t:hover,.others a.t:hover{color:var(--accent);text-decoration:underline;text-underline-offset:3px}
+.cover .d{margin:0;font-size:15px;color:var(--muted)}
+.others li{padding:12px 0;border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:2px}
+.others .meta{font-size:13px;color:var(--muted)}
 </style>
 </head>
 <body>
@@ -164,7 +193,7 @@ footer a{color:var(--muted)}
   <div class="topbar">
     <div class="home">
       <a class="brand" href="./">ev<span>.news</span></a>
-      <a class="to-main" href="./">← На главную</a>
+      <a class="to-main" id="back" href="news.html">← К ленте</a>
     </div>
     <div class="top-right">
     <span data-account></span>
@@ -175,30 +204,10 @@ footer a{color:var(--muted)}
     </div>
     </div>
   </div>
-  <section class="hero">
-    <form id="f" autocomplete="off" class="ask" role="search">
-      <label for="country">Что происходит в</label>
-      <span class="field">
-        <input id="country" name="country" list="countries" placeholder="России" required enterkeyhint="search">
-        <button id="go" type="submit">Показать</button>
-      </span>
-      <datalist id="countries"></datalist>
-    </form>
-    <p class="lede">Главные события последних двух дней по ключевым странам: политика, безопасность и экономика. До 25 новостей. Только проверенные издания. Сначала то, о чём пишут сразу несколько из них, в конце новости из одного издания.</p>
-    <div class="quick" id="quick"><span>Страны:</span></div>
-  </section>
 
-  <div class="status" id="status" aria-live="polite"></div>
+  <main id="art" class="art"><p class="src">Загружаю событие…</p></main>
 
-  <main id="out">
-    <div class="how">
-      <div><span class="meter"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i><i></i></span><h3>Важность видна сразу</h3><p>Каждый квадратик — отдельное издание, которое написало о событии. Больше квадратиков, больше внимания.</p></div>
-      <div><h3>Без шума</h3><p>Только политика, безопасность и экономика. Спорт, шоу-бизнес и прочее отсеиваются, повторы одной новости склеиваются.</p></div>
-      <div><h3>Открывается сразу</h3><p>Новости по 10 странам собираются заранее каждые 15 минут, ждать загрузки не нужно.</p></div>
-    </div>
-  </main>
-
-  <footer>Источники: ТАСС, РИА Новости, Интерфакс, Коммерсантъ, РБК, Ведомости, BBC Русская служба, DW на русском, BBC News, The Guardian, The New York Times, Al Jazeera, Deutsche Welle, France 24, Politico Europe, CNBC. Новости за последние 2 дня, обновление каждые 15 минут. Важность определяется автоматически: по числу изданий, теме и свежести. Пояснения «Почему это важно» составляются автоматически по типу события и тому, кто о нём пишет; подробности смотрите в первоисточнике.</footer>
+  <footer>Страница собрана автоматически из заголовков и анонсов, которые издания публикуют в своих лентах. Полный текст статьи читайте на сайте издания по кнопке «Читать полностью».</footer>
 </div>
 
 <script src="assets/vendor/supabase.js"></script>
@@ -206,6 +215,6 @@ footer a{color:var(--muted)}
 <script src="assets/account.js"></script>
 <script src="assets/core.js"></script>
 <script src="assets/translate.js"></script>
-<script src="assets/feed.js"></script>
+<script src="assets/article.js"></script>
 </body>
 </html>

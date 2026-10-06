@@ -40,20 +40,27 @@ function isSoft(title) { const t = norm(title); return SOFT.some(w => t.includes
 
 function cluster(items, c, singles, limit = 25) {
   const countryStems = [low(c.ru), low(c.en), low(c.loc || "")].flatMap(n => n.split(/\s+/)).filter(w => w.length >= 4).map(w => w.slice(0, 5));
+  // Words found in many headlines of this country ("Путин", "заявил", "развитие") say nothing
+  // about which event a headline is about, so they are not used for grouping
+  const all = items.map(a => stems(a.title, countryStems));
+  const df = new Map();
+  for (const st of all) for (const w of st) df.set(w, (df.get(w) || 0) + 1);
+  const common = Math.max(6, items.length * 0.025);
   const groups = [];
-  for (const a of items) {
-    const st = stems(a.title, countryStems);
-    if (st.size < 2) continue;
+  items.forEach((a, n) => {
+    const st = new Set([...all[n]].filter(w => df.get(w) <= common));
+    if (st.size < 2) return;
     let home = null, bestScore = 0;
     for (const g of groups) {
       if (g.lang !== a.language) continue;
-      let shared = 0; for (const s of st) if (g.stems.has(s)) shared++;
+      // Compare with the headline the group started from, so a group cannot drift to other topics
+      let shared = 0; for (const s of st) if (g.core.has(s)) shared++;
       const j = shared / Math.min(st.size, g.core.size);
       if ((shared >= 3 || (shared >= 2 && j >= 0.5)) && j > bestScore) { bestScore = j; home = g; }
     }
     if (home) { home.items.push(a); for (const s of st) home.stems.add(s); }
     else groups.push({ lang: a.language, core: st, stems: new Set(st), items: [a] });
-  }
+  });
   for (const g of groups) {
     g.domains = new Set(g.items.map(i => i.source || i.domain)).size;
     g.lead = g.items[0];

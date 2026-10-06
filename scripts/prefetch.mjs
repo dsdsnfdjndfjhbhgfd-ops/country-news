@@ -98,6 +98,7 @@ const fresh = (await Promise.all(SOURCES.map(fetchFeed))).flat().filter(a => now
 console.log(`Fresh items from all outlets: ${fresh.length}`);
 
 await mkdir("data/full", { recursive: true });
+await mkdir("data/desc", { recursive: true });
 let saved = 0;
 for (const [code, res] of Object.entries(matchers)) {
   // The country must be named in the headline, or at least twice in the summary
@@ -121,6 +122,10 @@ for (const [code, res] of Object.entries(matchers)) {
   await writeFile(`data/full/${code}.json`, JSON.stringify({ updated, items }));
   const slim = items.map(a => ({ url: a.url, title: a.title, seendate: a.seendate, source: a.source, language: a.language, ...(a.socialimage ? { socialimage: a.socialimage } : {}) }));
   await writeFile(`data/${code}.json`, JSON.stringify({ updated, items: slim }));
+  // Short summaries for the event page, loaded only when someone opens an event
+  const desc = {};
+  for (const x of items) if (x.desc) desc[x.url] = x.desc;
+  await writeFile(`data/desc/${code}.json`, JSON.stringify(desc));
   saved++;
 }
 if (!fresh.length) { console.log("No outlet answered"); process.exit(1); }

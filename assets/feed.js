@@ -326,7 +326,8 @@ function render(c, allItems, info) {
     body.append(facts);
 
     const h = el("h3"); const link = el("a", null, cleanTitle(a.title));
-    link.href = safeUrl(a.url); link.target = "_blank"; link.rel = "noopener";
+    // Headline opens the event page on this site; outlets' own links stay in the line below
+    link.href = `article.html?c=${c.code}&u=${encodeURIComponent(a.url)}`;
     const foreign = Translate.isForeign(a.title, a.language);
     if (foreign) { link.dataset.orig = cleanTitle(a.title); link.lang = "en"; }
     h.append(link); body.append(h);
@@ -335,7 +336,8 @@ function render(c, allItems, info) {
 
     const src = el("div", "src");
     if (a.language === "English") { src.append(el("span", "lang", "EN")); src.append(document.createTextNode(" ")); }
-    src.append(document.createTextNode(`${a.source || a.domain}, ${fmtDate(a.seendate)}`));
+    const own = el("a", null, a.source || a.domain); own.href = safeUrl(a.url); own.target = "_blank"; own.rel = "noopener"; own.title = "Открыть статью на сайте издания";
+    src.append(own, document.createTextNode(`, ${fmtDate(a.seendate)}`));
     const doms = new Set([a.source || a.domain]);
     const more = g.items.filter(x => !doms.has(x.source || x.domain) && doms.add(x.source || x.domain)).slice(0, 3);
     if (more.length) {
