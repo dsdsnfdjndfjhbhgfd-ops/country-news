@@ -1,0 +1,49 @@
+RES|ABC News|200|25|25|25|https://abcnews.go.com/abcnews/internationalheadlines
+RES|Astana Times|200|10|10|10|https://astanatimes.com/feed/
+RES|Bloomberg Politics|200|20|20|20|https://feeds.bloomberg.com/politics/news.rss
+RES|CBS News|200|30|28|30|https://www.cbsnews.com/latest/rss/world
+RES|CNN|200|29|0|20|http://rss.cnn.com/rss/edition_world.rss
+RES|Daily Sabah|200|0|0|0|https://www.dailysabah.com/rss
+RES|Euronews RU|200|50|50|50|https://ru.euronews.com/rss
+RES|Euronews|200|50|50|50|https://www.euronews.com/rss
+RES|Foreign Policy|200|25|10|25|https://foreignpolicy.com/feed/
+RES|Fox News|200|25|14|25|https://moxie.foxnews.com/google-publisher/world.xml
+RES|Hindustan Times|200|100|0|100|https://www.hindustantimes.com/feeds/rss/india-news/rssfeed.xml
+RES|Hürriyet Daily News|200|0|0|0|https://www.hurriyetdailynews.com/rss
+RES|Independent|200|81|81|81|https://www.independent.co.uk/news/world/rss
+RES|Iran International|200|50|20|50|https://www.iranintl.com/en/feed
+RES|Japan Times|200|30|30|30|https://www.japantimes.co.jp/feed/
+RES|Kazinform|200|200|0|200|https://www.inform.kz/rss/rus.xml
+RES|Kommersant KZ|403|0|0|0|https://www.kommersant.ru/RSS/regions/kz.xml
+RES|Kursiv|200|100|100|100|https://kz.kursiv.media/feed/
+RES|Kyiv Independent|200|15|15|15|https://kyivindependent.com/news-archive/rss/
+RES|Kyodo|404|0|0|0|https://english.kyodonews.net/rss/news.xml
+RES|Le Monde EN|200|18|18|18|https://www.lemonde.fr/en/rss/une.xml
+RES|MarketWatch|200|10|10|10|https://feeds.content.dowjones.io/public/rss/mw_topstories
+RES|Meduza|200|30|30|30|https://meduza.io/rss/all
+RES|Moscow Times|200|50|18|50|https://www.themoscowtimes.com/rss/news
+RES|NHK World|404|0|0|0|https://www3.nhk.or.jp/nhkworld/en/news/feeds/
+RES|NPR|200|10|10|10|https://feeds.npr.org/1004/rss.xml
+RES|Nikkei Asia|200|50|0|0|https://asia.nikkei.com/rss/feed/nar
+RES|Notes from Poland|200|12|4|12|https://notesfrompoland.com/feed/
+RES|Polskie Radio EN|404|0|0|0|https://www.polskieradio.pl/395/7784/rss
+RES|RTVI|ERR fetch failed|0|0|0|https://rtvi.com/feed/
+RES|SCMP|200|50|50|50|https://www.scmp.com/rss/91/feed
+RES|Sky News|200|5|5|5|https://feeds.skynews.com/feeds/rss/world.xml
+RES|Spiegel International|200|20|0|20|https://www.spiegel.de/international/index.rss
+RES|TVP World|404|0|0|0|https://tvpworld.com/rss
+RES|Tehran Times|200|30|30|30|https://www.tehrantimes.com/rss
+RES|Tengrinews|200|104|102|104|https://tengrinews.kz/news.rss
+RES|The Diplomat|200|96|0|96|https://thediplomat.com/feed/
+RES|The Hindu|200|60|0|60|https://www.thehindu.com/news/national/feeder/default.rss
+RES|Times of India|200|20|20|20|https://timesofindia.indiatimes.com/rssfeeds/-2128936835.cms
+RES|Times of Israel|403|0|0|0|https://www.timesofisrael.com/feed/
+RES|Washington Post|200|18|18|18|https://feeds.washingtonpost.com/rss/world
+RES|БелТА|200|30|30|30|https://www.belta.by/rss
+RES|Белсат|404|0|0|0|https://ru.belsat.eu/feed/
+RES|Газета.ру|200|11|11|11|https://www.gazeta.ru/export/rss/first.xml
+RES|Зеркало (BY)|200|100|100|100|https://news.zerkalo.io/rss/all.rss
+RES|Известия|403|0|0|0|https://iz.ru/xml/rss/all.xml
+RES|Лента.ру|200|200|200|200|https://lenta.ru/rss/news
+RES|Новая газета Европа|200|100|41|100|https://novayagazeta.eu/feed/rss
+RES|Фонтанка|200|100|100|100|https://www.fontanka.ru/rss-feeds/rss.xml
