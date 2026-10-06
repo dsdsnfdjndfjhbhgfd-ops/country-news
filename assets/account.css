@@ -27,6 +27,10 @@
 .acc-github .acc-ico{background:#24292f}
 .acc-or{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:13px;margin:4px 0}
 .acc-or::before,.acc-or::after{content:"";flex:1;height:1px;background:var(--line)}
+.acc-hint{margin:2px 0 0;font-size:14px;color:var(--muted)}
+.acc-hint[hidden]{display:none}
+.acc-hint.err{color:var(--t-security)}
+.acc-fix{font:700 14px var(--sans);color:var(--accent);background:none;border:0;padding:0;cursor:pointer;text-decoration:underline;text-underline-offset:3px}
 .acc-msg{margin:4px 0 0;font-size:14px;min-height:1px}
 .acc-msg.err{color:var(--t-security)}
 .acc-msg.ok{color:var(--t-economy)}

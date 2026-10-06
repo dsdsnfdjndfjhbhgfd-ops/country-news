@@ -188,6 +188,7 @@
         <div class="acc-or" hidden><span>или по почте</span></div>
         <label for="acc-email">Почта</label>
         <input id="acc-email" type="email" autocomplete="email" required placeholder="you@example.com">
+        <p class="acc-hint" aria-live="polite" hidden></p>
         <div class="acc-pass">
           <label for="acc-password">Пароль</label>
           <input id="acc-password" type="password" minlength="6" required>
@@ -202,7 +203,7 @@
     let mode = "signin";
     const TEXT = {
       signin: ["Вход в ev.news", "Войдите, чтобы читать ленту, сохранять новости и выбирать свои страны.", "Войти", "current-password"],
-      signup: ["Регистрация", "Нужны только почта и пароль. Мы пришлём письмо для подтверждения.", "Зарегистрироваться", "new-password"],
+      signup: ["Регистрация", "Нужны только почта и пароль. Адрес проверим сразу, без писем и кодов.", "Зарегистрироваться", "new-password"],
       reset: ["Восстановление пароля", "Пришлём на почту ссылку, по которой можно задать новый пароль.", "Отправить ссылку", ""]
     };
     function setMode(m) {
@@ -218,6 +219,7 @@
       social.hidden = !any || m === "reset"; d.querySelector(".acc-or").hidden = !any || m === "reset";
       d.querySelectorAll(".acc-tabs button").forEach(b => b.setAttribute("aria-selected", String(b.dataset.mode === m)));
       msg.textContent = ""; msg.className = "acc-msg";
+      const h = d.querySelector(".acc-hint"); if (h) { h.hidden = true; h.textContent = ""; }
     }
     d.querySelectorAll(".acc-tabs button").forEach(b => b.onclick = () => setMode(b.dataset.mode));
     // Social buttons appear only for providers enabled in Supabase
@@ -240,10 +242,38 @@
     d.querySelector("[data-forgot]").onclick = () => setMode("reset");
     d.querySelector(".acc-close").onclick = () => d.close();
     d.addEventListener("click", e => { if (e.target === d) d.close(); });
+    // Sign-up only: check the address when the field is left and before submitting
+    const hint = d.querySelector(".acc-hint");
+    let checked = { value: null, ok: true };
+    async function checkAddress() {
+      if (mode !== "signup" || !window.checkEmail || !email.value.trim()) { hint.hidden = true; return true; }
+      if (checked.value === email.value) return checked.ok; // nothing changed since the last check
+      hint.hidden = true; hint.textContent = ""; hint.className = "acc-hint";
+      const value = email.value;
+      const r = await window.checkEmail(value);
+      checked = { value, ok: r.ok };
+      if (r.message) { hint.textContent = r.message + " "; hint.classList.add("err"); hint.hidden = false; }
+      if (r.suggestion) {
+        const b = el("button", "acc-fix", `Может быть, ${r.suggestion}?`); b.type = "button";
+        b.onmousedown = ev => ev.preventDefault(); // keep focus so the field's blur does not redraw the hint
+        b.onclick = () => { email.value = r.suggestion; checkAddress(); };
+        hint.append(b); hint.hidden = false;
+      }
+      return r.ok;
+    }
+    email.addEventListener("blur", checkAddress);
+    email.addEventListener("input", () => { hint.hidden = true; checked = { value: null, ok: true }; });
+
     form.addEventListener("submit", async e => {
       e.preventDefault();
       msg.className = "acc-msg";
       if (!email.value.includes("@")) { msg.textContent = "Введите адрес почты."; msg.classList.add("err"); return; }
+      if (mode === "signup") {
+        submit.disabled = true; msg.textContent = "Проверяю адрес…";
+        const ok = await checkAddress();
+        submit.disabled = false; msg.textContent = "";
+        if (!ok) { email.focus(); return; }
+      }
       if (mode !== "reset" && pass.value.length < 6) { msg.textContent = "Пароль должен быть не короче 6 символов."; msg.classList.add("err"); return; }
       submit.disabled = true; msg.textContent = "Секунду…";
       try {
