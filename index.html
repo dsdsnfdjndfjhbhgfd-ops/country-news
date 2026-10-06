@@ -20,26 +20,26 @@ try{var t=localStorage.getItem("cn:theme");if(t==="light"||t==="dark")document.d
   10 countries (each with its top story right now), then how it works, sources and limits.
 */
 :root{
-  --bg:#edf0f5; --surface:#ffffff; --ink:#172033; --muted:#5b667a; --line:#d3d9e3;
-  --accent:#2b50e8; --marker:#ffe066; --meter-off:#d9dee8;
-  --t-politics:#2b50e8; --t-economy:#0b7a5a; --t-security:#c0362c;
+  --bg:#f3f5f9; --surface:#ffffff; --ink:#0f1b2d; --muted:#5d6b82; --line:#dbe1ea;
+  --accent:#2557d6; --on-accent:#ffffff; --marker:#f2b33d; --meter-off:#e1e6ee;
+  --t-politics:#2557d6; --t-economy:#0f8a7e; --t-security:#d14b5a;
   --sans:"Onest",system-ui,-apple-system,"Segoe UI",sans-serif;
   --serif:"Literata",Georgia,"Times New Roman",serif;
   color-scheme:light;
 }
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
-  --bg:#10151f; --surface:#171e2b; --ink:#e7ebf2; --muted:#94a0b4; --line:#273145;
-  --accent:#8ea6ff; --marker:#c9a22a; --meter-off:#2a3346;
-  --t-politics:#8ea6ff; --t-economy:#4fd1a5; --t-security:#ff8a7a; color-scheme:dark}}
+  --bg:#0b1220; --surface:#121b2d; --ink:#e7edf6; --muted:#8e9bb2; --line:#223049;
+  --accent:#7aa5ff; --on-accent:#0b1220; --marker:#e0a43a; --meter-off:#26334b;
+  --t-politics:#7aa5ff; --t-economy:#3dc4b2; --t-security:#ff7d88; color-scheme:dark}}
 :root[data-theme="dark"]{
-  --bg:#10151f; --surface:#171e2b; --ink:#e7ebf2; --muted:#94a0b4; --line:#273145;
-  --accent:#8ea6ff; --marker:#c9a22a; --meter-off:#2a3346;
-  --t-politics:#8ea6ff; --t-economy:#4fd1a5; --t-security:#ff8a7a; color-scheme:dark}
+  --bg:#0b1220; --surface:#121b2d; --ink:#e7edf6; --muted:#8e9bb2; --line:#223049;
+  --accent:#7aa5ff; --on-accent:#0b1220; --marker:#e0a43a; --meter-off:#26334b;
+  --t-politics:#7aa5ff; --t-economy:#3dc4b2; --t-security:#ff7d88; color-scheme:dark}
 *{box-sizing:border-box}
 html,body{margin:0}
 body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:17px;line-height:1.55;padding-inline:20px;padding-block:20px 72px;-webkit-font-smoothing:antialiased}
 a{color:inherit}
-.wrap{max-width:960px;margin:0 auto;display:flex;flex-direction:column;gap:clamp(48px,8vw,88px)}
+.wrap{max-width:1100px;margin:0 auto;display:flex;flex-direction:column;gap:clamp(48px,8vw,88px)}
 a:focus-visible,button:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
 
 .topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
@@ -53,13 +53,24 @@ a:focus-visible,button:focus-visible{outline:3px solid var(--accent);outline-off
 .theme button:hover{color:var(--ink)}
 .theme button[aria-pressed="true"]{background:var(--ink);color:var(--surface)}
 
-.hero{display:flex;flex-direction:column;gap:22px;padding-top:clamp(12px,4vw,40px)}
-.hero h1{margin:0;font-weight:800;font-size:clamp(36px,7vw,72px);line-height:1.03;letter-spacing:-.03em;max-width:15ch;text-wrap:balance}
-.hero h1 mark{background:linear-gradient(transparent 70%,var(--marker) 70%);color:inherit;padding:0 .04em}
+.hero{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:24px;align-items:center;padding-top:clamp(12px,4vw,40px)}
+.hero-text{display:flex;flex-direction:column;gap:22px;min-width:0}
+.globe{position:relative;display:flex;justify-content:center;min-width:0}
+.globe canvas{display:block;touch-action:pan-y;cursor:grab;max-width:100%}
+.globe canvas:active{cursor:grabbing}
+.globe-tip{position:absolute;transform:translate(-50%,calc(-100% - 16px));width:max-content;max-width:260px;padding:10px 12px;background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:12px;box-shadow:0 10px 30px rgba(11,18,32,.18);font-size:13px;line-height:1.4;pointer-events:none;display:flex;flex-direction:column;gap:3px;z-index:2}
+.globe-tip[hidden]{display:none}
+.globe-tip b{font-size:15px}
+.globe-tip span{color:var(--muted)}
+.globe-tip p{margin:2px 0 0;font-family:var(--serif);font-weight:700}
+.globe-tip i{font-style:normal;color:var(--accent);font-weight:700;font-size:12px}
+@media (max-width:860px){.hero{grid-template-columns:minmax(0,1fr)}.globe{order:2}}
+.hero h1{margin:0;font-weight:800;font-size:clamp(36px,6vw,64px);line-height:1.03;letter-spacing:-.03em;max-width:15ch;text-wrap:balance}
+.hero h1 mark{white-space:nowrap;background:linear-gradient(transparent 70%,var(--marker) 70%);color:inherit;padding:0 .04em}
 .hero p{margin:0;font-size:clamp(18px,2.2vw,21px);color:var(--muted);max-width:58ch}
 .cta{display:flex;flex-wrap:wrap;gap:12px;align-items:center}
 .btn{display:inline-block;font-weight:700;font-size:17px;text-decoration:none;border-radius:999px;padding:14px 24px;background:var(--ink);color:var(--surface)}
-.btn:hover{background:var(--accent);color:#fff}
+.btn:hover{background:var(--accent);color:var(--on-accent)}
 .btn.ghost{background:transparent;color:var(--ink);border:2px solid var(--line);padding:12px 22px}
 .btn.ghost:hover{border-color:var(--accent);color:var(--accent);background:transparent}
 .hero p.note{font-size:15px}
@@ -121,6 +132,7 @@ footer a{color:var(--muted)}
   </header>
 
   <section class="hero">
+    <div class="hero-text">
     <h1>Главное о <mark>10 странах</mark> за последние двое суток</h1>
     <p>Сайт сам читает 16 российских и зарубежных изданий, раскладывает новости по странам и оставляет только политику, безопасность и экономику. Сверху то, о чём пишут сразу несколько редакций, и к каждому событию — короткое пояснение, почему оно важно.</p>
     <div class="cta">
@@ -129,6 +141,8 @@ footer a{color:var(--muted)}
     </div>
     <p class="note">Лента открывается после бесплатной регистрации: нужны только почта и пароль. С аккаунтом можно выбрать свои страны и сохранять новости.</p>
     <div class="live" id="live">Загружаю последние данные…</div>
+    </div>
+    <div class="globe" id="globe"></div>
   </section>
 
   <section>
@@ -176,6 +190,7 @@ footer a{color:var(--muted)}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="assets/email-check.js"></script>
 <script src="assets/account.js"></script>
+<script src="assets/globe.js"></script>
 <script>
 function applyTheme(t) {
   if (t === "light" || t === "dark") document.documentElement.dataset.theme = t; else delete document.documentElement.dataset.theme;
@@ -217,12 +232,13 @@ function drawBoard(status) {
 }
 
 let lastStatus = null;
+const globe = Globe.mount(document.getElementById("globe"), { max: 500 });
 drawBoard(null);
 Account.onChange(e => { if (e !== "TOKEN_REFRESHED") drawBoard(lastStatus); if (e === "SIGNED_IN" && ["auto","light","dark"].includes(Account.settings.theme)) applyTheme(Account.settings.theme); });
 fetch("data/status.json?t=" + Date.now(), { cache: "no-store" })
   .then(r => r.ok ? r.json() : Promise.reject())
   .then(s => {
-    lastStatus = s; drawBoard(s);
+    lastStatus = s; drawBoard(s); globe.setStatus(s);
     const t = new Date(s.updated), min = Math.round((Date.now() - t) / 60000);
     const total = Object.values(s.countries).reduce((n, c) => n + c.items, 0);
     document.getElementById("live").textContent =

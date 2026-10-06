@@ -1,9 +1,9 @@
 /* Sign-in button, account link and dialog. Uses the page's colour tokens. */
 .acc-login{font:700 14px var(--sans);color:var(--surface);background:var(--ink);border:0;border-radius:999px;padding:8px 16px;cursor:pointer}
-.acc-login:hover{background:var(--accent);color:#fff}
+.acc-login:hover{background:var(--accent);color:var(--on-accent)}
 .acc-me{display:inline-flex;align-items:center;gap:8px;text-decoration:none;font:700 14px var(--sans);color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:4px 12px 4px 4px}
 .acc-me:hover{border-color:var(--accent);color:var(--accent)}
-.acc-avatar{width:26px;height:26px;border-radius:50%;background:var(--accent);color:#fff;display:grid;place-items:center;font-size:13px}
+.acc-avatar{width:26px;height:26px;border-radius:50%;background:var(--accent);color:var(--on-accent);display:grid;place-items:center;font-size:13px}
 
 .acc-dialog{border:0;padding:0;border-radius:18px;background:var(--surface);color:var(--ink);width:min(420px,calc(100vw - 32px));box-shadow:0 20px 60px rgba(10,15,30,.35)}
 .acc-dialog::backdrop{background:rgba(10,15,30,.55)}
@@ -23,7 +23,7 @@
 .acc-oauth{display:flex;align-items:center;justify-content:center;gap:10px;font:700 15px var(--sans);color:var(--ink);background:var(--surface);border:2px solid var(--line);border-radius:999px;padding:11px;cursor:pointer}
 .acc-oauth:hover{border-color:var(--accent);color:var(--accent)}
 .acc-oauth:disabled{opacity:.6;cursor:wait}
-.acc-ico{display:inline-grid;place-items:center;min-width:24px;height:24px;padding:0 4px;border-radius:6px;font-size:12px;font-weight:800;color:#fff;background:#4a5568}
+.acc-ico{display:inline-grid;place-items:center;min-width:24px;height:24px;padding:0 4px;border-radius:6px;font-size:12px;font-weight:800;color:var(--on-accent);background:#4a5568}
 .acc-github .acc-ico{background:#24292f}
 .acc-or{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:13px;margin:4px 0}
 .acc-or::before,.acc-or::after{content:"";flex:1;height:1px;background:var(--line)}
@@ -35,7 +35,7 @@
 .acc-msg.err{color:var(--t-security)}
 .acc-msg.ok{color:var(--t-economy)}
 .acc-submit{margin-top:6px;font:700 16px var(--sans);color:var(--surface);background:var(--ink);border:0;border-radius:999px;padding:13px;cursor:pointer}
-.acc-submit:hover{background:var(--accent);color:#fff}
+.acc-submit:hover{background:var(--accent);color:var(--on-accent)}
 .acc-submit:disabled{opacity:.5;cursor:wait}
 .acc-link{align-self:center;font:500 14px var(--sans);color:var(--muted);background:none;border:0;cursor:pointer;text-decoration:underline;text-underline-offset:3px}
 .acc-link[hidden]{display:none}
@@ -49,12 +49,12 @@
 .gate .row{display:flex;gap:10px;flex-wrap:wrap}
 .gate .row button{font:700 16px var(--sans);border-radius:999px;padding:12px 22px;cursor:pointer;border:2px solid var(--ink);background:var(--ink);color:var(--surface)}
 .gate .row button.alt{background:transparent;color:var(--ink);border-color:var(--line)}
-.gate .row button:hover{border-color:var(--accent);background:var(--accent);color:#fff}
+.gate .row button:hover{border-color:var(--accent);background:var(--accent);color:var(--on-accent)}
 
 /* Save button on events, star on countries */
 .save-btn{font:700 13px var(--sans);color:var(--muted);background:none;border:1px solid var(--line);border-radius:999px;padding:3px 10px;cursor:pointer}
 .save-btn:hover{border-color:var(--accent);color:var(--accent)}
-.save-btn[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#fff}
+.save-btn[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
 .star-btn{font:700 14px var(--sans);color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:6px 12px;cursor:pointer}
 .star-btn:hover{border-color:var(--accent)}
 .star-btn[aria-pressed="true"]{color:var(--accent);border-color:var(--accent)}
