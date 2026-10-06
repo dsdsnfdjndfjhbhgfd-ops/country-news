@@ -24,13 +24,13 @@ function drawBoard(status) {
   for (const [code, name] of order) {
     const s = status && status.countries && status.countries[code];
     const a = el("a", "card" + (mine.includes(code) ? " mine" : "")); a.href = "news.html#" + code;
-    const row = el("div", "row"); row.append(el("b", null, (mine.includes(code) ? "★ " : "") + name));
+    const row = el("div", "row depth-sm"); row.append(el("b", null, (mine.includes(code) ? "★ " : "") + name));
     if (s) row.append(el("span", "n", `${s.events} ${plural(s.events, "событие", "события", "событий")}`));
     a.append(row);
     if (s && s.top) {
       const tp = el("span", "topic", s.top.topic + (s.top.domains > 1 ? `, пишут ${s.top.domains} ${plural(s.top.domains, "издание", "издания", "изданий")}` : ""));
       tp.style.setProperty("--tc", `var(${TOPIC_COLOR[s.top.topic] || "--muted"})`);
-      a.append(tp, el("p", "top", cleanTitle(s.top.title)));
+      a.append(tp, el("p", "top depth", cleanTitle(s.top.title)));
     }
     a.append(el("span", "go", "Открыть ленту"));
     board.append(a);

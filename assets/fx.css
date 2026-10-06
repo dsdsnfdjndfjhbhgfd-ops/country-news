@@ -1,0 +1,32 @@
+/* 3D effects shared by all pages. Only for a mouse or trackpad, and never with reduced motion. */
+
+/* Cards that tilt toward the pointer, with a soft light glare */
+.tilt{position:relative;transform:perspective(900px) rotateX(var(--rx,0deg)) rotateY(var(--ry,0deg));transform-style:preserve-3d;transition:transform .45s cubic-bezier(.2,.8,.2,1),box-shadow .45s ease}
+.tilt.is-tilting{transition:transform .08s linear,box-shadow .3s ease;box-shadow:0 22px 44px -22px rgba(11,18,32,.45)}
+.tilt::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;opacity:0;transition:opacity .35s ease;
+  background:radial-gradient(circle at var(--gx,50%) var(--gy,50%),rgba(255,255,255,.38),rgba(255,255,255,0) 55%)}
+.tilt.is-tilting::after{opacity:1}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .tilt::after{background:radial-gradient(circle at var(--gx,50%) var(--gy,50%),rgba(170,200,255,.14),rgba(170,200,255,0) 55%)}}
+:root[data-theme="dark"] .tilt::after{background:radial-gradient(circle at var(--gx,50%) var(--gy,50%),rgba(170,200,255,.14),rgba(170,200,255,0) 55%)}
+/* Content inside a tilting card floats slightly above it */
+.tilt .depth,.tilt .depth-sm{transition:transform .45s cubic-bezier(.2,.8,.2,1)}
+.tilt.is-tilting .depth{transform:translateZ(22px)}
+.tilt.is-tilting .depth-sm{transform:translateZ(11px)}
+
+/* Images that tilt as a whole */
+img.tilt-img{transform:perspective(1000px) rotateX(var(--rx,0deg)) rotateY(var(--ry,0deg)) scale(var(--sc,1));transition:transform .45s cubic-bezier(.2,.8,.2,1),box-shadow .45s ease}
+img.tilt-img.is-tilting{--sc:1.015;transition:transform .08s linear;box-shadow:0 26px 50px -26px rgba(11,18,32,.5)}
+
+/* Buttons press in */
+.btn,.btn-main,#go,.acc-login,.acc-submit,.c-send,.outlet,.more,.gate .row button{transition:transform .12s ease,box-shadow .2s ease,background .2s ease,color .2s ease,border-color .2s ease}
+.btn:hover,.btn-main:hover,#go:hover,.acc-login:hover,.acc-submit:hover,.c-send:hover,.outlet:hover,.gate .row button:hover{transform:translateY(-1px);box-shadow:0 8px 18px -10px rgba(11,18,32,.55)}
+.btn:active,.btn-main:active,#go:active,.acc-login:active,.acc-submit:active,.c-send:active,.outlet:active,.more:active,.gate .row button:active{transform:translateY(1px) scale(.98);box-shadow:none}
+
+/* Parallax: the planet leans toward the pointer */
+.globe.parallax canvas{transform:perspective(1100px) rotateX(var(--py,0deg)) rotateY(var(--px,0deg));transition:transform .6s cubic-bezier(.2,.8,.2,1)}
+
+@media (prefers-reduced-motion: reduce){
+  .tilt,.tilt.is-tilting,img.tilt-img,img.tilt-img.is-tilting,.globe.parallax canvas{transform:none!important;transition:none!important}
+  .tilt::after{display:none}
+  .btn,.btn-main,#go,.acc-login,.acc-submit,.c-send,.outlet,.more,.gate .row button{transform:none!important}
+}

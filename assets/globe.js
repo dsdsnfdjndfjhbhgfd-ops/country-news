@@ -52,7 +52,7 @@
       W = H = size;
       canvas.width = W * dpr; canvas.height = H * dpr;
       canvas.style.width = W + "px"; canvas.style.height = H + "px";
-      R = W * 0.42;
+      R = W * 0.37; // leaves room for the orbit ring around the planet
     }
 
     // Rotate a lat/lon point by the current view; returns screen x, y and depth z (z > 0 faces us)
@@ -72,6 +72,7 @@
       const glow = ctx.createRadialGradient(cx, cy, R * 0.9, cx, cy, R * 1.22);
       glow.addColorStop(0, colors.land + "55"); glow.addColorStop(1, colors.land + "00");
       ctx.fillStyle = glow; ctx.beginPath(); ctx.arc(cx, cy, R * 1.22, 0, Math.PI * 2); ctx.fill();
+      drawOrbit(false, time); // far half of the ring and satellites, hidden behind the planet
       const body = ctx.createRadialGradient(cx - R * 0.35, cy - R * 0.4, R * 0.1, cx, cy, R);
       body.addColorStop(0, colors.surface); body.addColorStop(1, colors.bg);
       ctx.fillStyle = body; ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2); ctx.fill();
@@ -107,6 +108,7 @@
         ctx.lineWidth = 1.5; ctx.strokeStyle = colors.surface; ctx.stroke();
       }
       canvas._marks = marks;
+      drawOrbit(true, time);  // near half passes in front of the planet
 
       if (hover) {
         const m = marks.find(k => k.code === hover);
@@ -116,6 +118,37 @@
 
     // Animate only while the globe is on screen; it costs nothing when scrolled away
     let visible = true, running = false;
+    // A tilted ring around the planet with two satellites. Parametric angle a gives the point
+    // (rx·cos a, ry·sin a) on a rotated ellipse; sin a > 0 is the half nearer to the viewer.
+    const ORBIT = { k: 1.3, squash: 0.26, rot: -0.3 };
+    const SATS = [{ speed: 0.00022, phase: 0, size: 3.2 }, { speed: 0.00014, phase: 2.4, size: 2.4 }];
+    function drawOrbit(front, time) {
+      const cx = W / 2, cy = H / 2, rx = R * ORBIT.k, ry = rx * ORBIT.squash;
+      ctx.save();
+      ctx.strokeStyle = colors.land; ctx.lineWidth = 1.2; ctx.setLineDash([2, 6]);
+      ctx.globalAlpha = front ? 0.75 : 0.3;
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, rx, ry, ORBIT.rot, front ? 0 : Math.PI, front ? Math.PI : 2 * Math.PI);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      for (const s of SATS) {
+        const a = reduceMotion ? s.phase + 0.8 : (time * s.speed + s.phase) % (2 * Math.PI);
+        const near = Math.sin(a) > 0;
+        if (near !== front) continue;
+        const px = rx * Math.cos(a), py = ry * Math.sin(a);
+        const x = cx + px * Math.cos(ORBIT.rot) - py * Math.sin(ORBIT.rot);
+        const y = cy + px * Math.sin(ORBIT.rot) + py * Math.cos(ORBIT.rot);
+        const depth = (Math.sin(a) + 1) / 2;           // 0 far … 1 near
+        const r = s.size * (0.7 + 0.6 * depth);
+        ctx.globalAlpha = 0.35 + 0.65 * depth;
+        const halo = ctx.createRadialGradient(x, y, 0, x, y, r * 4);
+        halo.addColorStop(0, colors.marker + "aa"); halo.addColorStop(1, colors.marker + "00");
+        ctx.fillStyle = halo; ctx.beginPath(); ctx.arc(x, y, r * 4, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = colors.marker; ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+      }
+      ctx.restore();
+    }
+
     function frame(t) {
       if (!visible) { running = false; return; }
       if (!dragging) {
