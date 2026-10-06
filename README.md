@@ -33,3 +33,8 @@ insert into private.admins (user_id) select id from auth.users where email = 'п
 -- снять
 delete from private.admins where user_id = (select id from auth.users where email = 'почта@пример.ru');
 ```
+
+## Краткое изложение событий («Кратко»)
+
+- **По расписанию.** При каждой сборке `scripts/prefetch.mjs` просит ИИ написать 2–3 предложения для 25 лучших событий каждой страны (до 72 за сборку, сначала самые верхние в ленте). Результат: `data/summary.json`. Нужен секрет репозитория `LLM_API_KEY` и переменная `LLM_BASE_URL` (для Gemini: `https://generativelanguage.googleapis.com/v1beta/openai`). Модель выбирается автоматически по списку сервиса.
+- **По запросу читателя.** Если у события нет изложения, на странице события есть кнопка «Пересказать с помощью ИИ». Она вызывает Edge Function `summarize` в Supabase. Функция проверяет вход, лимиты (20 запросов в сутки на человека, 400 всего), берёт заголовки только из опубликованных данных сайта и сохраняет текст в `event_summaries` для всех. Ключ ИИ хранится в секретах Supabase (Edge Functions → Secrets): `LLM_API_KEY`, при необходимости `LLM_BASE_URL` и `LLM_MODEL`. В браузер и в репозиторий он не попадает.

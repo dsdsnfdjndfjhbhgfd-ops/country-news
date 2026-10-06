@@ -173,6 +173,30 @@ function render(c, g, groups, d) {
     main.append(bs);
   }
 
+  // No written summary yet: the reader can ask for one (saved for everybody afterwards)
+  if (!briefText) {
+    const bs = el("section", "brief-box");
+    const lab = el("span", "label", "Кратко о событии");
+    const txt = el("p", "brief-ask", "Пересказа пока нет. ИИ может составить его по заголовкам и анонсам изданий.");
+    const btn = el("button", "brief-btn", "Пересказать с помощью ИИ"); btn.type = "button";
+    const note = el("small", null, "Текст пишет ИИ и показывается всем читателям. Лимит: 20 пересказов в сутки на человека.");
+    const err = el("small", "brief-err"); err.setAttribute("role", "status"); err.hidden = true;
+    const done = text => {
+      bs.textContent = "";
+      bs.append(el("span", "label", "Кратко о событии"), el("p", null, text),
+        el("small", null, "Изложение написано ИИ по заголовкам и анонсам изданий, а не по полным текстам. Подробности смотрите в статьях."));
+    };
+    btn.onclick = async () => {
+      btn.disabled = true; btn.textContent = "ИИ пишет пересказ…"; err.hidden = true;
+      try { done(await Account.requestSummary(c.code, g.items.map(x => x.url))); }
+      catch (e) { err.textContent = e.message; err.hidden = false; btn.disabled = false; btn.textContent = "Пересказать с помощью ИИ"; }
+    };
+    bs.append(lab, txt, btn, note, err);
+    main.append(bs);
+    // Someone may have asked for it already: show that text right away
+    Account.savedSummary(g.items.map(x => x.url)).then(t => { if (t && bs.isConnected) done(t); }).catch(() => {});
+  }
+
   // The outlet's own summary from its feed, plus where to read the full article
   const box = el("section", "lead-box");
   box.append(el("span", "label", `${a.source || a.domain}, ${fmtDate(a.seendate)}`));

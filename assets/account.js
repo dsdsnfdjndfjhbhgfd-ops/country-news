@@ -215,6 +215,34 @@
       if (error) throw new Error(human(error));
     },
 
+    // ---------- Summaries written on request (Edge Function "summarize") ----------
+    async savedSummary(urls) {
+      if (!sb || !user || !urls.length) return "";
+      const { data } = await sb.from("event_summaries").select("summary").in("url", urls.slice(0, 6)).limit(1);
+      return data?.[0]?.summary || "";
+    },
+    async requestSummary(country, urls) {
+      if (!user) throw new Error("Войдите, чтобы запросить пересказ.");
+      need();
+      const { data, error } = await sb.functions.invoke("summarize", { body: { country, urls: urls.slice(0, 6) } });
+      if (error) {
+        let code = "";
+        try { code = (await error.context.json()).error || ""; } catch {}
+        const text = {
+          login_required: "Войдите, чтобы запросить пересказ.",
+          limit_user: "Вы использовали все пересказы на сегодня (20 в сутки). Завтра лимит обновится.",
+          limit_global: "Сегодня общий лимит пересказов исчерпан. Попробуйте завтра.",
+          not_configured: "Пересказ по запросу ещё не включён на сайте.",
+          ai_unavailable: "ИИ сейчас не отвечает. Попробуйте через несколько минут.",
+          event_not_found: "Это событие уже пропало из данных сайта.",
+          data_unavailable: "Не удалось получить данные события. Попробуйте позже."
+        }[code];
+        throw new Error(text || "Не получилось получить пересказ. Попробуйте позже.");
+      }
+      if (!data?.summary) throw new Error("ИИ вернул пустой ответ. Попробуйте ещё раз.");
+      return String(data.summary);
+    },
+
     isSaved(url) { return saved.has(url); },
     savedList() { return [...saved.values()]; },
     async toggleSaved(item) {

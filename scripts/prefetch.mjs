@@ -202,7 +202,8 @@ await rm("data/why.json", { force: true }); // retired file
 // ANTHROPIC_API_KEY (Claude) also works. Without a key, or when the service fails or is out of
 // its free limit, events simply have no summary. The text is built only from the headlines and
 // feed summaries of the outlets, not from full articles. Cached by article URL for 3 days.
-const PER_RUN = Number(process.env.SUMMARY_PER_RUN) || 48, BATCH = 12, TOP = 12;
+// The feed shows 25 events per country: all of them get a summary, those higher up first
+const PER_RUN = Number(process.env.SUMMARY_PER_RUN) || 72, BATCH = 12, TOP = 25;
 
 let summaries = {};
 try { summaries = JSON.parse(await readFile("data/summary.json", "utf8")).items || {}; } catch {}
@@ -213,12 +214,13 @@ for (const code of Object.keys(COUNTRIES)) {
   let items = [];
   try { items = JSON.parse(await readFile(`data/full/${code}.json`, "utf8")).items || []; } catch {}
   const c = { code, ru: NAMES[code][0], en: EN[code], loc: NAMES[code][1] };
-  for (const g of core.cluster(items, c, true).slice(0, TOP)) {
-    if (g.items.some(i => summaries[i.url])) continue;
-    todo.push({ code, g });
-  }
+  core.cluster(items, c, true).slice(0, TOP).forEach((g, rank) => {
+    if (g.items.some(i => summaries[i.url])) return;
+    todo.push({ code, g, rank });
+  });
 }
-todo.sort((a, b) => (b.g.domains >= 2) - (a.g.domains >= 2) || b.g.score - a.g.score);
+// Every country's best events first, then the next ones: the top of each feed is filled soonest
+todo.sort((a, b) => a.rank - b.rank || b.g.score - a.g.score);
 const LLM_KEY = process.env.LLM_API_KEY || "";
 const LLM_BASE = (process.env.LLM_BASE_URL || "https://openrouter.ai/api/v1").replace(/\/+$/, "");
 const HAS_AI = !!(LLM_KEY || process.env.ANTHROPIC_API_KEY);
