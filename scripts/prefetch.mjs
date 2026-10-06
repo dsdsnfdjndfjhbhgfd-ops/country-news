@@ -56,7 +56,12 @@ const SOURCES = [
   { name: "Japan Today", url: "https://japantoday.com/feed", lang: "English" },
   { name: "Kazinform", url: "https://www.inform.kz/rss/eng.xml", lang: "English" },
   { name: "The Astana Times", url: "https://astanatimes.com/feed/", lang: "English" },
-  { name: "CGTN", url: "https://www.cgtn.com/subscribe/rss/section/world.xml", lang: "English" }
+  { name: "CGTN", url: "https://www.cgtn.com/subscribe/rss/section/world.xml", lang: "English" },
+  { name: "Hespress English", url: "https://en.hespress.com/feed", lang: "English" },
+  { name: "North Africa Post", url: "https://northafricapost.com/feed", lang: "English" },
+  { name: "Asharq Al-Awsat", url: "https://english.aawsat.com/feed", lang: "English" },
+  { name: "The Rio Times", url: "https://www.riotimesonline.com/feed/", lang: "English" },
+  { name: "MercoPress", url: "https://en.mercopress.com/rss", lang: "English" }
 ];
 
 // How a country is recognised in a headline or summary. Words match from their start
