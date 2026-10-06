@@ -1,0 +1,48 @@
+/* Sign-in button, account link and dialog. Uses the page's colour tokens. */
+.acc-login{font:700 14px var(--sans);color:var(--surface);background:var(--ink);border:0;border-radius:999px;padding:8px 16px;cursor:pointer}
+.acc-login:hover{background:var(--accent);color:#fff}
+.acc-me{display:inline-flex;align-items:center;gap:8px;text-decoration:none;font:700 14px var(--sans);color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:4px 12px 4px 4px}
+.acc-me:hover{border-color:var(--accent);color:var(--accent)}
+.acc-avatar{width:26px;height:26px;border-radius:50%;background:var(--accent);color:#fff;display:grid;place-items:center;font-size:13px}
+
+.acc-dialog{border:0;padding:0;border-radius:18px;background:var(--surface);color:var(--ink);width:min(420px,calc(100vw - 32px));box-shadow:0 20px 60px rgba(10,15,30,.35)}
+.acc-dialog::backdrop{background:rgba(10,15,30,.55)}
+.acc-form{display:flex;flex-direction:column;gap:10px;padding:26px 24px 22px;position:relative;font-family:var(--sans)}
+.acc-close{position:absolute;top:10px;right:12px;width:36px;height:36px;border:0;background:none;color:var(--muted);font-size:26px;line-height:1;cursor:pointer;border-radius:50%}
+.acc-close:hover{color:var(--ink);background:var(--bg)}
+.acc-tabs{display:inline-flex;align-self:flex-start;background:var(--bg);border-radius:999px;padding:3px;gap:2px}
+.acc-tabs button{font:500 14px var(--sans);color:var(--muted);background:none;border:0;border-radius:999px;padding:7px 14px;cursor:pointer}
+.acc-tabs button[aria-selected="true"]{background:var(--ink);color:var(--surface)}
+.acc-form h2{margin:8px 0 0;font-size:24px;font-weight:800;letter-spacing:-.01em}
+.acc-lead{margin:0 0 6px;color:var(--muted);font-size:15px}
+.acc-form label{font-size:14px;font-weight:700;margin-top:4px;display:block}
+.acc-form input{width:100%;font:500 16px var(--sans);color:var(--ink);background:var(--bg);border:2px solid var(--line);border-radius:10px;padding:11px 12px;margin-top:6px}
+.acc-form input:focus{outline:none;border-color:var(--accent)}
+.acc-pass[hidden]{display:none}
+.acc-msg{margin:4px 0 0;font-size:14px;min-height:1px}
+.acc-msg.err{color:var(--t-security)}
+.acc-msg.ok{color:var(--t-economy)}
+.acc-submit{margin-top:6px;font:700 16px var(--sans);color:var(--surface);background:var(--ink);border:0;border-radius:999px;padding:13px;cursor:pointer}
+.acc-submit:hover{background:var(--accent);color:#fff}
+.acc-submit:disabled{opacity:.5;cursor:wait}
+.acc-link{align-self:center;font:500 14px var(--sans);color:var(--muted);background:none;border:0;cursor:pointer;text-decoration:underline;text-underline-offset:3px}
+.acc-link[hidden]{display:none}
+.acc-link:hover{color:var(--accent)}
+.acc-form button:focus-visible,.acc-login:focus-visible,.acc-me:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+
+/* Gate shown instead of the feed for visitors who are not signed in */
+.gate{display:flex;flex-direction:column;gap:14px;align-items:flex-start;padding:28px;background:var(--surface);border:1px solid var(--line);border-radius:16px}
+.gate h2{margin:0;font-size:clamp(22px,3vw,28px);font-weight:800}
+.gate p{margin:0;color:var(--muted);max-width:56ch}
+.gate .row{display:flex;gap:10px;flex-wrap:wrap}
+.gate .row button{font:700 16px var(--sans);border-radius:999px;padding:12px 22px;cursor:pointer;border:2px solid var(--ink);background:var(--ink);color:var(--surface)}
+.gate .row button.alt{background:transparent;color:var(--ink);border-color:var(--line)}
+.gate .row button:hover{border-color:var(--accent);background:var(--accent);color:#fff}
+
+/* Save button on events, star on countries */
+.save-btn{font:700 13px var(--sans);color:var(--muted);background:none;border:1px solid var(--line);border-radius:999px;padding:3px 10px;cursor:pointer}
+.save-btn:hover{border-color:var(--accent);color:var(--accent)}
+.save-btn[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#fff}
+.star-btn{font:700 14px var(--sans);color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:6px 12px;cursor:pointer}
+.star-btn:hover{border-color:var(--accent)}
+.star-btn[aria-pressed="true"]{color:var(--accent);border-color:var(--accent)}

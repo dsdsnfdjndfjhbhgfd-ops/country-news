@@ -10,6 +10,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://api.gdeltproject.org" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;700;800&family=Literata:opsz,wght@7..72,500;7..72,700&display=swap">
+<link rel="stylesheet" href="assets/account.css">
 <style>
 /*
   Layout: the search field IS the headline ("Что происходит в [стране]"), left-aligned.
@@ -44,6 +45,8 @@ a{color:inherit}
 
 .topbar{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:calc(-1 * clamp(14px,3vw,28px))}
 .home{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.top-right{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.res-head .title{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
 .brand{font-weight:800;font-size:22px;text-decoration:none;letter-spacing:-.02em}
 .brand span{color:var(--accent)}
 .to-main{font:700 14px var(--sans);text-decoration:none;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:7px 14px}
@@ -158,10 +161,13 @@ footer a{color:var(--muted)}
       <a class="brand" href="./">ev<span>.news</span></a>
       <a class="to-main" href="./">← На главную</a>
     </div>
+    <div class="top-right">
+    <span data-account></span>
     <div class="theme" role="group" aria-label="Тема оформления">
       <button type="button" data-t="auto" title="Как в системе">Авто</button>
       <button type="button" data-t="light" title="Светлая тема">Светлая</button>
       <button type="button" data-t="dark" title="Тёмная тема">Тёмная</button>
+    </div>
     </div>
   </div>
   <section class="hero">
@@ -190,6 +196,8 @@ footer a{color:var(--muted)}
   <footer>Источники: ТАСС, РИА Новости, Интерфакс, Коммерсантъ, РБК, Ведомости, BBC Русская служба, DW на русском, BBC News, The Guardian, The New York Times, Al Jazeera, Deutsche Welle, France 24, Politico Europe, CNBC. Новости за последние 2 дня, обновление каждые 15 минут. Важность определяется автоматически: по числу изданий, теме и свежести. Пояснения «Почему это важно» составляются автоматически по типу события и тому, кто о нём пишет; подробности смотрите в первоисточнике.</footer>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="assets/account.js"></script>
 <script src="assets/core.js"></script>
 <script>
 const $ = s => document.querySelector(s);
@@ -201,7 +209,7 @@ function applyTheme(t) {
 }
 let savedTheme = "auto"; try { savedTheme = localStorage.getItem("cn:theme") || "auto"; } catch {}
 applyTheme(savedTheme);
-document.querySelectorAll(".theme button").forEach(b => b.onclick = () => applyTheme(b.dataset.t));
+document.querySelectorAll(".theme button").forEach(b => b.onclick = () => { applyTheme(b.dataset.t); Account.saveSettings({ theme: b.dataset.t }); });
 const QUICK = ["Россия","США","Китай","Украина","Израиль","Иран","Германия","Великобритания","Франция","Турция"];
 // Countries collected ahead of time by the GitHub Action (scripts/prefetch.mjs)
 const PREFETCHED = new Set("RU US CN UA IL IR DE GB FR TR".split(" "));
@@ -233,12 +241,20 @@ function resolve(input) {
 }
 
 const quick = $("#quick");
-QUICK.forEach(name => {
-  const b = document.createElement("button");
-  b.type = "button"; b.textContent = name;
-  b.onclick = () => run(name);
-  quick.append(b);
-});
+const CODE_OF = { "Россия":"RU","США":"US","Китай":"CN","Украина":"UA","Израиль":"IL","Иран":"IR","Германия":"DE","Великобритания":"GB","Франция":"FR","Турция":"TR" };
+// Country chips: the user's own countries first, marked with a star
+function paintQuick() {
+  quick.querySelectorAll("button").forEach(b => b.remove());
+  const mine = Account.countries;
+  const order = [...QUICK].sort((a, b) => (mine.includes(CODE_OF[b]) - mine.includes(CODE_OF[a])) || (mine.indexOf(CODE_OF[a]) - mine.indexOf(CODE_OF[b])));
+  for (const name of order) {
+    const b = document.createElement("button");
+    b.type = "button"; b.textContent = (mine.includes(CODE_OF[name]) ? "★ " : "") + name;
+    b.onclick = () => run(name);
+    quick.append(b);
+  }
+}
+paintQuick();
 $("#f").addEventListener("submit", e => { e.preventDefault(); const v = $("#country").value.trim(); if (v) run(v); });
 
 function el(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
@@ -312,7 +328,25 @@ function dedupe(items) {
 }
 
 let runId = 0;
+// Visitors who are not signed in see an invitation instead of the feed
+function showGate() {
+  shown = null; setStatus("");
+  const o = $("#out"); o.textContent = "";
+  const g = el("div", "gate");
+  if (!Account.available) {
+    g.append(el("h2", null, "Вход временно недоступен"), el("p", null, "Не загрузился модуль входа, поэтому лента сейчас закрыта. Обновите страницу через минуту."));
+  } else {
+    g.append(el("h2", null, "Лента доступна после входа"), el("p", null, "Зарегистрируйтесь бесплатно: нужны только почта и пароль. С аккаунтом можно выбрать свои страны, сохранять новости, а настройки ленты будут одинаковыми на всех устройствах."));
+    const row = el("div", "row");
+    const a = el("button", null, "Войти"); a.type = "button"; a.onclick = () => Account.openDialog("signin");
+    const b = el("button", "alt", "Зарегистрироваться"); b.type = "button"; b.onclick = () => Account.openDialog("signup");
+    row.append(a, b); g.append(row);
+  }
+  o.append(g);
+}
+
 async function run(input) {
+  if (!Account.user) { showGate(); return; }
   const c = resolve(input);
   if (!c) { setStatus(""); notice(`Страны «${input}» нет в списке. Доступны: ${QUICK.join(", ")}.`); return; }
   const id = ++runId;
@@ -411,12 +445,12 @@ function controls(rerender, counts) {
   const box = el("div", "controls");
   const left = el("div", "ctl-group");
   left.append(seg("Сфера", [["all", `Все · ${counts.all}`], ...["Политика", "Безопасность", "Экономика"].map(t => [t, `${t} · ${counts[t] || 0}`])],
-    view.sphere, v => { view.sphere = v; rerender(); }));
-  left.append(seg("Сортировка", [["importance", "По важности"], ["time", "Сначала новые"]], view.sort, v => { view.sort = v; rerender(); }));
+    view.sphere, v => { view.sphere = v; Account.saveSettings({ sphere: v }); rerender(); }));
+  left.append(seg("Сортировка", [["importance", "По важности"], ["time", "Сначала новые"]], view.sort, v => { view.sort = v; Account.saveSettings({ sort: v }); rerender(); }));
   box.append(left);
   const sw = el("label", "switch");
   const cb = el("input"); cb.type = "checkbox"; cb.id = "singles"; cb.checked = prefs.singles;
-  cb.onchange = () => { prefs.singles = cb.checked; savePrefs(); rerender(); };
+  cb.onchange = () => { prefs.singles = cb.checked; savePrefs(); Account.saveSettings({ singles: prefs.singles }); rerender(); };
   sw.append(cb, el("span", "track"), el("span", null, "Новости из одного издания"));
   box.append(sw);
   return box;
@@ -440,7 +474,13 @@ function render(c, allItems, info) {
   const groups = view.all ? list : list.slice(0, FEED_SIZE);
   const out = $("#out"); out.textContent = "";
   const head = el("div", "res-head");
-  head.append(el("h2", null, c.ru));
+  const title = el("div", "title"); title.append(el("h2", null, c.ru));
+  const isMine = Account.countries.includes(c.code);
+  const star = el("button", "star-btn", isMine ? "★ В моих странах" : "☆ Добавить в мои страны"); star.type = "button";
+  star.setAttribute("aria-pressed", String(isMine));
+  star.onclick = async () => { star.disabled = true; await Account.toggleCountry(c.code); };
+  title.append(star);
+  head.append(title);
   let meta = (groups.length < list.length ? `Показано ${groups.length} из ${list.length} событий` : `${list.length} ${plural(list.length, "событие", "события", "событий")}`) + ` из ${items.length} ${plural(items.length, "публикации", "публикаций", "публикаций")} ${PERIOD_TEXT[prefs.period]}`;
   if (info.partial) meta = "Загружаю остальные источники…";
   if (info.failed) meta += ". Часть источников не ответила";
@@ -509,6 +549,20 @@ function render(c, allItems, info) {
       });
     }
     body.append(src);
+    const isSaved = g.items.some(x => Account.isSaved(x.url));
+    const sv = el("button", "save-btn", isSaved ? "Сохранено" : "Сохранить"); sv.type = "button";
+    sv.setAttribute("aria-pressed", String(isSaved));
+    sv.onclick = async () => {
+      sv.disabled = true;
+      const already = g.items.find(x => Account.isSaved(x.url));
+      try {
+        await Account.toggleSaved(already ? { url: already.url } : {
+          url: a.url, title: cleanTitle(a.title), source: a.source || a.domain, country: c.code,
+          topic: g.topic ? g.topic[0] : null, why: whyFor(g, c) || null, published_at: new Date(g.newest).toISOString()
+        });
+      } catch (e) { sv.disabled = false; sv.textContent = e.message; }
+    };
+    facts.append(sv);
     li.append(body);
 
     const pic = g.items.find(x => x.socialimage && /^https:/.test(x.socialimage));
@@ -548,8 +602,31 @@ document.addEventListener("visibilitychange", () => {
 });
 
 // Open a country straight from the link, e.g. …/country-news/#KZ
-const fromHash = location.hash.slice(1).toUpperCase();
-if (/^[A-Z]{2}$/.test(fromHash)) { try { const n = ruNames.of(fromHash); if (n && n !== fromHash) run(n); } catch {} }
+function applyAccountSettings() {
+  const st = Account.settings;
+  if (typeof st.singles === "boolean") { prefs.singles = st.singles; savePrefs(); }
+  if (["all", "Политика", "Безопасность", "Экономика"].includes(st.sphere)) view.sphere = st.sphere;
+  if (["importance", "time"].includes(st.sort)) view.sort = st.sort;
+  if (["auto", "light", "dark"].includes(st.theme)) applyTheme(st.theme);
+}
+function startCountry() {
+  const fromHash = location.hash.slice(1).toUpperCase();
+  const code = /^[A-Z]{2}$/.test(fromHash) && PREFETCHED.has(fromHash) ? fromHash : (Account.countries[0] || "RU");
+  run(ruNames.of(code));
+}
+let started = false;
+function begin() { if (started || !Account.user) return; started = true; applyAccountSettings(); startCountry(); }
+Account.ready.then(() => { paintQuick(); if (Account.user) begin(); else showGate(); });
+Account.onChange(event => {
+  if (event === "SIGNED_IN" || event === "INITIAL_SESSION") {
+    paintQuick(); begin();
+  } else if (event === "SIGNED_OUT") {
+    started = false; paintQuick(); showGate();
+  } else if (event === "PROFILE" || event === "SAVED") {
+    paintQuick();
+    if (shown) { const y = window.scrollY; render(shown.c, shown.allItems, shown.info); window.scrollTo(0, y); }
+  }
+});
 </script>
 </body>
 </html>

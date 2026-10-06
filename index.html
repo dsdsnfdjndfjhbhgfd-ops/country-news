@@ -13,6 +13,7 @@ try{var t=localStorage.getItem("cn:theme");if(t==="light"||t==="dark")document.d
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;700;800&family=Literata:opsz,wght@7..72,500;7..72,700&display=swap">
+<link rel="stylesheet" href="assets/account.css">
 <style>
 /*
   Layout: left-aligned single column. A statement headline, then the live board of the
@@ -61,6 +62,7 @@ a:focus-visible,button:focus-visible{outline:3px solid var(--accent);outline-off
 .btn:hover{background:var(--accent);color:#fff}
 .btn.ghost{background:transparent;color:var(--ink);border:2px solid var(--line);padding:12px 22px}
 .btn.ghost:hover{border-color:var(--accent);color:var(--accent);background:transparent}
+.hero p.note{font-size:15px}
 .live{display:flex;align-items:center;gap:8px;font-size:15px;color:var(--ink);font-weight:500;min-height:24px}
 .live::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--t-economy);flex:none}
 
@@ -71,6 +73,7 @@ section > p.sub{margin:0 0 22px;color:var(--muted);max-width:60ch}
 @media (max-width:620px){.board{grid-template-columns:minmax(0,1fr)}}
 .card{display:flex;flex-direction:column;gap:10px;padding:18px;background:var(--surface);border:1px solid var(--line);border-radius:14px;text-decoration:none;min-width:0}
 .card:hover{border-color:var(--accent)}
+.card.mine{border-color:var(--accent);border-width:2px}
 .card .row{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
 .card b{font-size:20px;font-weight:800}
 .card .n{font-size:14px;color:var(--muted);white-space:nowrap}
@@ -108,6 +111,7 @@ footer a{color:var(--muted)}
     <nav class="nav">
       <a href="news.html#RU">Лента</a>
       <a href="#how">Как это работает</a>
+      <span data-account></span>
       <div class="theme" role="group" aria-label="Тема оформления">
         <button type="button" data-t="auto" title="Как в системе">Авто</button>
         <button type="button" data-t="light" title="Светлая тема">Светлая</button>
@@ -120,9 +124,10 @@ footer a{color:var(--muted)}
     <h1>Главное о <mark>10 странах</mark> за последние двое суток</h1>
     <p>Сайт сам читает 16 российских и зарубежных изданий, раскладывает новости по странам и оставляет только политику, безопасность и экономику. Сверху то, о чём пишут сразу несколько редакций, и к каждому событию — короткое пояснение, почему оно важно.</p>
     <div class="cta">
-      <a class="btn" href="news.html#RU">Открыть ленту</a>
+      <a class="btn" href="news.html">Открыть ленту</a>
       <a class="btn ghost" href="#how">Как это работает</a>
     </div>
+    <p class="note">Лента открывается после бесплатной регистрации: нужны только почта и пароль. С аккаунтом можно выбрать свои страны и сохранять новости.</p>
     <div class="live" id="live">Загружаю последние данные…</div>
   </section>
 
@@ -168,6 +173,8 @@ footer a{color:var(--muted)}
   </footer>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="assets/account.js"></script>
 <script>
 function applyTheme(t) {
   if (t === "light" || t === "dark") document.documentElement.dataset.theme = t; else delete document.documentElement.dataset.theme;
@@ -176,7 +183,7 @@ function applyTheme(t) {
 }
 let savedTheme = "auto"; try { savedTheme = localStorage.getItem("cn:theme") || "auto"; } catch {}
 applyTheme(savedTheme);
-document.querySelectorAll(".theme button").forEach(b => b.onclick = () => applyTheme(b.dataset.t));
+document.querySelectorAll(".theme button").forEach(b => b.onclick = () => { applyTheme(b.dataset.t); Account.saveSettings({ theme: b.dataset.t }); });
 
 const COUNTRIES = [["RU", "Россия"], ["US", "США"], ["CN", "Китай"], ["UA", "Украина"], ["IL", "Израиль"], ["IR", "Иран"], ["DE", "Германия"], ["GB", "Великобритания"], ["FR", "Франция"], ["TR", "Турция"]];
 const TOPIC_COLOR = { "Политика": "--t-politics", "Безопасность": "--t-security", "Экономика": "--t-economy" };
@@ -190,10 +197,12 @@ function cleanTitle(t) {
 
 function drawBoard(status) {
   const board = document.getElementById("board"); board.textContent = "";
-  for (const [code, name] of COUNTRIES) {
+  const mine = window.Account ? Account.countries : [];
+  const order = [...COUNTRIES].sort((x, y) => (mine.includes(y[0]) - mine.includes(x[0])) || (mine.indexOf(x[0]) - mine.indexOf(y[0])));
+  for (const [code, name] of order) {
     const s = status && status.countries && status.countries[code];
-    const a = el("a", "card"); a.href = "news.html#" + code;
-    const row = el("div", "row"); row.append(el("b", null, name));
+    const a = el("a", "card" + (mine.includes(code) ? " mine" : "")); a.href = "news.html#" + code;
+    const row = el("div", "row"); row.append(el("b", null, (mine.includes(code) ? "★ " : "") + name));
     if (s) row.append(el("span", "n", `${s.events} ${plural(s.events, "событие", "события", "событий")}`));
     a.append(row);
     if (s && s.top) {
@@ -206,11 +215,13 @@ function drawBoard(status) {
   }
 }
 
+let lastStatus = null;
 drawBoard(null);
+Account.onChange(e => { if (e !== "TOKEN_REFRESHED") drawBoard(lastStatus); if (e === "SIGNED_IN" && ["auto","light","dark"].includes(Account.settings.theme)) applyTheme(Account.settings.theme); });
 fetch("data/status.json?t=" + Date.now(), { cache: "no-store" })
   .then(r => r.ok ? r.json() : Promise.reject())
   .then(s => {
-    drawBoard(s);
+    lastStatus = s; drawBoard(s);
     const t = new Date(s.updated), min = Math.round((Date.now() - t) / 60000);
     const total = Object.values(s.countries).reduce((n, c) => n + c.items, 0);
     document.getElementById("live").textContent =
