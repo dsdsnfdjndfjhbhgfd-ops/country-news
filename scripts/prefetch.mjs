@@ -206,7 +206,8 @@ await rm("data/why.json", { force: true }); // retired file
 const PER_RUN = Number(process.env.SUMMARY_PER_RUN) || 120, BATCH = Number(process.env.SUMMARY_BATCH) || 30, TOP = 25;
 
 let summaries = {};
-try { summaries = JSON.parse(await readFile("data/summary.json", "utf8")).items || {}; } catch {}
+let meta = {};
+try { meta = JSON.parse(await readFile("data/summary.json", "utf8")); summaries = meta.items || {}; } catch {}
 for (const [u, v] of Object.entries(summaries)) if (now - (v.at || 0) > 3 * 86400000) delete summaries[u];
 
 const todo = [];
@@ -224,8 +225,13 @@ todo.sort((a, b) => a.rank - b.rank || b.g.score - a.g.score);
 const LLM_KEY = process.env.LLM_API_KEY || "";
 const LLM_BASE = (process.env.LLM_BASE_URL || "https://openrouter.ai/api/v1").replace(/\/+$/, "");
 const HAS_AI = !!(LLM_KEY || process.env.ANTHROPIC_API_KEY);
-const queue = HAS_AI ? todo.slice(0, PER_RUN) : [];
-console.log(`Events without a summary: ${todo.length}, explaining ${queue.length}` + (HAS_AI ? "" : " (no AI key: summaries are skipped)"));
+// Free tiers allow only ~20 requests a day per model: ask the AI at most once per SUMMARY_EVERY_MIN
+// minutes, and stay quiet after a quota error until the service says it is free again
+const EVERY = (Number(process.env.SUMMARY_EVERY_MIN) || 100) * 60000;
+const pause = (meta.blockedUntil || 0) > now ? `quota pause until ${new Date(meta.blockedUntil).toISOString()}`
+  : meta.lastAskAt && now - meta.lastAskAt < EVERY ? "next AI call is not due yet" : "";
+const queue = HAS_AI && !pause ? todo.slice(0, PER_RUN) : [];
+console.log(`Events without a summary: ${todo.length}, explaining ${queue.length}` + (HAS_AI ? (pause ? ` (${pause})` : "") : " (no AI key: summaries are skipped)"));
 
 function prompt(batch) {
   const lines = batch.map((x, i) => {
@@ -341,7 +347,18 @@ for (let i = 0; i < queue.length; i += BATCH) {
   }
 }
 console.log(`Summarized ${summarized} events`);
-await writeFile("data/summary.json", JSON.stringify({ updated: new Date().toISOString(), model: usedModel || (HAS_AI ? "unavailable" : "off"), lastError, items: summaries }));
+// A quota error says when to come back ("retry in 1h50m28s"); wait that long (at least 30 minutes)
+let blockedUntil = (meta.blockedUntil || 0) > now ? meta.blockedUntil : 0;
+if (/HTTP 429/.test(lastError)) {
+  const m = lastError.match(/retry in (?:(\d+)h)?(?:(\d+)m)?(?:([\d.]+)s)?/i);
+  const ms = m ? ((+m[1] || 0) * 3600 + (+m[2] || 0) * 60 + (+m[3] || 0)) * 1000 : 0;
+  blockedUntil = now + Math.max(ms, 30 * 60000);
+}
+await writeFile("data/summary.json", JSON.stringify({
+  updated: new Date().toISOString(), model: usedModel || meta.model || (HAS_AI ? "unavailable" : "off"),
+  lastAskAt: queue.length ? now : (meta.lastAskAt || 0), blockedUntil,
+  lastError: queue.length ? lastError : (meta.lastError || ""), items: summaries
+}));
 
 // ---------- Small summary for the home page ----------
 const status = { updated: new Date().toISOString(), sources: SOURCES.map(s => ({ name: s.name, lang: s.lang })), countries: {} };
