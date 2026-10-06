@@ -238,7 +238,7 @@ function prompt(batch) {
     return `${i + 1}. Страна: ${NAMES[x.code][0]}. ${parts.join(" | ")}`;
   }).join("\n");
   return `Ты редактор новостной сводки. Для каждого события ниже напиши по-русски краткое изложение: 2–3 предложения о том, что произошло, кто участвует, где и когда (если это сказано в тексте).
-Пиши нейтрально и сухо, без оценок и прогнозов. Используй только факты из заголовков и анонсов ниже, не добавляй ничего от себя: ни цифр, ни имён, ни причин. Если данных мало, напиши одно короткое предложение. Не повторяй заголовок дословно. Если текст на английском, переведи смысл на русский.
+Пиши нейтрально и сухо, без оценок и прогнозов. Используй только факты из заголовков и анонсов ниже, не добавляй ничего от себя: ни цифр, ни имён, ни причин. Если данных мало, напиши одно короткое предложение. Не повторяй заголовок дословно. Если текст на английском, переведи смысл на русский. Внутри текста не используй двойные кавычки ("), только «ёлочки».
 Ответь только JSON: {"items":[{"id":1,"summary":"..."}]}
 
 ${lines}`;
@@ -316,8 +316,15 @@ for (let i = 0; i < queue.length; i += BATCH) {
   if (i) await new Promise(r => setTimeout(r, 7000)); // free tiers allow only a few requests per minute
   try {
     const out = await ask(prompt(batch));
-    const json = JSON.parse(out.slice(out.indexOf("{"), out.lastIndexOf("}") + 1));
-    for (const r of json.items || []) {
+    const body = out.slice(out.indexOf("{"), out.lastIndexOf("}") + 1);
+    let items = [];
+    try { items = JSON.parse(body).items || []; }
+    catch {
+      // Models sometimes leave stray quotes inside the text: pull the pairs out one by one
+      for (const m of body.matchAll(/"id"\s*:\s*(\d+)\s*,\s*"summary"\s*:\s*"([\s\S]*?)"\s*\}/g)) items.push({ id: m[1], summary: m[2].replace(/\\"/g, "'").replace(/"/g, "'") });
+      if (!items.length) throw new Error("answer was not valid JSON");
+    }
+    for (const r of items) {
       const x = batch[Number(r.id) - 1];
       const text = String(r.summary || "").trim();
       if (!x || text.length < 20) continue;
@@ -327,6 +334,7 @@ for (let i = 0; i < queue.length; i += BATCH) {
   } catch (e) {
     console.log("Summaries failed: " + e.message);
     lastError = e.message;
+    if (/JSON/.test(e.message)) continue; // a malformed answer costs only this batch
     break;
   }
 }
