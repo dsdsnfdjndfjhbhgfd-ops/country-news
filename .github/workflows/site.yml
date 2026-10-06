@@ -72,6 +72,10 @@ jobs:
           cp -r index.html news.html account.html article.html assets data "$RUNNER_TEMP/site/"
           rm -rf "$RUNNER_TEMP/site/data/full"   # the collector's working copies are not needed by the site
           touch "$RUNNER_TEMP/site/.nojekyll"
+          # Stamp scripts and styles with the version, so browsers fetch new code right after an update
+          cd "$RUNNER_TEMP/site"
+          sed -i -E "s#(src|href)=\"(assets/[^\"?]+\.(js|css))\"#\1=\"\2?v=${GITHUB_SHA::8}\"#g" *.html
+          grep -ho 'assets/[^"]*?v=[0-9a-f]*' *.html | sort -u | head -20
 
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
