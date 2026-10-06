@@ -14,6 +14,12 @@ const SOURCES = [
   { name: "Ведомости", url: "https://www.vedomosti.ru/rss/news", lang: "Russian" },
   { name: "BBC Русская служба", url: "https://feeds.bbci.co.uk/russian/rss.xml", lang: "Russian" },
   { name: "DW на русском", url: "https://rss.dw.com/rdf/rss-ru-all", lang: "Russian" },
+  { name: "Лента.ру", url: "https://lenta.ru/rss/news", lang: "Russian" },
+  { name: "Газета.ру", url: "https://www.gazeta.ru/export/rss/first.xml", lang: "Russian" },
+  { name: "Euronews на русском", url: "https://ru.euronews.com/rss", lang: "Russian" },
+  { name: "БелТА", url: "https://www.belta.by/rss", lang: "Russian" },
+  { name: "Tengrinews", url: "https://tengrinews.kz/news.rss", lang: "Russian" },
+  { name: "Курсив", url: "https://kz.kursiv.media/feed/", lang: "Russian" },
   // English
   { name: "BBC News", url: "https://feeds.bbci.co.uk/news/world/rss.xml", lang: "English" },
   { name: "The Guardian", url: "https://www.theguardian.com/world/rss", lang: "English" },
@@ -22,7 +28,15 @@ const SOURCES = [
   { name: "Deutsche Welle", url: "https://rss.dw.com/rdf/rss-en-all", lang: "English" },
   { name: "France 24", url: "https://www.france24.com/en/rss", lang: "English" },
   { name: "Politico Europe", url: "https://www.politico.eu/feed/", lang: "English" },
-  { name: "CNBC", url: "https://www.cnbc.com/id/100727362/device/rss/rss.html", lang: "English" }
+  { name: "CNBC", url: "https://www.cnbc.com/id/100727362/device/rss/rss.html", lang: "English" },
+  { name: "Bloomberg", url: "https://feeds.bloomberg.com/politics/news.rss", lang: "English" },
+  { name: "The Washington Post", url: "https://feeds.washingtonpost.com/rss/world", lang: "English" },
+  { name: "The Independent", url: "https://www.independent.co.uk/news/world/rss", lang: "English" },
+  { name: "South China Morning Post", url: "https://www.scmp.com/rss/91/feed", lang: "English" },
+  { name: "The Times of India", url: "https://timesofindia.indiatimes.com/rssfeeds/-2128936835.cms", lang: "English" },
+  { name: "The Japan Times", url: "https://www.japantimes.co.jp/feed/", lang: "English" },
+  { name: "Notes from Poland", url: "https://notesfrompoland.com/feed/", lang: "English" },
+  { name: "The Kyiv Independent", url: "https://kyivindependent.com/news-archive/rss/", lang: "English" }
 ];
 
 // How a country is recognised in a headline or summary. Words match from their start
