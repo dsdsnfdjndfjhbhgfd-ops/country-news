@@ -1,4 +1,4 @@
-const COUNTRIES = [["RU", "Россия"], ["US", "США"], ["CN", "Китай"], ["UA", "Украина"], ["IL", "Израиль"], ["IR", "Иран"], ["DE", "Германия"], ["GB", "Великобритания"], ["FR", "Франция"], ["TR", "Турция"], ["IN", "Индия"], ["JP", "Япония"], ["PL", "Польша"], ["BY", "Беларусь"], ["KZ", "Казахстан"]];
+const COUNTRIES = [["RU", "Россия"], ["US", "США"], ["CN", "Китай"], ["UA", "Украина"], ["IL", "Израиль"], ["IR", "Иран"], ["DE", "Германия"], ["GB", "Великобритания"], ["FR", "Франция"], ["TR", "Турция"], ["IN", "Индия"], ["JP", "Япония"], ["PL", "Польша"], ["BY", "Беларусь"], ["KZ", "Казахстан"], ["MA", "Марокко"], ["SA", "Саудовская Аравия"], ["BR", "Бразилия"]];
 const NAME = Object.fromEntries(COUNTRIES);
 const main = document.getElementById("main");
 function el(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }

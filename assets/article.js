@@ -18,7 +18,8 @@ const COUNTRIES = {
   DE: ["Германия", "Germany", "Германии"], GB: ["Великобритания", "United Kingdom", "Великобритании"],
   FR: ["Франция", "France", "Франции"], TR: ["Турция", "Turkey", "Турции"],
   IN: ["Индия", "India", "Индии"], JP: ["Япония", "Japan", "Японии"], PL: ["Польша", "Poland", "Польше"],
-  BY: ["Беларусь", "Belarus", "Беларуси"], KZ: ["Казахстан", "Kazakhstan", "Казахстане"]
+  BY: ["Беларусь", "Belarus", "Беларуси"], KZ: ["Казахстан", "Kazakhstan", "Казахстане"],
+  MA: ["Марокко", "Morocco", "Марокко"], SA: ["Саудовская Аравия", "Saudi Arabia", "Саудовской Аравии"], BR: ["Бразилия", "Brazil", "Бразилии"]
 };
 
 function el(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
