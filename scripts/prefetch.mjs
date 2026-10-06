@@ -203,7 +203,7 @@ await rm("data/why.json", { force: true }); // retired file
 // its free limit, events simply have no summary. The text is built only from the headlines and
 // feed summaries of the outlets, not from full articles. Cached by article URL for 3 days.
 // The feed shows 25 events per country: all of them get a summary, those higher up first
-const PER_RUN = Number(process.env.SUMMARY_PER_RUN) || 72, BATCH = 12, TOP = 25;
+const PER_RUN = Number(process.env.SUMMARY_PER_RUN) || 120, BATCH = Number(process.env.SUMMARY_BATCH) || 30, TOP = 25;
 
 let summaries = {};
 try { summaries = JSON.parse(await readFile("data/summary.json", "utf8")).items || {}; } catch {}
@@ -280,7 +280,7 @@ async function ask(text) {
     const r = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST", signal: AbortSignal.timeout(90000),
       headers: { "x-api-key": process.env.ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01", "content-type": "application/json" },
-      body: JSON.stringify({ model: process.env.ANTHROPIC_MODEL || "claude-haiku-4-5", max_tokens: 3000, messages: [{ role: "user", content: text }] })
+      body: JSON.stringify({ model: process.env.ANTHROPIC_MODEL || "claude-haiku-4-5", max_tokens: 8000, messages: [{ role: "user", content: text }] })
     });
     if (!r.ok) throw new Error(`Claude HTTP ${r.status}: ${(await r.text()).slice(0, 200)}`);
     usedModel = "claude";
@@ -292,9 +292,9 @@ async function ask(text) {
   for (const model of models) {
     try {
       const call = () => fetch(LLM_BASE + "/chat/completions", {
-        method: "POST", signal: AbortSignal.timeout(120000),
+        method: "POST", signal: AbortSignal.timeout(180000),
         headers: { "Authorization": `Bearer ${LLM_KEY}`, "Content-Type": "application/json", "HTTP-Referer": "https://github.com/dsdsnfdjndfjhbhgfd-ops/country-news", "X-Title": "ev.news" },
-        body: JSON.stringify({ model, temperature: 0.2, max_tokens: 3000, messages: [{ role: "user", content: text }] })
+        body: JSON.stringify({ model, temperature: 0.2, max_tokens: 8000, messages: [{ role: "user", content: text }] })
       });
       let r = await call();
       // "High demand" (503) is usually brief: wait a little and try this model once more
