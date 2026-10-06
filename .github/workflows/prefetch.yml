@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: write
+  models: read
 
 concurrency:
   group: prefetch
@@ -23,6 +24,9 @@ jobs:
           node-version: 20
       - name: Собрать новости
         run: node scripts/prefetch.mjs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       - name: Сохранить
         run: |
           git config user.name "github-actions[bot]"

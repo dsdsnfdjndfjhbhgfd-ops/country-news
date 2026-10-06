@@ -2,6 +2,7 @@
 // 48 hours, sorts items by country and saves data/<CODE>.json for the site.
 // Feeds only hold their latest items, so each run merges with what earlier runs saved.
 import { readFile, writeFile, mkdir } from "node:fs/promises";
+import vm from "node:vm";
 
 const SOURCES = [
   // Russian-language
@@ -99,19 +100,110 @@ console.log(`Fresh items from all outlets: ${fresh.length}`);
 await mkdir("data", { recursive: true });
 let saved = 0;
 for (const [code, res] of Object.entries(matchers)) {
-  const mine = fresh.filter(a => res.some(re => re.test(a.title) || re.test(a.desc)));
+  // The country must be named in the headline, or at least twice in the summary
+  const about = a => res.some(re => re.test(a.title)) ||
+    res.reduce((n, re) => n + ((a.desc || "").match(new RegExp(re.source, "gi")) || []).length, 0) >= 2;
+  const mine = fresh.filter(about);
   let old = [];
   try { old = JSON.parse(await readFile(`data/${code}.json`, "utf8")).items || []; } catch {}
   // Keep earlier items from trusted outlets only (older files may hold other data)
-  old = old.filter(a => a.source && SOURCES.some(s => s.name === a.source));
+  old = old.filter(a => a.source && SOURCES.some(s => s.name === a.source) && about(a));
   const byUrl = new Map();
   for (const a of [...old, ...mine]) byUrl.set(a.url, a);
   const items = [...byUrl.values()]
     .filter(a => now - (a.t || 0) < WINDOW_MS)
     .sort((x, y) => y.t - x.t)
-    .map(({ desc, ...a }) => a);
+    .map(a => ({ ...a, desc: (a.desc || "").slice(0, 220) }));
   console.log(`${code}: ${mine.length} new, ${items.length} total`);
   await writeFile(`data/${code}.json`, JSON.stringify({ updated: new Date().toISOString(), sources: SOURCES.map(s => s.name), items }));
   saved++;
 }
 if (!fresh.length) { console.log("No outlet answered"); process.exit(1); }
+
+// ---------- "Why it matters": short AI explanations for the top events ----------
+// Uses Claude when the repository has an ANTHROPIC_API_KEY secret, otherwise the free
+// GitHub Models endpoint with the workflow's own token. Explanations are cached by article
+// URL, so each event is explained once.
+const NAMES = {
+  RU: ["Россия", "России"], US: ["США", "США"], CN: ["Китай", "Китае"], UA: ["Украина", "Украине"],
+  IL: ["Израиль", "Израиле"], IR: ["Иран", "Иране"], DE: ["Германия", "Германии"],
+  GB: ["Великобритания", "Великобритании"], FR: ["Франция", "Франции"], TR: ["Турция", "Турции"]
+};
+const EN = { RU: "Russia", US: "United States", CN: "China", UA: "Ukraine", IL: "Israel", IR: "Iran", DE: "Germany", GB: "United Kingdom", FR: "France", TR: "Turkey" };
+const PER_RUN = 24, BATCH = 12, TOP = 12;
+
+const core = vm.createContext({ Date, Math, Set, Map, JSON });
+vm.runInContext(await readFile("assets/core.js", "utf8"), core);
+
+let why = {};
+try { why = JSON.parse(await readFile("data/why.json", "utf8")).items || {}; } catch {}
+for (const [u, v] of Object.entries(why)) if (now - (v.at || 0) > 3 * 86400000) delete why[u];
+
+const todo = [];
+for (const code of Object.keys(COUNTRIES)) {
+  let items = [];
+  try { items = JSON.parse(await readFile(`data/${code}.json`, "utf8")).items || []; } catch {}
+  const c = { code, ru: NAMES[code][0], en: EN[code], loc: NAMES[code][1] };
+  for (const g of core.cluster(items, c, true).slice(0, TOP)) {
+    if (g.items.some(i => why[i.url])) continue;
+    todo.push({ code, g });
+  }
+}
+todo.sort((a, b) => (b.g.domains >= 2) - (a.g.domains >= 2) || b.g.score - a.g.score);
+const queue = todo.slice(0, PER_RUN);
+console.log(`Events without explanation: ${todo.length}, explaining ${queue.length}`);
+
+function prompt(batch) {
+  const lines = batch.map((x, i) => {
+    const g = x.g, srcs = [...new Set(g.items.map(a => a.source))].slice(0, 4).join(", ");
+    const desc = g.items.map(a => a.desc).find(Boolean) || "";
+    return `${i + 1}. Страна: ${NAMES[x.code][0]}. Заголовок: ${g.lead.title}` + (desc ? `. Анонс: ${desc}` : "") + `. Источники: ${srcs}.`;
+  }).join("\n");
+  return `Ты редактор новостной сводки. Для каждой новости ниже напиши по-русски 1–2 коротких предложения: почему это событие важно для указанной страны (возможные последствия для её политики, безопасности, экономики или жизни людей).
+Пиши нейтрально, без оценок и без пересказа заголовка. Опирайся только на заголовок и анонс, не выдумывай фактов, цифр и имён. Не начинай со слов «Это важно, потому что».
+Ответь только JSON: {"items":[{"id":1,"why":"..."}]}
+
+${lines}`;
+}
+
+async function ask(text) {
+  if (process.env.ANTHROPIC_API_KEY) {
+    const r = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST", signal: AbortSignal.timeout(90000),
+      headers: { "x-api-key": process.env.ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01", "content-type": "application/json" },
+      body: JSON.stringify({ model: process.env.ANTHROPIC_MODEL || "claude-haiku-4-5", max_tokens: 3000, messages: [{ role: "user", content: text }] })
+    });
+    if (!r.ok) throw new Error(`Claude HTTP ${r.status}: ${(await r.text()).slice(0, 200)}`);
+    return (await r.json()).content?.[0]?.text || "";
+  }
+  if (!process.env.GITHUB_TOKEN) throw new Error("no model credentials");
+  const r = await fetch("https://models.github.ai/inference/chat/completions", {
+    method: "POST", signal: AbortSignal.timeout(90000),
+    headers: { "Authorization": `Bearer ${process.env.GITHUB_TOKEN}`, "Content-Type": "application/json", "Accept": "application/json" },
+    body: JSON.stringify({ model: process.env.GH_MODEL || "openai/gpt-4.1-mini", temperature: 0.2, response_format: { type: "json_object" }, messages: [{ role: "user", content: text }] })
+  });
+  if (!r.ok) throw new Error(`GitHub Models HTTP ${r.status}: ${(await r.text()).slice(0, 200)}`);
+  return (await r.json()).choices?.[0]?.message?.content || "";
+}
+
+let explained = 0, lastError = "";
+for (let i = 0; i < queue.length; i += BATCH) {
+  const batch = queue.slice(i, i + BATCH);
+  try {
+    const out = await ask(prompt(batch));
+    const json = JSON.parse(out.slice(out.indexOf("{"), out.lastIndexOf("}") + 1));
+    for (const r of json.items || []) {
+      const x = batch[Number(r.id) - 1];
+      const text = String(r.why || "").trim();
+      if (!x || text.length < 20) continue;
+      why[x.g.lead.url] = { why: text.slice(0, 400), at: now, country: x.code, title: x.g.lead.title };
+      explained++;
+    }
+  } catch (e) {
+    console.log("Explanations failed: " + e.message);
+    lastError = e.message;
+    break;
+  }
+}
+console.log(`Explained ${explained} events`);
+await writeFile("data/why.json", JSON.stringify({ updated: new Date().toISOString(), model: process.env.ANTHROPIC_API_KEY ? "claude" : "github-models", lastError, items: why }));

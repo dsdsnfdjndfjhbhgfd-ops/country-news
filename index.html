@@ -92,6 +92,10 @@ button:focus-visible,a:focus-visible,#country:focus-visible{outline:3px solid va
 .meter i{width:10px;height:10px;border-radius:2px;background:var(--meter-off)}
 .meter i.on{background:var(--tc,var(--ink))}
 .src{font-size:14px;color:var(--muted)}
+.why{margin:0;font-size:16px;line-height:1.5;color:var(--ink);max-width:68ch;padding-left:12px;border-left:3px solid var(--tc,var(--accent))}
+.why b{font-weight:700}
+.ev.lead .why{font-size:17px}
+.fresh{font-weight:700;font-size:12px;color:var(--surface);background:var(--t-economy);border-radius:4px;padding:1px 6px}
 .src a{color:var(--muted);text-underline-offset:3px}
 .src a:hover{color:var(--accent)}
 .lang{font-weight:700;font-size:12px;color:var(--muted);border:1px solid var(--line);border-radius:4px;padding:0 5px}
@@ -168,9 +172,10 @@ footer a{color:var(--muted)}
     </div>
   </main>
 
-  <footer>Источники: ТАСС, РИА Новости, Интерфакс, Коммерсантъ, РБК, Ведомости, BBC Русская служба, DW на русском, BBC News, The Guardian, The New York Times, Al Jazeera, Deutsche Welle, France 24, Politico Europe, CNBC. Новости за последние 2 дня, обновление каждые 15 минут. Важность определяется автоматически по числу изданий и теме, без участия редактора.</footer>
+  <footer>Источники: ТАСС, РИА Новости, Интерфакс, Коммерсантъ, РБК, Ведомости, BBC Русская служба, DW на русском, BBC News, The Guardian, The New York Times, Al Jazeera, Deutsche Welle, France 24, Politico Europe, CNBC. Новости за последние 2 дня, обновление каждые 15 минут. Важность определяется автоматически: по числу изданий, теме и свежести. Пояснения «Почему это важно» пишет ИИ по заголовкам и анонсам статей, без участия редактора; их стоит проверять по первоисточнику.</footer>
 </div>
 
+<script src="assets/core.js"></script>
 <script>
 const $ = s => document.querySelector(s);
 // Theme: auto (system), light or dark; remembered in this browser
@@ -190,7 +195,6 @@ const EN_FIX = { US:"United States", GB:"United Kingdom", KP:"North Korea", KR:"
 // Prepositional case for the headline ("в Казахстане")
 const LOC = { RU:"России", US:"США", CN:"Китае", UA:"Украине", KZ:"Казахстане", DE:"Германии", TR:"Турции", IL:"Израиле", IN:"Индии", BY:"Беларуси", FR:"Франции", JP:"Японии", GB:"Великобритании", IR:"Иране", UZ:"Узбекистане", KG:"Киргизии", AM:"Армении", AZ:"Азербайджане", GE:"Грузии", PL:"Польше", IT:"Италии", ES:"Испании", BR:"Бразилии", KR:"Южной Корее", KP:"КНДР", SA:"Саудовской Аравии", AE:"ОАЭ", EG:"Египте", MD:"Молдове", TJ:"Таджикистане" };
 
-function low(s) { return (s || "").toLowerCase().replace(/ё/g, "е").trim(); }
 const ruNames = new Intl.DisplayNames(["ru"], { type: "region" });
 const enNames = new Intl.DisplayNames(["en"], { type: "region" });
 const index = new Map(); const ruList = [];
@@ -210,7 +214,7 @@ const dl = $("#countries");
 function resolve(input) {
   const code = index.get(low(input));
   if (!code) return null;
-  return { code, ru: ruNames.of(code), en: EN_FIX[code] || enNames.of(code) };
+  return { code, ru: ruNames.of(code), en: EN_FIX[code] || enNames.of(code), loc: LOC[code] || "" };
 }
 
 const quick = $("#quick");
@@ -240,68 +244,6 @@ function skeleton(c) {
   }
 }
 
-// ---------- Importance filter ----------
-const TOPICS = [
-  ["Безопасность", "--t-security", ["войн","воен","армия","армии","удар","атак","ракет","дрон","беспилот","обстрел","фронт","террор","взрыв","нато","оборон","мобилиз","перемир","конфликт","ядерн","war","militar","army","strike","attack","missile","drone","troops","terror","explos","nato","defen","ceasefire","conflict","shell","invasion","nuclear"]],
-  ["Политика", "--t-politics", ["президент","премьер","правительств","министр","парламент","дума","выбор","голосован","партия","партии","закон","указ","отставк","оппозиц","протест","митинг","конституц","суд","референдум","переворот","president","prime minister","government","minister","parliament","election","vote","party","law","decree","resign","opposition","protest","constitution","court","referendum","cabinet","coup"]],
-  ["Экономика", "--t-economy", ["экономик","ввп","инфляц","ставк","цб","центробанк","бюджет","налог","рубл","доллар","нефт","газ","экспорт","импорт","пошлин","тариф","санкц","кризис","рынок","биржа","инвест","зарплат","пенси","цены","долг","торгов","economy","economic","gdp","inflation","rate","central bank","budget","tax","oil","gas","export","import","tariff","sanction","crisis","market","invest","price","debt","trade"]],
-];
-// Diplomacy counts as politics
-TOPICS[1][2].push("переговор","визит","саммит","посол","мид","дипломат","соглашен","договор","оон","евросоюз","ес","talks","visit","summit","ambassador","foreign minister","diplomat","agreement","treaty","united nations","un","european union","eu","bilateral","negotiat");
-const SOFT = ["футбол","хоккей","матч","чемпионат","турнир","олимпи","спорт","сборн","гол","тренер","звезд","певиц","певец","актер","актрис","фильм","сериал","шоу","концерт","свадьб","развод","гороскоп","рецепт","погода","синоптик","мода","блогер","фестивал","премия","теннис","баскетбол","медал","атлет","бокс","шахмат","марафон","кубок","лига","игры","игрок","football","soccer","hockey","match","championship","tournament","olymp","sport","coach","celebrity","singer","actor","actress","movie","film","series","show","concert","wedding","divorce","horoscope","recipe","weather","fashion","festival","award","box office","tennis","basketball","f1","formula","games","medal","climbing","athlet","boxing","ufc","chess","marathon","cup","league","player"];
-const STOP = new Set("about after again also amid and are been before being between could from have into more news over says said than that their them there they this those through under were what when where which while will with would year years week today после перед также более может могут были было будет будут которые который которая через почему чтобы этого этой этом если между около заявил заявила стало сообщил сообщили сегодня неделе году года".split(" "));
-
-function norm(title) { return " " + (low(title).match(/[a-zа-я0-9%]+/g) || []).join(" ") + " "; }
-function stems(title, countryStems) {
-  const out = new Set();
-  for (const w of low(title).match(/[a-zа-я0-9]+/g) || []) {
-    if (w.length < 4 || STOP.has(w)) continue;
-    const s = w.slice(0, 6);
-    if (countryStems.some(c => s.startsWith(c) || c.startsWith(s))) continue;
-    out.add(s);
-  }
-  return out;
-}
-function topicOf(title) {
-  const t = norm(title); let best = null, hits = 0;
-  for (const tp of TOPICS) {
-    const n = tp[2].reduce((k, w) => k + (t.includes(" " + w) ? 1 : 0), 0);
-    if (n > hits) { hits = n; best = tp; }
-  }
-  return best;
-}
-function isSoft(title) { const t = norm(title); return SOFT.some(w => t.includes(" " + w)); }
-
-function cluster(items, c, singles) {
-  const countryStems = [low(c.ru), low(c.en), low(LOC[c.code] || "")].flatMap(n => n.split(/\s+/)).filter(w => w.length >= 4).map(w => w.slice(0, 5));
-  const groups = [];
-  for (const a of items) {
-    const st = stems(a.title, countryStems);
-    if (st.size < 2) continue;
-    let home = null, bestScore = 0;
-    for (const g of groups) {
-      if (g.lang !== a.language) continue;
-      let shared = 0; for (const s of st) if (g.stems.has(s)) shared++;
-      const j = shared / Math.min(st.size, g.core.size);
-      if ((shared >= 3 || (shared >= 2 && j >= 0.5)) && j > bestScore) { bestScore = j; home = g; }
-    }
-    if (home) { home.items.push(a); for (const s of st) home.stems.add(s); }
-    else groups.push({ lang: a.language, core: st, stems: new Set(st), items: [a] });
-  }
-  for (const g of groups) {
-    g.domains = new Set(g.items.map(i => i.source || i.domain)).size;
-    g.lead = g.items[0];
-    g.topic = g.items.map(i => topicOf(i.title)).find(Boolean) || null;
-    g.soft = g.items.some(i => isSoft(i.title));
-    g.score = g.domains * 2 + (g.topic ? 3 : 0);
-  }
-  const ranked = groups.filter(g => !g.soft && g.topic)
-    .sort((x, y) => y.score - x.score || y.items.length - x.items.length);
-  const multi = ranked.filter(g => g.domains >= 2);
-  // Single-outlet stories always go after the ones several outlets cover
-  if (singles) return multi.concat(ranked.filter(g => g.domains < 2)).slice(0, 25);
-  return (multi.length >= 8 ? multi : multi.concat(ranked.filter(g => g.domains < 2).slice(0, 8 - multi.length))).slice(0, 25);
-}
 
 // ---------- Data loading ----------
 const CACHE_MS = 30 * 60 * 1000;
@@ -311,10 +253,17 @@ function cacheGet(code) {
 }
 function cacheSet(code, items, at) { try { localStorage.setItem("cn:" + code, JSON.stringify({ at: at || Date.now(), items })); } catch {} }
 
+// AI explanations "why it matters", keyed by article URL (written by the collector)
+let WHY = {};
+async function loadWhy() {
+  try { const r = await fetch("data/why.json?t=" + Date.now(), { cache: "no-store" }); if (r.ok) WHY = (await r.json()).items || {}; } catch {}
+}
+function whyFor(g) { for (const i of g.items) if (WHY[i.url]) return WHY[i.url].why; return ""; }
+
 async function loadPrefetched(code) {
   if (!PREFETCHED.has(code)) return null;
   try {
-    const r = await fetch("data/" + code + ".json", { cache: "no-cache" });
+    const [r] = await Promise.all([fetch("data/" + code + ".json?t=" + Date.now(), { cache: "no-store" }), loadWhy()]);
     if (!r.ok) return null;
     const d = await r.json();
     return Array.isArray(d.items) && d.items.length ? d : null;
@@ -421,10 +370,6 @@ const PERIOD_TEXT = { "2d": "за 2 дня", today: "за сегодня", yeste
 const prefs = { period: "2d", singles: true };
 try { prefs.singles = (JSON.parse(localStorage.getItem("cn:prefs2")) || {}).singles !== false; } catch {}
 function savePrefs() { try { localStorage.setItem("cn:prefs2", JSON.stringify(prefs)); } catch {} }
-function seenTime(s) {
-  const m = /^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})/.exec(s || ""); if (!m) return NaN;
-  return Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]);
-}
 function inPeriod(items) {
   const from2d = Date.now() - 48 * 3600000;
   if (prefs.period === "2d") return items.filter(a => seenTime(a.seendate) >= from2d);
@@ -483,16 +428,20 @@ function render(c, allItems, info) {
     const li = el("li", "ev" + (i === 0 ? " lead" : ""));
     const body = el("div", "body");
     const color = g.topic ? g.topic[1] : null;
+    if (color) li.style.setProperty("--tc", `var(${color})`);
 
     const facts = el("div", "facts");
     if (g.topic) { const t = el("span", "topic", g.topic[0]); t.style.setProperty("--tc", `var(${color})`); facts.append(t); }
     facts.append(meter(g.domains, color));
     facts.append(el("span", null, g.domains > 1 ? `пишут ${g.domains} ${plural(g.domains, "издание", "издания", "изданий")}` : "одно издание"));
+    if (g.fresh) facts.append(el("span", "fresh", "Новое"));
     body.append(facts);
 
     const h = el("h3"); const link = el("a", null, cleanTitle(a.title));
     link.href = a.url; link.target = "_blank"; link.rel = "noopener";
     h.append(link); body.append(h);
+    const why = whyFor(g);
+    if (why) { const w = el("p", "why"); w.append(el("b", null, "Почему это важно. ")); w.append(document.createTextNode(why)); body.append(w); }
 
     const src = el("div", "src");
     if (a.language === "English") { src.append(el("span", "lang", "EN")); src.append(document.createTextNode(" ")); }
@@ -519,6 +468,22 @@ function render(c, allItems, info) {
   });
   out.append(ol);
 }
+
+// Keep an open page current: re-read the data every 5 minutes and when the tab comes back
+async function refresh() {
+  if (!shown || !PREFETCHED.has(shown.c.code) || document.visibilityState !== "visible") return;
+  const c = shown.c, pre = await loadPrefetched(c.code);
+  if (!pre || !shown || shown.c.code !== c.code) return;
+  const y = window.scrollY;
+  render(c, dedupe(pre.items), { at: Date.parse(pre.updated) });
+  window.scrollTo(0, y);
+}
+setInterval(refresh, 5 * 60000);
+let hiddenAt = 0;
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "hidden") hiddenAt = Date.now();
+  else if (Date.now() - hiddenAt > 60000) refresh();
+});
 
 // Open a country straight from the link, e.g. …/country-news/#KZ
 const fromHash = location.hash.slice(1).toUpperCase();
