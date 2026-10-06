@@ -171,6 +171,14 @@ footer a{color:var(--muted)}
 .lead-box{display:flex;flex-direction:column;gap:10px;padding:20px;background:var(--surface);border:1px solid var(--line);border-radius:14px}
 .lead-box .label{font-size:14px;color:var(--muted);font-weight:700}
 .lead-box p{margin:0;font-size:17px;line-height:1.6}
+.outlets{display:flex;flex-direction:column;gap:8px;padding-top:4px}
+.outlets .chips{display:flex;flex-wrap:wrap;gap:8px}
+.outlet{display:inline-flex;align-items:center;gap:6px;font:700 15px var(--sans);text-decoration:none;color:var(--ink);background:var(--bg);border:2px solid var(--line);border-radius:999px;padding:9px 16px}
+.outlet:hover{border-color:var(--accent);color:var(--accent)}
+.outlet.main{background:var(--ink);border-color:var(--ink);color:var(--surface)}
+.outlet.main:hover{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.outlet .lang{font-size:11px;padding:0 4px;border:1px solid currentColor;border-radius:4px;opacity:.8}
+.outlet::after{content:"↗";font-weight:500;opacity:.7}
 .actions{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
 .btn-main{display:inline-block;font:700 16px var(--sans);text-decoration:none;border-radius:999px;padding:12px 22px;background:var(--ink);color:var(--surface)}
 .btn-main:hover{background:var(--accent);color:var(--on-accent)}

@@ -44,6 +44,25 @@ function dedupe(items) {
   const seen = new Set();
   return items.filter(a => { const k = low(a.title).slice(0, 70); if (!a.title || seen.has(k)) return false; seen.add(k); return true; });
 }
+// One article per outlet (the newest), the lead outlet first
+function outlets(g, lead) {
+  const by = new Map();
+  for (const x of g.items) {
+    const k = x.source || x.domain;
+    if (!by.has(k) || seenTime(x.seendate) > seenTime(by.get(k).seendate)) by.set(k, x);
+  }
+  const list = [...by.values()].filter(x => safeUrl(x.url) !== "#");
+  const leadKey = lead.source || lead.domain;
+  return list.sort((x, y) => ((y.source || y.domain) === leadKey) - ((x.source || x.domain) === leadKey) || seenTime(y.seendate) - seenTime(x.seendate));
+}
+// A separate browser window next to ev.news; if pop-ups are blocked, the link opens a new tab instead
+function openWindow(url) {
+  if (safeUrl(url) === "#") return false;
+  const w = Math.min(1200, screen.availWidth - 80), h = Math.min(900, screen.availHeight - 80);
+  const win = window.open(url, "_blank", `noopener,noreferrer,width=${w},height=${h},left=40,top=40`);
+  // With noopener the call returns null even on success, so trust it unless the browser lacks pop-up windows (phones)
+  return !/Android|iPhone|iPad|Mobile/i.test(navigator.userAgent);
+}
 function eventLink(code, url) { return `article.html?c=${code}&u=${encodeURIComponent(url)}`; }
 
 const params = new URLSearchParams(location.search);
@@ -152,10 +171,23 @@ function render(c, g, groups, d) {
     box.append(el("p", null, d.desc[withDesc.url]));
     if (withDesc !== a) box.append(el("span", "label", `Анонс: ${withDesc.source || withDesc.domain}`));
   } else box.append(el("p", null, "Издания не дали анонса в своих лентах. Полный текст доступен на сайте издания."));
+  // Choose an outlet: its article opens in a separate window
+  const picks = outlets(g, a);
+  const pickBox = el("div", "outlets");
+  pickBox.append(el("span", "label", picks.length > 1 ? `Читать статью в издании (${picks.length}):` : "Читать статью в издании:"));
+  const chips = el("div", "chips");
+  picks.forEach((x, k) => {
+    const l = el("a", "outlet" + (k === 0 ? " main" : ""));
+    l.append(document.createTextNode(x.source || x.domain));
+    if (Translate.isForeign(x.title, x.language)) l.append(el("span", "lang", "EN"));
+    l.href = safeUrl(x.url); l.target = "_blank"; l.rel = "noopener";
+    l.title = `${cleanTitle(x.title)} (${fmtDate(x.seendate)}). Откроется в новом окне`;
+    l.addEventListener("click", e => { if (openWindow(x.url)) e.preventDefault(); });
+    chips.append(l);
+  });
+  pickBox.append(chips);
+  box.append(pickBox);
   const act = el("div", "actions");
-  const read = el("a", "btn-main", `Читать полностью в ${a.source || "источнике"} ↗`);
-  read.href = safeUrl(a.url); read.target = "_blank"; read.rel = "noopener";
-  act.append(read);
   if (foreign && safeUrl(a.url) !== "#") {
     const tr = el("span", "translate"); tr.append(document.createTextNode("Перевести статью: "));
     Translate.articleLinks(a.url).forEach(([name, href], k) => {
