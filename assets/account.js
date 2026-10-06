@@ -65,6 +65,11 @@
   }
   function need() { if (!sb) throw new Error("Вход сейчас недоступен: не загрузился модуль входа. Обновите страницу."); }
 
+  // Which social sign-ins are switched on in Supabase (public endpoint, no secrets)
+  const PROVIDERS = [["google", "Google"], ["github", "GitHub"]];
+  const providersReady = fetch(SUPABASE_URL + "/auth/v1/settings", { headers: { apikey: SUPABASE_KEY } })
+    .then(r => r.ok ? r.json() : {}).then(j => j.external || {}).catch(() => ({}));
+
   let settingsTimer = null;
   async function flushSettings() {
     if (!settingsTimer || !user) return;
@@ -99,6 +104,13 @@
       if (error) throw new Error(human(error));
     },
     async signOut() { if (sb) await sb.auth.signOut(); },
+    async signInWith(provider) {
+      need();
+      // Come back to the page the person started from (without its #country part)
+      const back = location.origin + location.pathname;
+      const { error } = await sb.auth.signInWithOAuth({ provider, options: { redirectTo: back } });
+      if (error) throw new Error(human(error));
+    },
     async sendReset(email) {
       need();
       const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: SITE + "account.html" });
@@ -172,6 +184,8 @@
         </div>
         <h2 id="acc-title"></h2>
         <p class="acc-lead"></p>
+        <div class="acc-social" hidden></div>
+        <div class="acc-or" hidden><span>или по почте</span></div>
         <label for="acc-email">Почта</label>
         <input id="acc-email" type="email" autocomplete="email" required placeholder="you@example.com">
         <div class="acc-pass">
@@ -200,10 +214,29 @@
       d.querySelector(".acc-pass").hidden = m === "reset";
       pass.autocomplete = ac;
       d.querySelector("[data-forgot]").hidden = m !== "signin";
+      const social = d.querySelector(".acc-social"), any = social.children.length > 0;
+      social.hidden = !any || m === "reset"; d.querySelector(".acc-or").hidden = !any || m === "reset";
       d.querySelectorAll(".acc-tabs button").forEach(b => b.setAttribute("aria-selected", String(b.dataset.mode === m)));
       msg.textContent = ""; msg.className = "acc-msg";
     }
     d.querySelectorAll(".acc-tabs button").forEach(b => b.onclick = () => setMode(b.dataset.mode));
+    // Social buttons appear only for providers enabled in Supabase
+    providersReady.then(on => {
+      const box = d.querySelector(".acc-social");
+      for (const [id, name] of PROVIDERS) {
+        if (!on[id]) continue;
+        const b = el("button", "acc-oauth acc-" + id); b.type = "button";
+        b.append(el("span", "acc-ico", id === "google" ? "G" : "GH"), document.createTextNode("Войти через " + name));
+        b.onclick = async () => {
+          b.disabled = true; msg.className = "acc-msg"; msg.textContent = "Переходим на " + name + "…";
+          try { await Account.signInWith(id); } catch (err) { msg.textContent = err.message; msg.classList.add("err"); b.disabled = false; }
+        };
+        box.append(b);
+      }
+      const any = box.children.length > 0;
+      box.hidden = !any || mode === "reset";
+      d.querySelector(".acc-or").hidden = !any || mode === "reset";
+    });
     d.querySelector("[data-forgot]").onclick = () => setMode("reset");
     d.querySelector(".acc-close").onclick = () => d.close();
     d.addEventListener("click", e => { if (e.target === d) d.close(); });

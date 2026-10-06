@@ -18,7 +18,16 @@
 .acc-form label{font-size:14px;font-weight:700;margin-top:4px;display:block}
 .acc-form input{width:100%;font:500 16px var(--sans);color:var(--ink);background:var(--bg);border:2px solid var(--line);border-radius:10px;padding:11px 12px;margin-top:6px}
 .acc-form input:focus{outline:none;border-color:var(--accent)}
-.acc-pass[hidden]{display:none}
+.acc-pass[hidden],.acc-social[hidden],.acc-or[hidden]{display:none}
+.acc-social{display:flex;flex-direction:column;gap:8px;margin-top:4px}
+.acc-oauth{display:flex;align-items:center;justify-content:center;gap:10px;font:700 15px var(--sans);color:var(--ink);background:var(--surface);border:2px solid var(--line);border-radius:999px;padding:11px;cursor:pointer}
+.acc-oauth:hover{border-color:var(--accent);color:var(--accent)}
+.acc-oauth:disabled{opacity:.6;cursor:wait}
+.acc-ico{display:inline-grid;place-items:center;min-width:24px;height:24px;padding:0 4px;border-radius:6px;font-size:12px;font-weight:800;color:#fff;background:#4a5568}
+.acc-google .acc-ico{background:#d93025}
+.acc-github .acc-ico{background:#24292f}
+.acc-or{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:13px;margin:4px 0}
+.acc-or::before,.acc-or::after{content:"";flex:1;height:1px;background:var(--line)}
 .acc-msg{margin:4px 0 0;font-size:14px;min-height:1px}
 .acc-msg.err{color:var(--t-security)}
 .acc-msg.ok{color:var(--t-economy)}
