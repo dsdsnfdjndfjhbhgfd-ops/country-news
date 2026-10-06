@@ -183,11 +183,11 @@ function meter(n, color) {
 // ---------- Viewer settings: period and single-outlet stories ----------
 const PERIODS = [["today", "Сегодня"], ["yesterday", "Вчера"], ["3d", "3 дня"], ["week", "Неделя"]];
 const PERIOD_TEXT = { "2d": "за 2 дня", today: "за сегодня", yesterday: "за вчера", "3d": "за 3 дня", week: "за неделю" };
-const prefs = { period: "2d", singles: true };
+const prefs = { period: "2d", singles: true, ruTitles: true };
 // Feed view: sphere filter, sort order and whether to show every event
 const view = { sphere: "all", sort: "importance", all: false };
 const FEED_SIZE = 25;
-try { prefs.singles = (JSON.parse(localStorage.getItem("cn:prefs2")) || {}).singles !== false; } catch {}
+try { const st = JSON.parse(localStorage.getItem("cn:prefs2")) || {}; prefs.singles = st.singles !== false; prefs.ruTitles = st.ruTitles !== false; } catch {}
 function savePrefs() { try { localStorage.setItem("cn:prefs2", JSON.stringify(prefs)); } catch {} }
 function inPeriod(items) {
   const from2d = Date.now() - 48 * 3600000;
@@ -218,7 +218,36 @@ function controls(rerender, counts) {
   const cb = el("input"); cb.type = "checkbox"; cb.id = "singles"; cb.checked = prefs.singles;
   cb.onchange = () => { prefs.singles = cb.checked; savePrefs(); Account.saveSettings({ singles: prefs.singles }); rerender(); };
   sw.append(cb, el("span", "track"), el("span", null, "Новости из одного издания"));
-  box.append(sw);
+  const right = el("div", "ctl-group");
+  right.append(sw);
+  // Only in browsers with a built-in translator (Chrome on a computer)
+  if (Translate.titles.supported) {
+    const tw = el("label", "switch");
+    const tb = el("input"); tb.type = "checkbox"; tb.id = "ru-titles"; tb.checked = prefs.ruTitles;
+    const tl = el("span", null, "Заголовки на русском");
+    tb.onchange = async () => {
+      prefs.ruTitles = tb.checked; savePrefs(); Account.saveSettings({ ruTitles: prefs.ruTitles });
+      if (!tb.checked) { showOriginalTitles(); return; }
+      try {
+        tl.textContent = "Загружаю переводчик…";
+        await Translate.titles.prepare(p => { tl.textContent = `Загружаю переводчик… ${Math.round(p * 100)}%`; });
+        tl.textContent = "Заголовки на русском";
+        translateTitles();
+      } catch {
+        tl.textContent = "Перевод недоступен в этом браузере";
+        tb.checked = false; prefs.ruTitles = false; savePrefs();
+      }
+    };
+    tw.append(tb, el("span", "track"), tl);
+    tw.hidden = true; // shown only when this browser can translate English into Russian
+    Translate.titles.availability().then(v => {
+      tw.hidden = v === "unavailable";
+      // Until the language pack is on this device the switch stays off; turning it on downloads the pack
+      if (v !== "available") tb.checked = false;
+    });
+    right.append(tw);
+  }
+  box.append(right);
   return box;
 }
 
@@ -298,6 +327,8 @@ function render(c, allItems, info) {
 
     const h = el("h3"); const link = el("a", null, cleanTitle(a.title));
     link.href = safeUrl(a.url); link.target = "_blank"; link.rel = "noopener";
+    const foreign = Translate.isForeign(a.title, a.language);
+    if (foreign) { link.dataset.orig = cleanTitle(a.title); link.lang = "en"; }
     h.append(link); body.append(h);
     const why = whyFor(g, c);
     if (why) { const w = el("p", "why"); w.append(el("b", null, "Почему это важно. ")); w.append(document.createTextNode(why)); body.append(w); }
@@ -313,6 +344,16 @@ function render(c, allItems, info) {
         const l = el("a", null, x.source || x.domain); l.href = safeUrl(x.url); l.target = "_blank"; l.rel = "noopener"; l.title = cleanTitle(x.title);
         src.append(l); if (k < more.length - 1) src.append(document.createTextNode(", "));
       });
+    }
+    // Foreign article: open it translated into Russian
+    if (foreign && safeUrl(a.url) !== "#") {
+      const tr = el("div", "translate");
+      tr.append(document.createTextNode("Перевести статью: "));
+      Translate.articleLinks(a.url).forEach(([name, href], k) => {
+        const l = el("a", null, name); l.href = href; l.target = "_blank"; l.rel = "noopener noreferrer";
+        tr.append(l); if (k === 0) tr.append(document.createTextNode(" или "));
+      });
+      src.append(tr);
     }
     body.append(src);
     const isSaved = g.items.some(x => Account.isSaved(x.url));
@@ -340,6 +381,7 @@ function render(c, allItems, info) {
     ol.append(li);
   });
   out.append(ol);
+  translateTitles();
   if (list.length > FEED_SIZE) {
     const more = el("button", "more", view.all ? `Показать только ${FEED_SIZE} главных` : `Показать все события (${list.length})`);
     more.type = "button";
@@ -349,6 +391,21 @@ function render(c, allItems, info) {
     };
     out.append(more);
   }
+}
+
+// Headlines in English shown in Russian (original kept in the tooltip)
+async function translateTitles() {
+  if (!Translate.titles.supported || !prefs.ruTitles) return;
+  if (await Translate.titles.availability() !== "available") return; // the switch downloads it on click
+  for (const a of document.querySelectorAll(".ev h3 a[data-orig]")) {
+    try {
+      const ru = await Translate.titles.translate(a.dataset.orig);
+      if (ru && a.isConnected && prefs.ruTitles) { a.textContent = ru; a.lang = "ru"; a.title = "Оригинал: " + a.dataset.orig; a.classList.add("translated"); }
+    } catch { return; }
+  }
+}
+function showOriginalTitles() {
+  for (const a of document.querySelectorAll(".ev h3 a[data-orig]")) { a.textContent = a.dataset.orig; a.lang = "en"; a.removeAttribute("title"); a.classList.remove("translated"); }
 }
 
 // Keep an open page current: re-read the data every 5 minutes and when the tab comes back
@@ -374,6 +431,7 @@ function applyAccountSettings() {
   if (["all", "Политика", "Безопасность", "Экономика"].includes(st.sphere)) view.sphere = st.sphere;
   if (["importance", "time"].includes(st.sort)) view.sort = st.sort;
   if (["auto", "light", "dark"].includes(st.theme)) applyTheme(st.theme);
+  if (typeof st.ruTitles === "boolean") { prefs.ruTitles = st.ruTitles; savePrefs(); }
 }
 function startCountry() {
   const fromHash = location.hash.slice(1).toUpperCase();

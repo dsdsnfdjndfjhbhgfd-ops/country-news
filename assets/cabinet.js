@@ -42,6 +42,11 @@ function render() {
       const a = el("a", "t", it.title); a.href = /^https?:\/\//i.test(it.url || "") ? it.url : "#"; a.target = "_blank"; a.rel = "noopener";
       body.append(a, el("div", "meta", [NAME[it.country] || it.country, it.topic, it.source, fmt(it.published_at)].filter(Boolean).join(", ")));
       if (it.why) body.append(el("p", "why", it.why));
+      if (Translate.isForeign(it.title) && /^https?:\/\//i.test(it.url || "")) {
+        const tr = el("div", "tr"); tr.append("Перевести статью: ");
+        Translate.articleLinks(it.url).forEach(([name, href], k) => { const l = el("a", null, name); l.href = href; l.target = "_blank"; l.rel = "noopener noreferrer"; tr.append(l); if (!k) tr.append(" или "); });
+        body.append(tr);
+      }
       const rm = el("button", "btn", "Убрать"); rm.type = "button";
       rm.onclick = async () => { rm.disabled = true; try { await Account.toggleSaved(it); } catch (e) { rm.disabled = false; alertMsg(e.message); } };
       li.append(body, rm); ul.append(li);

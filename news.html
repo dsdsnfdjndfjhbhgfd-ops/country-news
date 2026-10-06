@@ -102,6 +102,10 @@ button:focus-visible,a:focus-visible,#country:focus-visible{outline:3px solid va
 .meter i{width:10px;height:10px;border-radius:2px;background:var(--meter-off)}
 .meter i.on{background:var(--tc,var(--ink))}
 .src{font-size:14px;color:var(--muted)}
+.switch[hidden]{display:none}
+.translate{display:block;margin-top:4px}
+.translate a{font-weight:700;color:var(--accent);text-underline-offset:3px}
+.ev h3 a.translated::after{content:" перевод";font:500 12px var(--sans);color:var(--muted);vertical-align:middle;margin-left:6px}
 .why{margin:0;font-size:16px;line-height:1.5;color:var(--ink);max-width:68ch;padding-left:12px;border-left:3px solid var(--tc,var(--accent))}
 .why b{font-weight:700}
 .ev.lead .why{font-size:17px}
@@ -202,6 +206,7 @@ footer a{color:var(--muted)}
 <script src="assets/email-check.js"></script>
 <script src="assets/account.js"></script>
 <script src="assets/core.js"></script>
+<script src="assets/translate.js"></script>
 <script src="assets/feed.js"></script>
 </body>
 </html>
