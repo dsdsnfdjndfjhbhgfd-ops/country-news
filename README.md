@@ -33,3 +33,13 @@ insert into private.admins (user_id) select id from auth.users where email = 'п
 -- снять
 delete from private.admins where user_id = (select id from auth.users where email = 'почта@пример.ru');
 ```
+
+## ИИ-пояснения «Почему это важно»
+
+Без ключа пояснения составляются по правилам (`assets/core.js`). Чтобы их писала нейтральная ИИ-модель, добавьте в репозитории (Settings → Secrets and variables → Actions) секрет `LLM_API_KEY`.
+
+- **OpenRouter** (по умолчанию, бесплатные модели `:free`, в том числе DeepSeek): ключ создаётся на openrouter.ai/keys. Сборщик сам берёт доступные бесплатные модели и при ошибке или лимите пробует следующую.
+- **DeepSeek напрямую**: ключ с platform.deepseek.com, плюс переменная `LLM_BASE_URL` = `https://api.deepseek.com` (модель по умолчанию `deepseek-chat`).
+- Свою модель можно задать переменной `LLM_MODEL` (несколько через запятую).
+
+Тексты кешируются по адресу статьи на 3 дня, поэтому каждое событие объясняется один раз. Если сервис недоступен или бесплатный лимит исчерпан, сайт просто остаётся на правилах. Какая модель отвечала, видно в `data/why.json` (поле `model`).

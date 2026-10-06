@@ -180,9 +180,14 @@ for (const [code, res] of Object.entries(matchers)) {
 if (!fresh.length) { console.log("No outlet answered"); process.exit(1); }
 
 // ---------- "Why it matters": short AI explanations for the top events ----------
-// Uses Claude when the repository has an ANTHROPIC_API_KEY secret, otherwise the free
-// GitHub Models endpoint with the workflow's own token. Explanations are cached by article
-// URL, so each event is explained once.
+// Works with any OpenAI-compatible service, set through repository secrets/variables:
+//   LLM_API_KEY   key of the service (OpenRouter by default, free ":free" models such as DeepSeek)
+//   LLM_BASE_URL  optional, default https://openrouter.ai/api/v1 (DeepSeek itself: https://api.deepseek.com)
+//   LLM_MODEL     optional, one or several model ids separated by commas, tried in order.
+//                 Not set on OpenRouter = the free DeepSeek models available at the moment.
+// ANTHROPIC_API_KEY (Claude) also works. With no key, or when the service fails or is out of its
+// free limit, the site keeps using the built-in rules from assets/core.js.
+// Explanations are cached by article URL, so each event is explained once.
 const NAMES = {
   RU: ["Россия", "России"], US: ["США", "США"], CN: ["Китай", "Китае"], UA: ["Украина", "Украине"],
   IL: ["Израиль", "Израиле"], IR: ["Иран", "Иране"], DE: ["Германия", "Германии"],
@@ -211,9 +216,11 @@ for (const code of Object.keys(COUNTRIES)) {
   }
 }
 todo.sort((a, b) => (b.g.domains >= 2) - (a.g.domains >= 2) || b.g.score - a.g.score);
-// Without a Claude key, explanations come from the page's built-in rules (assets/core.js)
-const queue = process.env.ANTHROPIC_API_KEY ? todo.slice(0, PER_RUN) : [];
-console.log(`Events without explanation: ${todo.length}, explaining ${queue.length}`);
+const LLM_KEY = process.env.LLM_API_KEY || "";
+const LLM_BASE = (process.env.LLM_BASE_URL || "https://openrouter.ai/api/v1").replace(/\/+$/, "");
+const HAS_AI = !!(LLM_KEY || process.env.ANTHROPIC_API_KEY);
+const queue = HAS_AI ? todo.slice(0, PER_RUN) : [];
+console.log(`Events without explanation: ${todo.length}, explaining ${queue.length}` + (HAS_AI ? "" : " (no AI key: the site uses its rules)"));
 
 function prompt(batch) {
   const lines = batch.map((x, i) => {
@@ -228,37 +235,51 @@ function prompt(batch) {
 ${lines}`;
 }
 
+// Which models to try on an OpenAI-compatible service
+async function modelList() {
+  if (process.env.LLM_MODEL) return process.env.LLM_MODEL.split(",").map(m => m.trim()).filter(Boolean);
+  if (!LLM_BASE.includes("openrouter.ai")) return [LLM_BASE.includes("deepseek.com") ? "deepseek-chat" : ""].filter(Boolean);
+  try {
+    const r = await fetch(LLM_BASE + "/models", { signal: AbortSignal.timeout(20000) });
+    const ids = ((await r.json()).data || []).map(m => m.id).filter(id => /:free$/.test(id));
+    const rank = id => /deepseek/i.test(id) ? 0 : /(qwen|llama|gemma|mistral)/i.test(id) ? 1 : 2;
+    // Plain chat models first: "thinking" models are slow and often run out of tokens
+    const plain = id => /(r1|reason|think)/i.test(id) ? 1 : 0;
+    return ids.sort((x, y) => rank(x) - rank(y) || plain(x) - plain(y)).slice(0, 4);
+  } catch (e) { console.log("Could not list free models: " + e.message); return []; }
+}
+
+let usedModel = "";
 async function ask(text) {
-  if (process.env.ANTHROPIC_API_KEY) {
+  if (!LLM_KEY && process.env.ANTHROPIC_API_KEY) {
     const r = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST", signal: AbortSignal.timeout(90000),
       headers: { "x-api-key": process.env.ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01", "content-type": "application/json" },
       body: JSON.stringify({ model: process.env.ANTHROPIC_MODEL || "claude-haiku-4-5", max_tokens: 3000, messages: [{ role: "user", content: text }] })
     });
     if (!r.ok) throw new Error(`Claude HTTP ${r.status}: ${(await r.text()).slice(0, 200)}`);
+    usedModel = "claude";
     return (await r.json()).content?.[0]?.text || "";
   }
-  if (!process.env.GITHUB_TOKEN) throw new Error("no model credentials");
-  // GitHub Models: current endpoint first, then the older Azure-hosted one
-  const tries = [
-    ["https://models.github.ai/inference/chat/completions", process.env.GH_MODEL || "openai/gpt-4.1-mini"],
-    ["https://models.inference.ai.azure.com/chat/completions", "gpt-4o-mini"]
-  ];
+  const models = await modelList();
+  if (!models.length) throw new Error("no model to ask");
   const errors = [];
-  for (const [url, model] of tries) {
+  for (const model of models) {
     try {
-      const r = await fetch(url, {
-        method: "POST", signal: AbortSignal.timeout(90000),
-        headers: { "Authorization": `Bearer ${process.env.GITHUB_TOKEN}`, "Content-Type": "application/json", "Accept": "application/json", "X-GitHub-Api-Version": "2022-11-28" },
-        body: JSON.stringify({ model, temperature: 0.2, response_format: { type: "json_object" }, messages: [{ role: "user", content: text }] })
+      const r = await fetch(LLM_BASE + "/chat/completions", {
+        method: "POST", signal: AbortSignal.timeout(120000),
+        headers: { "Authorization": `Bearer ${LLM_KEY}`, "Content-Type": "application/json", "HTTP-Referer": "https://github.com/dsdsnfdjndfjhbhgfd-ops/country-news", "X-Title": "ev.news" },
+        body: JSON.stringify({ model, temperature: 0.2, max_tokens: 3000, messages: [{ role: "user", content: text }] })
       });
       const body = await r.text();
       if (!r.ok) throw new Error(`HTTP ${r.status}: ${body.slice(0, 160)}`);
       let data; try { data = JSON.parse(body); } catch { throw new Error(`not JSON: ${body.slice(0, 120)}`); }
-      const content = data.choices?.[0]?.message?.content;
-      if (!content) throw new Error(`empty answer: ${body.slice(0, 120)}`);
+      // Some models put their reasoning in <think> tags; keep only the answer
+      const content = (data.choices?.[0]?.message?.content || "").replace(/<think>[\s\S]*?<\/think>/g, "");
+      if (!content.includes("{")) throw new Error(`no JSON in answer: ${body.slice(0, 120)}`);
+      usedModel = model;
       return content;
-    } catch (e) { errors.push(`${new URL(url).host} ${e.message}`); }
+    } catch (e) { errors.push(`${model}: ${e.message}`); }
   }
   throw new Error(errors.join(" | "));
 }
@@ -283,7 +304,7 @@ for (let i = 0; i < queue.length; i += BATCH) {
   }
 }
 console.log(`Explained ${explained} events`);
-await writeFile("data/why.json", JSON.stringify({ updated: new Date().toISOString(), model: process.env.ANTHROPIC_API_KEY ? "claude" : "github-models", lastError, items: why }));
+await writeFile("data/why.json", JSON.stringify({ updated: new Date().toISOString(), model: usedModel || (HAS_AI ? "unavailable" : "rules"), lastError, items: why }));
 
 // ---------- Small summary for the home page ----------
 const status = { updated: new Date().toISOString(), sources: SOURCES.map(s => ({ name: s.name, lang: s.lang })), countries: {} };
