@@ -85,11 +85,19 @@ async function dataVersion() {
   return String(Math.floor(Date.now() / 60000)); // fallback: a new version every minute
 }
 
+// Short AI summaries of events (data/summary.json), loaded together with the country file
+let SUMMARY = {}, summaryVersion = "";
+async function loadSummary(v) {
+  if (v === summaryVersion) return;
+  try { const r = await fetch("data/summary.json?v=" + encodeURIComponent(v)); if (r.ok) { SUMMARY = (await r.json()).items || {}; summaryVersion = v; } } catch {}
+}
+const summaryFor = g => { for (const i of g.items) if (SUMMARY[i.url]) return SUMMARY[i.url].text; return ""; };
+
 async function loadPrefetched(code) {
   if (!PREFETCHED.has(code)) return null;
   try {
     const v = await dataVersion();
-    const r = await fetch(`data/${code}.json?v=${encodeURIComponent(v)}`);
+    const [r] = await Promise.all([fetch(`data/${code}.json?v=${encodeURIComponent(v)}`), loadSummary(v)]);
     if (!r.ok) return null;
     const d = await r.json();
     return Array.isArray(d.items) && d.items.length ? d : null;
@@ -326,6 +334,8 @@ function render(c, allItems, info) {
     const foreign = Translate.isForeign(a.title, a.language);
     if (foreign) { link.dataset.orig = cleanTitle(a.title); link.lang = "en"; }
     h.append(link); body.append(h);
+    const brief = summaryFor(g);
+    if (brief) { const s = el("p", "brief"); s.append(el("b", null, "Кратко. "), document.createTextNode(brief)); body.append(s); }
 
     const src = el("div", "src");
     if (a.language === "English") { src.append(el("span", "lang", "EN")); src.append(document.createTextNode(" ")); }

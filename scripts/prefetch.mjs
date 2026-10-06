@@ -190,8 +190,132 @@ const NAMES = {
 const EN = { RU: "Russia", US: "United States", CN: "China", UA: "Ukraine", IL: "Israel", IR: "Iran", DE: "Germany", GB: "United Kingdom", FR: "France", TR: "Turkey", IN: "India", JP: "Japan", PL: "Poland", BY: "Belarus", KZ: "Kazakhstan", MA: "Morocco", SA: "Saudi Arabia", BR: "Brazil" };
 const core = vm.createContext({ Date, Math, Set, Map, JSON });
 vm.runInContext(await readFile("assets/core.js", "utf8"), core);
-// The site no longer shows "why it matters" texts: drop the old file from the data
-await rm("data/why.json", { force: true });
+await rm("data/why.json", { force: true }); // retired file
+
+// ---------- Short summaries ("Кратко") of events, written by an AI model ----------
+// Works with any OpenAI-compatible service, set through repository secrets/variables:
+//   LLM_API_KEY   key of the service (a secret; never put it into the code)
+//   LLM_BASE_URL  optional variable. Default OpenRouter (free ":free" models);
+//                 Google Gemini: https://generativelanguage.googleapis.com/v1beta/openai
+//                 DeepSeek: https://api.deepseek.com
+//   LLM_MODEL     optional variable, one or several model ids separated by commas.
+// ANTHROPIC_API_KEY (Claude) also works. Without a key, or when the service fails or is out of
+// its free limit, events simply have no summary. The text is built only from the headlines and
+// feed summaries of the outlets, not from full articles. Cached by article URL for 3 days.
+const PER_RUN = Number(process.env.SUMMARY_PER_RUN) || 48, BATCH = 12, TOP = 12;
+
+let summaries = {};
+try { summaries = JSON.parse(await readFile("data/summary.json", "utf8")).items || {}; } catch {}
+for (const [u, v] of Object.entries(summaries)) if (now - (v.at || 0) > 3 * 86400000) delete summaries[u];
+
+const todo = [];
+for (const code of Object.keys(COUNTRIES)) {
+  let items = [];
+  try { items = JSON.parse(await readFile(`data/full/${code}.json`, "utf8")).items || []; } catch {}
+  const c = { code, ru: NAMES[code][0], en: EN[code], loc: NAMES[code][1] };
+  for (const g of core.cluster(items, c, true).slice(0, TOP)) {
+    if (g.items.some(i => summaries[i.url])) continue;
+    todo.push({ code, g });
+  }
+}
+todo.sort((a, b) => (b.g.domains >= 2) - (a.g.domains >= 2) || b.g.score - a.g.score);
+const LLM_KEY = process.env.LLM_API_KEY || "";
+const LLM_BASE = (process.env.LLM_BASE_URL || "https://openrouter.ai/api/v1").replace(/\/+$/, "");
+const HAS_AI = !!(LLM_KEY || process.env.ANTHROPIC_API_KEY);
+const queue = HAS_AI ? todo.slice(0, PER_RUN) : [];
+console.log(`Events without a summary: ${todo.length}, explaining ${queue.length}` + (HAS_AI ? "" : " (no AI key: summaries are skipped)"));
+
+function prompt(batch) {
+  const lines = batch.map((x, i) => {
+    const g = x.g;
+    // Everything the outlets wrote about this event: up to 4 headlines with their feed summaries
+    const seen = new Set(), parts = [];
+    for (const a of g.items) {
+      if (parts.length >= 4 || seen.has(a.source)) continue;
+      seen.add(a.source);
+      parts.push(`«${a.title}»` + (a.desc ? ` — ${a.desc}` : "") + ` (${a.source})`);
+    }
+    return `${i + 1}. Страна: ${NAMES[x.code][0]}. ${parts.join(" | ")}`;
+  }).join("\n");
+  return `Ты редактор новостной сводки. Для каждого события ниже напиши по-русски краткое изложение: 2–3 предложения о том, что произошло, кто участвует, где и когда (если это сказано в тексте).
+Пиши нейтрально и сухо, без оценок и прогнозов. Используй только факты из заголовков и анонсов ниже, не добавляй ничего от себя: ни цифр, ни имён, ни причин. Если данных мало, напиши одно короткое предложение. Не повторяй заголовок дословно. Если текст на английском, переведи смысл на русский.
+Ответь только JSON: {"items":[{"id":1,"summary":"..."}]}
+
+${lines}`;
+}
+
+// Which models to try on an OpenAI-compatible service
+async function modelList() {
+  if (process.env.LLM_MODEL) return process.env.LLM_MODEL.split(",").map(m => m.trim()).filter(Boolean);
+  if (LLM_BASE.includes("generativelanguage.googleapis.com")) return ["gemini-2.5-flash", "gemini-2.5-flash-lite"];
+  if (!LLM_BASE.includes("openrouter.ai")) return [LLM_BASE.includes("deepseek.com") ? "deepseek-chat" : ""].filter(Boolean);
+  try {
+    const r = await fetch(LLM_BASE + "/models", { signal: AbortSignal.timeout(20000) });
+    const ids = ((await r.json()).data || []).map(m => m.id).filter(id => /:free$/.test(id));
+    const rank = id => /deepseek/i.test(id) ? 0 : /(qwen|llama|gemma|mistral)/i.test(id) ? 1 : 2;
+    // Plain chat models first: "thinking" models are slow and often run out of tokens
+    const plain = id => /(r1|reason|think)/i.test(id) ? 1 : 0;
+    return ids.sort((x, y) => rank(x) - rank(y) || plain(x) - plain(y)).slice(0, 4);
+  } catch (e) { console.log("Could not list free models: " + e.message); return []; }
+}
+
+let usedModel = "";
+async function ask(text) {
+  if (!LLM_KEY && process.env.ANTHROPIC_API_KEY) {
+    const r = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST", signal: AbortSignal.timeout(90000),
+      headers: { "x-api-key": process.env.ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01", "content-type": "application/json" },
+      body: JSON.stringify({ model: process.env.ANTHROPIC_MODEL || "claude-haiku-4-5", max_tokens: 3000, messages: [{ role: "user", content: text }] })
+    });
+    if (!r.ok) throw new Error(`Claude HTTP ${r.status}: ${(await r.text()).slice(0, 200)}`);
+    usedModel = "claude";
+    return (await r.json()).content?.[0]?.text || "";
+  }
+  const models = await modelList();
+  if (!models.length) throw new Error("no model to ask");
+  const errors = [];
+  for (const model of models) {
+    try {
+      const r = await fetch(LLM_BASE + "/chat/completions", {
+        method: "POST", signal: AbortSignal.timeout(120000),
+        headers: { "Authorization": `Bearer ${LLM_KEY}`, "Content-Type": "application/json", "HTTP-Referer": "https://github.com/dsdsnfdjndfjhbhgfd-ops/country-news", "X-Title": "ev.news" },
+        body: JSON.stringify({ model, temperature: 0.2, max_tokens: 3000, messages: [{ role: "user", content: text }] })
+      });
+      const body = await r.text();
+      if (!r.ok) throw new Error(`HTTP ${r.status}: ${body.slice(0, 160)}`);
+      let data; try { data = JSON.parse(body); } catch { throw new Error(`not JSON: ${body.slice(0, 120)}`); }
+      // Some models put their reasoning in <think> tags; keep only the answer
+      const content = (data.choices?.[0]?.message?.content || "").replace(/<think>[\s\S]*?<\/think>/g, "");
+      if (!content.includes("{")) throw new Error(`no JSON in answer: ${body.slice(0, 120)}`);
+      usedModel = model;
+      return content;
+    } catch (e) { errors.push(`${model}: ${e.message}`); }
+  }
+  throw new Error(errors.join(" | "));
+}
+
+let summarized = 0, lastError = "";
+for (let i = 0; i < queue.length; i += BATCH) {
+  const batch = queue.slice(i, i + BATCH);
+  if (i) await new Promise(r => setTimeout(r, 7000)); // free tiers allow only a few requests per minute
+  try {
+    const out = await ask(prompt(batch));
+    const json = JSON.parse(out.slice(out.indexOf("{"), out.lastIndexOf("}") + 1));
+    for (const r of json.items || []) {
+      const x = batch[Number(r.id) - 1];
+      const text = String(r.summary || "").trim();
+      if (!x || text.length < 20) continue;
+      summaries[x.g.lead.url] = { text: text.slice(0, 600), at: now, country: x.code, title: x.g.lead.title };
+      summarized++;
+    }
+  } catch (e) {
+    console.log("Summaries failed: " + e.message);
+    lastError = e.message;
+    break;
+  }
+}
+console.log(`Summarized ${summarized} events`);
+await writeFile("data/summary.json", JSON.stringify({ updated: new Date().toISOString(), model: usedModel || (HAS_AI ? "unavailable" : "off"), lastError, items: summaries }));
 
 // ---------- Small summary for the home page ----------
 const status = { updated: new Date().toISOString(), sources: SOURCES.map(s => ({ name: s.name, lang: s.lang })), countries: {} };

@@ -97,11 +97,12 @@ async function load() {
   let v = "";
   try { const r = await fetch("data/status.json?t=" + Date.now(), { cache: "no-store" }); if (r.ok) v = (await r.json()).updated || ""; } catch {}
   v = encodeURIComponent(v || String(Math.floor(Date.now() / 60000)));
-  const [data, desc] = await Promise.all([
+  const [data, desc, brief] = await Promise.all([
     fetchJson(`data/${code}.json?v=${v}`),
-    fetchJson(`data/desc/${code}.json?v=${v}`).catch(() => ({}))
+    fetchJson(`data/desc/${code}.json?v=${v}`).catch(() => ({})),
+    fetchJson(`data/summary.json?v=${v}`).then(j => j.items || {}).catch(() => ({}))
   ]);
-  return { items: dedupe(data.items || []), desc };
+  return { items: dedupe(data.items || []), desc, brief };
 }
 
 let shown = false;
@@ -161,6 +162,15 @@ function render(c, g, groups, d) {
     const img = el("img", "hero-img"); img.src = pic.socialimage; img.alt = ""; img.referrerPolicy = "no-referrer";
     img.onerror = () => img.remove();
     main.append(img);
+  }
+
+  // Short AI summary of the event, if the collector has written one
+  const briefText = (g.items.map(i => d.brief[i.url]).find(Boolean) || {}).text;
+  if (briefText) {
+    const bs = el("section", "brief-box");
+    bs.append(el("span", "label", "Кратко о событии"), el("p", null, briefText),
+      el("small", null, "Изложение написано ИИ по заголовкам и анонсам изданий, а не по полным текстам. Подробности смотрите в статьях."));
+    main.append(bs);
   }
 
   // The outlet's own summary from its feed, plus where to read the full article
