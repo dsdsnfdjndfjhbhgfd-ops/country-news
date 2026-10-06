@@ -1,17 +1,17 @@
 const C = [
- ["Лента.ру","https://lenta.ru/rss/news"],["Известия","https://iz.ru/xml/rss/all.xml"],["Газета.ру","https://www.gazeta.ru/export/rss/first.xml"],
- ["Meduza","https://meduza.io/rss/all"],["Euronews RU","https://ru.euronews.com/rss"],["RTVI","https://rtvi.com/feed/"],["Фонтанка","https://www.fontanka.ru/rss-feeds/rss.xml"],
- ["Новая газета Европа","https://novayagazeta.eu/feed/rss"],["Зеркало (BY)","https://news.zerkalo.io/rss/all.rss"],["БелТА","https://www.belta.by/rss"],["Белсат","https://ru.belsat.eu/feed/"],
- ["Tengrinews","https://tengrinews.kz/news.rss"],["Kursiv","https://kz.kursiv.media/feed/"],["Astana Times","https://astanatimes.com/feed/"],["Kazinform","https://www.inform.kz/rss/rus.xml"],
- ["Times of India","https://timesofindia.indiatimes.com/rssfeeds/-2128936835.cms"],["The Hindu","https://www.thehindu.com/news/national/feeder/default.rss"],["Hindustan Times","https://www.hindustantimes.com/feeds/rss/india-news/rssfeed.xml"],
- ["Japan Times","https://www.japantimes.co.jp/feed/"],["NHK World","https://www3.nhk.or.jp/nhkworld/en/news/feeds/"],["Kyodo","https://english.kyodonews.net/rss/news.xml"],["Nikkei Asia","https://asia.nikkei.com/rss/feed/nar"],
- ["Notes from Poland","https://notesfrompoland.com/feed/"],["TVP World","https://tvpworld.com/rss"],["Polskie Radio EN","https://www.polskieradio.pl/395/7784/rss"],
- ["Times of Israel","https://www.timesofisrael.com/feed/"],["Kyiv Independent","https://kyivindependent.com/news-archive/rss/"],["Hürriyet Daily News","https://www.hurriyetdailynews.com/rss"],["Daily Sabah","https://www.dailysabah.com/rss"],
- ["NPR","https://feeds.npr.org/1004/rss.xml"],["Sky News","https://feeds.skynews.com/feeds/rss/world.xml"],["CNN","http://rss.cnn.com/rss/edition_world.rss"],["Euronews","https://www.euronews.com/rss"],
- ["The Diplomat","https://thediplomat.com/feed/"],["Foreign Policy","https://foreignpolicy.com/feed/"],["Washington Post","https://feeds.washingtonpost.com/rss/world"],["ABC News","https://abcnews.go.com/abcnews/internationalheadlines"],
- ["SCMP","https://www.scmp.com/rss/91/feed"],["Tehran Times","https://www.tehrantimes.com/rss"],["Iran International","https://www.iranintl.com/en/feed"],["Le Monde EN","https://www.lemonde.fr/en/rss/une.xml"],["Spiegel International","https://www.spiegel.de/international/index.rss"],
- ["Independent","https://www.independent.co.uk/news/world/rss"],["Fox News","https://moxie.foxnews.com/google-publisher/world.xml"],["CBS News","https://www.cbsnews.com/latest/rss/world"],["Bloomberg Politics","https://feeds.bloomberg.com/politics/news.rss"],
- ["MarketWatch","https://feeds.content.dowjones.io/public/rss/mw_topstories"],["Moscow Times","https://www.themoscowtimes.com/rss/news"],["Kommersant KZ","https://www.kommersant.ru/RSS/regions/kz.xml"]
+ ["Взгляд","https://vz.ru/rss.xml"],["Российская газета","https://rg.ru/xml/index.xml"],["МК","https://www.mk.ru/rss/index.xml"],["Парламентская газета","https://pnp.ru/rss/index.xml"],["Новые Известия","https://newizv.ru/rss"],["Эксперт","https://expert.ru/rss/"],
+ ["Kazinform EN","https://www.inform.kz/rss/eng.xml"],["Zakon.kz","https://www.zakon.kz/rss.xml"],["Sputnik Беларусь","https://sputnik.by/export/rss2/archive/index.xml"],
+ ["Ukrinform","https://www.ukrinform.net/rss/block-lastnews"],["UNIAN","https://rss.unian.net/site/news_rus.rss"],["Ukrainska Pravda EN","https://www.pravda.com.ua/eng/rss/"],["Euromaidan Press","https://euromaidanpress.com/feed/"],
+ ["NDTV","https://feeds.feedburner.com/ndtvnews-top-stories"],["Indian Express","https://indianexpress.com/section/india/feed/"],["Firstpost","https://www.firstpost.com/commonfeeds/v1/mfp/rss/india.xml"],["Hindustan Times","https://www.hindustantimes.com/feeds/rss/world-news/rssfeed.xml"],["The Hindu World","https://www.thehindu.com/news/international/feeder/default.rss"],
+ ["Japan Today","https://japantoday.com/feed"],["Asahi","https://www.asahi.com/ajw/rss/news.xml"],["Mainichi","https://mainichi.jp/english/rss/etc/english_latest.rss"],
+ ["Anadolu","https://www.aa.com.tr/en/rss/default?cat=world"],["TRT World","https://www.trtworld.com/rss"],["Turkish Minute","https://www.turkishminute.com/feed/"],
+ ["Jerusalem Post","https://www.jpost.com/rss/rssfeedsfrontpage.aspx"],["Haaretz","https://www.haaretz.com/srv/haaretz-latest-headlines"],["i24 News","https://www.i24news.tv/en/rss"],["Middle East Eye","https://www.middleeasteye.net/rss"],
+ ["IRNA","https://en.irna.ir/rss"],["Press TV","https://www.presstv.ir/rss.xml"],
+ ["China Daily","https://www.chinadaily.com.cn/rss/world_rss.xml"],["Global Times","https://www.globaltimes.cn/rss/outbrain.xml"],["Xinhua","http://www.xinhuanet.com/english/rss/worldrss.xml"],["CGTN","https://www.cgtn.com/subscribe/rss/section/world.xml"],
+ ["RFI EN","https://www.rfi.fr/en/rss"],["Tagesschau","https://www.tagesschau.de/index~rss2.xml"],["The Local DE","https://feeds.thelocal.com/rss/de"],["Spiegel Intl","https://www.spiegel.de/international/index.rss"],["Der Standard","https://www.derstandard.at/rss"],
+ ["The Telegraph","https://www.telegraph.co.uk/rss.xml"],["Financial Times","https://www.ft.com/world?format=rss"],["Reuters via Google? skip","https://example.invalid/"],["The Economist","https://www.economist.com/international/rss.xml"],["Time","https://time.com/feed/"],["Axios","https://api.axios.com/feed/"],["Politico US","https://rss.politico.com/politics-news.xml"],["The Hill","https://thehill.com/feed/"],["Newsweek","https://www.newsweek.com/rss"],
+ ["Notes from Poland","https://notesfrompoland.com/feed/"],["Polish News Bulletin","https://www.polandin.com/rss"],["Poland In","https://www.polandin.com/feed"],["Visegrad Insight","https://visegradinsight.eu/feed/"],
+ ["Kommersant","https://www.kommersant.ru/RSS/news.xml"]
 ];
 const now = Date.now();
 await Promise.all(C.map(async ([n,u]) => {
@@ -19,7 +19,7 @@ await Promise.all(C.map(async ([n,u]) => {
     const r = await fetch(u,{signal:AbortSignal.timeout(25000),headers:{"User-Agent":"Mozilla/5.0 (compatible; country-news/1.0)","Accept":"application/rss+xml, application/xml, text/xml, */*"}});
     const x = await r.text();
     const its = [...x.matchAll(/<(item|entry)(?:\s[^>]*)?>([\s\S]*?)<\/\1>/g)].map(m=>m[2]);
-    const ds = its.map(b=>{const m=b.match(/<(pubDate|dc:date|updated|published)[^>]*>([^<]*)</);return m?new Date(m[2].replace(/<!\[CDATA\[|\]\]>/g,"")).getTime():NaN}).filter(t=>!isNaN(t));
+    const ds = its.map(b=>{const m=b.match(/<(pubDate|dc:date|updated|published|lastmod)[^>]*>\s*(?:<!\[CDATA\[)?([^<\]]*)/);return m?new Date(m[2].trim()).getTime():NaN}).filter(t=>!isNaN(t));
     const fresh = ds.filter(t=>now-t<48*3600e3).length;
     const hasDesc = its.filter(b=>/<(description|summary)/.test(b)).length;
     console.log(`RES|${n}|${r.status}|${its.length}|${fresh}|${hasDesc}|${u}`);
