@@ -22,16 +22,16 @@ jobs:
           set -euo pipefail
           mkdir -p assets/vendor "$RUNNER_TEMP/pkg"
           cd "$RUNNER_TEMP/pkg"
-          SB=$(npm view @supabase/supabase-js@2 version | tail -1)
-          npm pack "@supabase/supabase-js@$SB" >/dev/null
-          tar xzf supabase-supabase-js-*.tgz
-          test -s package/dist/umd/supabase.js
-          WA=$(npm view world-atlas@2 version | tail -1)
-          npm pack "world-atlas@$WA" >/dev/null
-          tar xzf world-atlas-*.tgz --one-top-level=wa
+          npm pack "@supabase/supabase-js@2" >/dev/null
+          mkdir sb && tar xzf supabase-supabase-js-*.tgz -C sb
+          test -s sb/package/dist/umd/supabase.js
+          SB=$(node -p "require('./sb/package/package.json').version")
+          npm pack "world-atlas@2" >/dev/null
+          mkdir wa && tar xzf world-atlas-*.tgz -C wa
           test -s wa/package/land-110m.json
+          WA=$(node -p "require('./wa/package/package.json').version")
           cd "$GITHUB_WORKSPACE"
-          cp "$RUNNER_TEMP/pkg/package/dist/umd/supabase.js" assets/vendor/supabase.js
+          cp "$RUNNER_TEMP/pkg/sb/package/dist/umd/supabase.js" assets/vendor/supabase.js
           cp "$RUNNER_TEMP/pkg/wa/package/land-110m.json" assets/vendor/land-110m.json
           printf 'supabase-js %s\nworld-atlas %s (Natural Earth 1:110m land)\n' "$SB" "$WA" > assets/vendor/VERSIONS.txt
           cat assets/vendor/VERSIONS.txt
