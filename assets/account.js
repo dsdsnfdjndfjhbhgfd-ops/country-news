@@ -56,6 +56,8 @@
     [/password.*(at least|short|6)/i, "Пароль должен быть не короче 6 символов."],
     [/invalid.*email|email.*invalid|unable to validate email/i, "Проверьте адрес почты."],
     [/same.*password|different from the old/i, "Новый пароль должен отличаться от старого."],
+    [/saved_limit_reached/i, "Можно сохранить не больше 500 новостей. Уберите старые в кабинете."],
+    [/violates check constraint|check constraint/i, "Сервер не принял эти данные. Обновите страницу и попробуйте снова."],
     [/network|fetch/i, "Нет связи с сервером входа. Проверьте интернет и попробуйте снова."]
   ];
   function human(error) {

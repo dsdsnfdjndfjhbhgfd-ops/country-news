@@ -97,7 +97,7 @@ const now = Date.now();
 const fresh = (await Promise.all(SOURCES.map(fetchFeed))).flat().filter(a => now - a.t < WINDOW_MS && a.t < now + 3600000);
 console.log(`Fresh items from all outlets: ${fresh.length}`);
 
-await mkdir("data", { recursive: true });
+await mkdir("data/full", { recursive: true });
 let saved = 0;
 for (const [code, res] of Object.entries(matchers)) {
   // The country must be named in the headline, or at least twice in the summary
@@ -105,7 +105,8 @@ for (const [code, res] of Object.entries(matchers)) {
     res.reduce((n, re) => n + ((a.desc || "").match(new RegExp(re.source, "gi")) || []).length, 0) >= 2;
   const mine = fresh.filter(about);
   let old = [];
-  try { old = JSON.parse(await readFile(`data/${code}.json`, "utf8")).items || []; } catch {}
+  try { old = JSON.parse(await readFile(`data/full/${code}.json`, "utf8")).items || []; }
+  catch { try { old = JSON.parse(await readFile(`data/${code}.json`, "utf8")).items || []; } catch {} }
   // Keep earlier items from trusted outlets only (older files may hold other data)
   old = old.filter(a => a.source && SOURCES.some(s => s.name === a.source) && about(a));
   const byUrl = new Map();
@@ -115,7 +116,11 @@ for (const [code, res] of Object.entries(matchers)) {
     .sort((x, y) => y.t - x.t)
     .map(a => ({ ...a, desc: (a.desc || "").slice(0, 220) }));
   console.log(`${code}: ${mine.length} new, ${items.length} total`);
-  await writeFile(`data/${code}.json`, JSON.stringify({ updated: new Date().toISOString(), sources: SOURCES.map(s => s.name), items }));
+  const updated = new Date().toISOString();
+  // Full copy (with summaries) for the next run; slim copy with only what the page shows
+  await writeFile(`data/full/${code}.json`, JSON.stringify({ updated, items }));
+  const slim = items.map(a => ({ url: a.url, title: a.title, seendate: a.seendate, source: a.source, language: a.language, ...(a.socialimage ? { socialimage: a.socialimage } : {}) }));
+  await writeFile(`data/${code}.json`, JSON.stringify({ updated, items: slim }));
   saved++;
 }
 if (!fresh.length) { console.log("No outlet answered"); process.exit(1); }
@@ -142,7 +147,7 @@ for (const [u, v] of Object.entries(why)) if (now - (v.at || 0) > 3 * 86400000) 
 const todo = [];
 for (const code of Object.keys(COUNTRIES)) {
   let items = [];
-  try { items = JSON.parse(await readFile(`data/${code}.json`, "utf8")).items || []; } catch {}
+  try { items = JSON.parse(await readFile(`data/full/${code}.json`, "utf8")).items || []; } catch {}
   const c = { code, ru: NAMES[code][0], en: EN[code], loc: NAMES[code][1] };
   for (const g of core.cluster(items, c, true).slice(0, TOP)) {
     if (g.items.some(i => why[i.url])) continue;

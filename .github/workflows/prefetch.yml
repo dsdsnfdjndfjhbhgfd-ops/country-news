@@ -7,7 +7,6 @@ on:
 
 permissions:
   contents: write
-  models: read
 
 concurrency:
   group: prefetch
@@ -25,7 +24,6 @@ jobs:
       - name: Собрать новости
         run: node scripts/prefetch.mjs
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       - name: Сохранить
         run: |
@@ -36,7 +34,7 @@ jobs:
           for i in 1 2 3; do
             git fetch -q origin main
             git reset -q --hard origin/main
-            mkdir -p data && cp "$RUNNER_TEMP"/fresh/*.json data/
+            mkdir -p data && cp -r "$RUNNER_TEMP"/fresh/. data/
             git add data
             git diff --cached --quiet && exit 0
             git commit -q -m "Обновить новости $(date -u +'%Y-%m-%d %H:%M')"

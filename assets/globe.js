@@ -1,9 +1,9 @@
 // Dotted 3D globe for the home page, drawn on a 2D canvas (no libraries).
-// Land dots come from the Natural Earth 1:110m land map (world-atlas via jsDelivr);
+// Land dots come from the Natural Earth 1:110m land map (local copy of world-atlas);
 // if it cannot load, the globe still shows its grid and the country markers.
 // Drag to turn it, hover a marker to see the country's top story, click to open its feed.
 (function () {
-  const LAND_URL = "https://cdn.jsdelivr.net/npm/world-atlas@2/land-110m.json";
+  const LAND_URL = "assets/vendor/land-110m.json"; // pinned copy, see assets/vendor/VERSIONS.txt
   const PLACES = {
     RU: ["Россия", 55.75, 37.62], US: ["США", 38.9, -77.04], CN: ["Китай", 39.9, 116.4], UA: ["Украина", 50.45, 30.52],
     IL: ["Израиль", 31.78, 35.22], IR: ["Иран", 35.69, 51.39], DE: ["Германия", 52.52, 13.4], GB: ["Великобритания", 51.5, -0.13],
@@ -114,7 +114,10 @@
       }
     }
 
+    // Animate only while the globe is on screen; it costs nothing when scrolled away
+    let visible = true, running = false;
     function frame(t) {
+      if (!visible) { running = false; return; }
       if (!dragging) {
         lon0 += hover ? 0 : spin + vel;
         vel *= 0.94;
@@ -122,6 +125,7 @@
       draw(t);
       requestAnimationFrame(frame);
     }
+    function start() { if (!running && visible) { running = true; requestAnimationFrame(frame); } }
 
     function markAt(px, py) {
       let best = null, bd = 18 * 18;
@@ -213,7 +217,8 @@
     new MutationObserver(readColors).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
     matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change", readColors);
     loadLand();
-    requestAnimationFrame(frame);
+    new IntersectionObserver(([e]) => { visible = e.isIntersecting; start(); }).observe(canvas);
+    start();
     return { setStatus(s) { status = s; } };
   }
 
