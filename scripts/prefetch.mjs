@@ -150,7 +150,8 @@ for (const code of Object.keys(COUNTRIES)) {
   }
 }
 todo.sort((a, b) => (b.g.domains >= 2) - (a.g.domains >= 2) || b.g.score - a.g.score);
-const queue = todo.slice(0, PER_RUN);
+// Without a Claude key, explanations come from the page's built-in rules (assets/core.js)
+const queue = process.env.ANTHROPIC_API_KEY ? todo.slice(0, PER_RUN) : [];
 console.log(`Events without explanation: ${todo.length}, explaining ${queue.length}`);
 
 function prompt(batch) {

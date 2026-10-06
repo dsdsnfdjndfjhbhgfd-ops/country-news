@@ -72,3 +72,58 @@ function cluster(items, c, singles) {
   if (singles) return multi.concat(ranked.filter(g => g.domains < 2)).slice(0, 25);
   return (multi.length >= 8 ? multi : multi.concat(ranked.filter(g => g.domains < 2).slice(0, 8 - multi.length))).slice(0, 25);
 }
+
+// ---------- "Why it matters" without AI ----------
+// Recognises the kind of event from words in the headlines and explains why such events
+// usually matter, then adds who reports it and whether the story is still developing.
+const REASONS = [
+  [["перемир", "прекращени огня", "ceasefire", "truce"], "Договорённости о прекращении огня могут изменить ход конфликта и безопасность мирных жителей."],
+  [["ядерн", "nuclear", "уран", "uranium"], "Ядерная тема напрямую касается международной безопасности и отношений с другими странами."],
+  [["удар", "атак", "обстрел", "ракет", "дрон", "беспилот", "взрыв", "strike", "attack", "missile", "drone", "shelling", "explos"], "Удары и атаки прямо влияют на безопасность людей, инфраструктуру и ход конфликта."],
+  [["мобилиз", "призыв", "военн служб", "conscript", "mobiliz", "draft"], "Решения о призыве и военной службе затрагивают миллионы людей и показывают, к чему готовится армия."],
+  [["нато", "nato", "оборон", "defen", "армия", "армии", "military", "troops", "войск", "баз", "base", "бомбардировщ", "bomber", "истребител", "fighter jet", "вооружен", "weapon"], "Решения в сфере обороны меняют военный баланс и требуют больших расходов из бюджета."],
+  [["шпион", "разведк", "spy", "spying", "espionage", "intelligence"], "Шпионские дела и действия разведки показывают напряжённость между странами и могут ухудшить отношения."],
+  [["санкц", "sanction"], "Санкции влияют на торговлю, цены, доступ к товарам и финансам, а значит и на экономику в целом."],
+  [["ставк", "инфляц", "центробанк", "цб", "central bank", "inflation", "interest rate"], "Ставка и инфляция определяют цены, стоимость кредитов и доходность вкладов."],
+  [["нефт", "газ", "энерг", "oil", "gas", "energy", "lng"], "Энергоносители влияют на цены на топливо и электричество и на доходы бюджета."],
+  [["бюджет", "налог", "долг", "budget", "tax", "debt", "deficit", "дефицит"], "Бюджетные и налоговые решения затрагивают расходы государства и деньги людей и компаний."],
+  [["пошлин", "тариф", "экспорт", "импорт", "торгов", "tariff", "trade", "export", "import"], "Торговые решения меняют цены на товары и условия работы для бизнеса."],
+  [["рубл", "доллар", "валют", "курс", "биржа", "рынок", "currency", "market", "stocks", "shares"], "Движения валют и рынков отражаются на ценах, сбережениях и настроениях инвесторов."],
+  [["выбор", "голосован", "референдум", "election", "vote", "referendum", "poll"], "Выборы и голосования определяют, кто и с каким курсом будет управлять страной."],
+  [["отставк", "назначен", "resign", "appoint", "cabinet", "кабмин"], "Кадровые перемены во власти могут сменить курс политики."],
+  [["закон", "указ", "законопроект", "law", "bill", "decree", "legislat"], "Новые законы и указы меняют правила, по которым живут люди и работает бизнес."],
+  [["протест", "митинг", "забастов", "protest", "rally", "strike action"], "Протесты показывают уровень недовольства и могут повлиять на решения власти."],
+  [["суд", "приговор", "court", "ruling", "verdict"], "Судебные решения создают прецеденты и могут повлиять на политику и права людей."],
+  [["переговор", "саммит", "визит", "встреч", "соглашен", "договор", "talks", "summit", "visit", "meeting", "agreement", "deal", "negotiat"], "Переговоры и визиты определяют отношения с другими странами и возможные договорённости."],
+  [["мигра", "беженц", "migra", "refugee", "asylum"], "Миграционные решения затрагивают рынок труда, бюджет и общественные настроения."]
+];
+
+function explain(g, c) {
+  // The main headline decides the kind of event; other headlines only help when it says nothing
+  const find = text => { for (const [keys, r] of REASONS) if (keys.some(k => text.includes(" " + k))) return r; return ""; };
+  let reason = find(norm(g.lead.title));
+  if (!reason) {
+    // Otherwise take the kind of event most headlines of this story agree on
+    const votes = new Map();
+    for (const a of g.items) { const r = find(norm(a.title)); if (r) votes.set(r, (votes.get(r) || 0) + 1); }
+    const best = [...votes].sort((x, y) => y[1] - x[1])[0];
+    if (best && best[1] >= Math.max(1, g.items.length / 3)) reason = best[0];
+  }
+
+  const sources = [...new Set(g.items.map(a => a.source || a.domain))];
+  const langs = new Set(g.items.map(a => a.language));
+  const name = sources.slice(0, 2).join(" и ");
+  let reach;
+  const n = sources.length, word = n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14) ? "издания" : "изданий";
+  if (n >= 3) reach = `Событие освещают ${n} ${word}, в том числе ${name}` + (langs.size > 1 ? ", и российские, и зарубежные." : ".");
+  else if (sources.length === 2) reach = `Об этом пишут ${name}.`;
+  else reach = `Пока сообщает только ${sources[0]}, другие издания это не подтвердили.`;
+
+  let dev = "";
+  if (g.items.length >= 3) {
+    const times = g.items.map(a => a.t || seenTime(a.seendate)).filter(Boolean);
+    const spanH = (Math.max(...times) - Math.min(...times)) / 3600000;
+    if (spanH >= 3 && Date.now() - Math.max(...times) < 6 * 3600000) dev = " История продолжает развиваться: новые публикации выходят в течение дня.";
+  }
+  return [reason, reach + dev].filter(Boolean).join(" ");
+}

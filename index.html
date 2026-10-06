@@ -172,7 +172,7 @@ footer a{color:var(--muted)}
     </div>
   </main>
 
-  <footer>Источники: ТАСС, РИА Новости, Интерфакс, Коммерсантъ, РБК, Ведомости, BBC Русская служба, DW на русском, BBC News, The Guardian, The New York Times, Al Jazeera, Deutsche Welle, France 24, Politico Europe, CNBC. Новости за последние 2 дня, обновление каждые 15 минут. Важность определяется автоматически: по числу изданий, теме и свежести. Пояснения «Почему это важно» пишет ИИ по заголовкам и анонсам статей, без участия редактора; их стоит проверять по первоисточнику.</footer>
+  <footer>Источники: ТАСС, РИА Новости, Интерфакс, Коммерсантъ, РБК, Ведомости, BBC Русская служба, DW на русском, BBC News, The Guardian, The New York Times, Al Jazeera, Deutsche Welle, France 24, Politico Europe, CNBC. Новости за последние 2 дня, обновление каждые 15 минут. Важность определяется автоматически: по числу изданий, теме и свежести. Пояснения «Почему это важно» составляются автоматически по типу события и тому, кто о нём пишет; подробности смотрите в первоисточнике.</footer>
 </div>
 
 <script src="assets/core.js"></script>
@@ -258,7 +258,7 @@ let WHY = {};
 async function loadWhy() {
   try { const r = await fetch("data/why.json?t=" + Date.now(), { cache: "no-store" }); if (r.ok) WHY = (await r.json()).items || {}; } catch {}
 }
-function whyFor(g) { for (const i of g.items) if (WHY[i.url]) return WHY[i.url].why; return ""; }
+function whyFor(g, c) { for (const i of g.items) if (WHY[i.url]) return WHY[i.url].why; return explain(g, c); }
 
 async function loadPrefetched(code) {
   if (!PREFETCHED.has(code)) return null;
@@ -440,7 +440,7 @@ function render(c, allItems, info) {
     const h = el("h3"); const link = el("a", null, cleanTitle(a.title));
     link.href = a.url; link.target = "_blank"; link.rel = "noopener";
     h.append(link); body.append(h);
-    const why = whyFor(g);
+    const why = whyFor(g, c);
     if (why) { const w = el("p", "why"); w.append(el("b", null, "Почему это важно. ")); w.append(document.createTextNode(why)); body.append(w); }
 
     const src = el("div", "src");
