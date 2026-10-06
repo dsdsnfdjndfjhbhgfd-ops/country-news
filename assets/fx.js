@@ -38,7 +38,8 @@
     [".gate", "tilt", 3],              // sign-in invitation
     [".lead-box", "tilt", 2.5],        // event page: summary and outlets
     [".ev.lead .thumb", "tilt-img", 5],// feed: lead story picture
-    [".hero-img", "tilt-img", 4]       // event page picture
+    [".hero-img", "tilt-img", 4],      // event page picture
+    [".podium li", "tilt", 6]          // ratings: top-3 podium
   ];
   function scan(root) {
     for (const [sel, cls, max] of RULES) for (const n of root.querySelectorAll(sel)) { n.classList.add(cls); bind(n, max); }

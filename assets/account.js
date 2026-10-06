@@ -189,6 +189,32 @@
       return out;
     },
 
+    // ---------- Outlet ratings ----------
+    async outletStats() {
+      need();
+      const { data, error } = await sb.rpc("outlet_stats");
+      if (error) throw new Error(human(error));
+      return data || [];
+    },
+    async myRatings() {
+      if (!sb || !user) return {};
+      const { data, error } = await sb.from("outlet_ratings").select("outlet, score");
+      if (error) throw new Error(human(error));
+      return Object.fromEntries((data || []).map(r => [r.outlet, r.score]));
+    },
+    async rateOutlet(outlet, score) {
+      if (!user) throw new Error("Войдите, чтобы ставить оценки.");
+      if (!Number.isInteger(score) || score < 1 || score > 5) throw new Error("Оценка от 1 до 5.");
+      const { error } = await sb.from("outlet_ratings")
+        .upsert({ user_id: user.id, outlet, score, updated_at: new Date().toISOString() }, { onConflict: "user_id,outlet" });
+      if (error) throw new Error(human(error));
+    },
+    async unrateOutlet(outlet) {
+      if (!user) throw new Error("Войдите, чтобы ставить оценки.");
+      const { error } = await sb.from("outlet_ratings").delete().eq("outlet", outlet);
+      if (error) throw new Error(human(error));
+    },
+
     isSaved(url) { return saved.has(url); },
     savedList() { return [...saved.values()]; },
     async toggleSaved(item) {
