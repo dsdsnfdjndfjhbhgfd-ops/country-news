@@ -158,7 +158,7 @@ export async function runPool({ providers, state, jobs, now, makePrompt, apply, 
         log(`${p.name}: ${s.lastError}`);
         if (/JSON/.test(e.message)) continue; // a malformed answer costs only this batch
         // Out of quota: wait as long as the service says (at least 30 min). Other failures: 20 min.
-        s.blockedUntil = now + (/HTTP 429/.test(e.message) ? Math.max(retryAfterMs(e.message), 30 * 60000) : 20 * 60000);
+        s.blockedUntil = now + (/HTTP 429/.test(e.message) ? Math.max(retryAfterMs(e.message), 30 * 60000) : /HTTP 40[13]/.test(e.message) ? 6 * 3600000 : 20 * 60000); // a rejected key is not retried every run
         break;
       }
     }
