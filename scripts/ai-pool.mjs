@@ -1,0 +1,168 @@
+// A pool of AI services for the "Кратко" summaries. Every service the owner has a key for becomes
+// a "provider"; the collector hands batches of events to whichever provider is free, and when one
+// runs out of its free limit (429) or fails, the batch goes to the next one.
+//
+// Providers come from repository secrets/variables (names are the only thing the code knows):
+//   LLM_API_KEY  + LLM_BASE_URL [+ LLM_MODEL]   the first service (name "main")
+//   LLM_KEY_<NAME>                               a key of one more service, e.g. LLM_KEY_GROQ
+//     LLM_BASE_<NAME>   optional, the OpenAI-compatible address (known names have a default)
+//     LLM_MODEL_<NAME>  optional, model id(s) separated by commas
+//     LLM_BATCH_<NAME>  optional, events per request (default: see KNOWN)
+//     LLM_GAP_<NAME>    optional, minutes between requests (default: see KNOWN)
+//   ANTHROPIC_API_KEY                            Claude (name "claude")
+// Nothing here prints or stores a key.
+
+const KNOWN = {
+  GEMINI:     { base: "https://generativelanguage.googleapis.com/v1beta/openai", batch: 30, gap: 100, runs: 1 },
+  GROQ:       { base: "https://api.groq.com/openai/v1", models: ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"], batch: 25, gap: 15, runs: 2 },
+  CEREBRAS:   { base: "https://api.cerebras.ai/v1", models: ["llama-3.3-70b", "llama3.1-8b"], batch: 25, gap: 15, runs: 2 },
+  MISTRAL:    { base: "https://api.mistral.ai/v1", models: ["mistral-small-latest"], batch: 25, gap: 30, runs: 1 },
+  DEEPSEEK:   { base: "https://api.deepseek.com", models: ["deepseek-chat"], batch: 30, gap: 5, runs: 3 },
+  OPENROUTER: { base: "https://openrouter.ai/api/v1", batch: 20, gap: 30, runs: 1 },
+  TOGETHER:   { base: "https://api.together.xyz/v1", models: ["meta-llama/Llama-3.3-70B-Instruct-Turbo"], batch: 25, gap: 30, runs: 1 },
+  SAMBANOVA:  { base: "https://api.sambanova.ai/v1", models: ["Meta-Llama-3.3-70B-Instruct"], batch: 25, gap: 30, runs: 1 },
+  NVIDIA:     { base: "https://integrate.api.nvidia.com/v1", models: ["meta/llama-3.3-70b-instruct"], batch: 25, gap: 30, runs: 1 },
+  OPENAI:     { base: "https://api.openai.com/v1", models: ["gpt-4o-mini"], batch: 30, gap: 5, runs: 3 }
+};
+
+// GitHub gives secrets only to steps that name them; ALL_SECRETS carries the whole set as JSON
+// and only names that start with LLM_ or ANTHROPIC_ are ever read from it.
+export function readEnv(env = process.env) {
+  const out = { ...env };
+  for (const k of ["ALL_SECRETS", "ALL_VARS"]) {
+    try { for (const [n, v] of Object.entries(JSON.parse(env[k] || "{}"))) if (/^(LLM_|ANTHROPIC_)/.test(n) && v && !out[n]) out[n] = String(v); } catch {}
+  }
+  return out;
+}
+
+export function loadProviders(rawEnv = process.env) {
+  const env = readEnv(rawEnv), list = [];
+  const num = (v, d) => Number(v) > 0 ? Number(v) : d;
+  const split = v => String(v || "").split(",").map(s => s.trim()).filter(Boolean);
+  if (env.LLM_API_KEY) {
+    const base = (env.LLM_BASE_URL || "https://openrouter.ai/api/v1").replace(/\/+$/, "");
+    const known = Object.values(KNOWN).find(k => k.base === base) || {};
+    list.push({ name: "main", kind: "openai", key: env.LLM_API_KEY, base, models: split(env.LLM_MODEL), defaults: known.models || [],
+      batch: num(env.LLM_BATCH, known.batch || 30), gap: num(env.LLM_GAP, known.gap || 100), runs: known.runs || 1 });
+  }
+  for (const [n, key] of Object.entries(env)) {
+    const m = n.match(/^LLM_KEY_([A-Z0-9]+)$/);
+    if (!m || !key) continue;
+    const N = m[1], k = KNOWN[N] || {};
+    const base = (env["LLM_BASE_" + N] || k.base || "").replace(/\/+$/, "");
+    if (!base) { console.log(`Provider ${N}: no address known, add the variable LLM_BASE_${N}`); continue; }
+    list.push({ name: N.toLowerCase(), kind: "openai", key, base, models: split(env["LLM_MODEL_" + N]), defaults: k.models || [],
+      batch: num(env["LLM_BATCH_" + N], k.batch || 25), gap: num(env["LLM_GAP_" + N], k.gap || 30), runs: k.runs || 1 });
+  }
+  if (env.ANTHROPIC_API_KEY) list.push({ name: "claude", kind: "claude", key: env.ANTHROPIC_API_KEY, models: [env.ANTHROPIC_MODEL || "claude-haiku-4-5"], defaults: [], batch: 30, gap: 5, runs: 3 });
+  return list;
+}
+
+async function modelsOf(p) {
+  if (p.models.length) return p.models;
+  const gemini = p.base.includes("generativelanguage.googleapis.com");
+  if (gemini || p.base.includes("openrouter.ai")) {
+    try {
+      const r = await fetch(p.base + "/models", { signal: AbortSignal.timeout(20000), headers: { Authorization: `Bearer ${p.key}` } });
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      let ids = ((await r.json()).data || []).map(m => String(m.id).replace(/^models\//, ""));
+      if (gemini) {
+        ids = ids.filter(id => /^gemini-/.test(id) && !/(image|tts|embedding|live|audio|vision|robotics|computer|thinking|exp|customtools|preview-\d)/i.test(id));
+        const ver = id => parseFloat((id.match(/gemini-(\d+(?:\.\d+)?)/) || [])[1]) || 0;
+        const tier = id => /flash-lite/.test(id) ? 1 : /flash/.test(id) ? 0 : 2;
+        return ids.sort((x, y) => tier(x) - tier(y) || ver(y) - ver(x) || x.localeCompare(y)).slice(0, 7);
+      }
+      ids = ids.filter(id => /:free$/.test(id));
+      const rank = id => /deepseek/i.test(id) ? 0 : /(qwen|llama|gemma|mistral)/i.test(id) ? 1 : 2;
+      const plain = id => /(r1|reason|think)/i.test(id) ? 1 : 0;
+      return ids.sort((x, y) => rank(x) - rank(y) || plain(x) - plain(y)).slice(0, 4);
+    } catch (e) { console.log(`${p.name}: could not list models: ${e.message}`); return []; }
+  }
+  return p.defaults;
+}
+
+// One request to one provider; tries its models in turn. Returns { text, model }.
+export async function askProvider(p, text) {
+  if (p.kind === "claude") {
+    const r = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST", signal: AbortSignal.timeout(120000),
+      headers: { "x-api-key": p.key, "anthropic-version": "2023-06-01", "content-type": "application/json" },
+      body: JSON.stringify({ model: p.models[0], max_tokens: 8000, messages: [{ role: "user", content: text }] })
+    });
+    if (!r.ok) throw new Error(`HTTP ${r.status}: ${(await r.text()).slice(0, 200)}`);
+    return { text: (await r.json()).content?.[0]?.text || "", model: p.models[0] };
+  }
+  const models = await modelsOf(p);
+  if (!models.length) throw new Error("no model to ask");
+  const errors = [];
+  for (const model of models) {
+    try {
+      const call = () => fetch(p.base + "/chat/completions", {
+        method: "POST", signal: AbortSignal.timeout(180000),
+        headers: { "Authorization": `Bearer ${p.key}`, "Content-Type": "application/json", "HTTP-Referer": "https://github.com/dsdsnfdjndfjhbhgfd-ops/country-news", "X-Title": "ev.news" },
+        body: JSON.stringify({ model, temperature: 0.2, max_tokens: 8000, messages: [{ role: "user", content: text }] })
+      });
+      let r = await call();
+      if (r.status === 503) { await new Promise(res => setTimeout(res, 8000)); r = await call(); }
+      const body = await r.text();
+      if (!r.ok) throw new Error(`HTTP ${r.status}: ${body.replace(/\s+/g, " ").slice(0, r.status === 429 ? 900 : 300)}`);
+      let data; try { data = JSON.parse(body); } catch { throw new Error(`not JSON: ${body.slice(0, 120)}`); }
+      const content = (data.choices?.[0]?.message?.content || "").replace(/<think>[\s\S]*?<\/think>/g, "");
+      if (!content.includes("{")) throw new Error(`no JSON in answer: ${body.slice(0, 120)}`);
+      return { text: content, model };
+    } catch (e) { errors.push(`${model}: ${e.message}`); }
+  }
+  throw new Error(errors.join(" | "));
+}
+
+// "retry in 1h50m28s" / "try again in 12.5s" -> milliseconds (0 when the text says nothing)
+export function retryAfterMs(message) {
+  const m = String(message).match(/(?:retry|try again) in (?:(\d+)h)?(?:(\d+)m(?!s))?(?:([\d.]+)s)?/i);
+  return m ? ((+m[1] || 0) * 3600 + (+m[2] || 0) * 60 + (+m[3] || 0)) * 1000 : 0;
+}
+
+// Pulls { id, summary } pairs out of a model's answer, also when the JSON is slightly broken
+export function parseAnswer(out) {
+  const body = out.slice(out.indexOf("{"), out.lastIndexOf("}") + 1);
+  try { return JSON.parse(body).items || []; } catch {}
+  const items = [];
+  for (const m of body.matchAll(/"id"\s*:\s*(\d+)\s*,\s*"summary"\s*:\s*"([\s\S]*?)"\s*\}/g)) items.push({ id: m[1], summary: m[2].replace(/\\"/g, "'").replace(/"/g, "'") });
+  if (!items.length) throw new Error("answer was not valid JSON");
+  return items;
+}
+
+// The scheduler. `state` is the saved per-provider memory { name: { lastAskAt, blockedUntil, lastError, asked, ok, day } }.
+// `jobs` is the list of events still without a summary (best first), `makePrompt(batch)` builds a request,
+// `apply(batch, items, provider, model)` stores the answers and returns how many were kept.
+// A provider is skipped while it is paused after an error or while its gap since the last request has not passed.
+export async function runPool({ providers, state, jobs, now, makePrompt, apply, maxBatches = 12, log = console.log }) {
+  let left = jobs.slice(), done = 0;
+  const report = [];
+  for (const p of providers) {
+    const s = state[p.name] = state[p.name] || {};
+    if ((s.blockedUntil || 0) > now) { report.push(`${p.name}: paused until ${new Date(s.blockedUntil).toISOString()}`); continue; }
+    if (s.lastAskAt && now - s.lastAskAt < p.gap * 60000) { report.push(`${p.name}: next request is not due yet`); continue; }
+    let used = 0;
+    for (let r = 0; r < p.runs && left.length && maxBatches > 0; r++) {
+      const batch = left.slice(0, p.batch);
+      if (r) await new Promise(res => setTimeout(res, 7000));
+      s.lastAskAt = now; s.asked = (s.asked || 0) + 1; maxBatches--;
+      try {
+        const { text, model } = await askProvider(p, makePrompt(batch));
+        const kept = apply(batch, parseAnswer(text), p, model);
+        s.model = model; s.lastError = ""; s.ok = (s.ok || 0) + 1;
+        left = left.filter(j => !batch.includes(j)); // events the model skipped are retried on the next run
+        done += kept; used += kept;
+      } catch (e) {
+        s.lastError = String(e.message).slice(0, 300);
+        log(`${p.name}: ${s.lastError}`);
+        if (/JSON/.test(e.message)) continue; // a malformed answer costs only this batch
+        // Out of quota: wait as long as the service says (at least 30 min). Other failures: 20 min.
+        s.blockedUntil = now + (/HTTP 429/.test(e.message) ? Math.max(retryAfterMs(e.message), 30 * 60000) : 20 * 60000);
+        break;
+      }
+    }
+    report.push(`${p.name}: +${used}`);
+  }
+  return { done, left: left.length, report };
+}

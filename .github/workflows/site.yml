@@ -54,6 +54,9 @@ jobs:
           LLM_API_KEY: ${{ secrets.LLM_API_KEY }}       # key of the AI service (secret)
           LLM_BASE_URL: ${{ vars.LLM_BASE_URL }}        # optional: service address
           LLM_MODEL: ${{ vars.LLM_MODEL }}              # optional: model id(s)
+          # More AI services (LLM_KEY_GROQ, LLM_KEY_MISTRAL, ...): the script reads only names starting with LLM_ / ANTHROPIC_
+          ALL_SECRETS: ${{ toJSON(secrets) }}
+          ALL_VARS: ${{ toJSON(vars) }}
 
       - name: Перезаписать ветку data
         if: github.event_name != 'push'

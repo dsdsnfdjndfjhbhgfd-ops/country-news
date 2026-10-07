@@ -3,6 +3,7 @@
 // Feeds only hold their latest items, so each run merges with what earlier runs saved.
 import { readFile, writeFile, mkdir, rm } from "node:fs/promises";
 import vm from "node:vm";
+import { loadProviders, runPool } from "./ai-pool.mjs";
 
 const SOURCES = [
   // Russian-language
@@ -203,7 +204,7 @@ await rm("data/why.json", { force: true }); // retired file
 // its free limit, events simply have no summary. The text is built only from the headlines and
 // feed summaries of the outlets, not from full articles. Cached by article URL for 3 days.
 // The feed shows 25 events per country: all of them get a summary, those higher up first
-const PER_RUN = Number(process.env.SUMMARY_PER_RUN) || 120, BATCH = Number(process.env.SUMMARY_BATCH) || 30, TOP = 25;
+const PER_RUN = Number(process.env.SUMMARY_PER_RUN) || 400, TOP = 25;
 
 let summaries = {};
 let meta = {};
@@ -222,16 +223,11 @@ for (const code of Object.keys(COUNTRIES)) {
 }
 // Every country's best events first, then the next ones: the top of each feed is filled soonest
 todo.sort((a, b) => a.rank - b.rank || b.g.score - a.g.score);
-const LLM_KEY = process.env.LLM_API_KEY || "";
-const LLM_BASE = (process.env.LLM_BASE_URL || "https://openrouter.ai/api/v1").replace(/\/+$/, "");
-const HAS_AI = !!(LLM_KEY || process.env.ANTHROPIC_API_KEY);
-// Free tiers allow only ~20 requests a day per model: ask the AI at most once per SUMMARY_EVERY_MIN
-// minutes, and stay quiet after a quota error until the service says it is free again
-const EVERY = (Number(process.env.SUMMARY_EVERY_MIN) || 100) * 60000;
-const pause = (meta.blockedUntil || 0) > now ? `quota pause until ${new Date(meta.blockedUntil).toISOString()}`
-  : meta.lastAskAt && now - meta.lastAskAt < EVERY ? "next AI call is not due yet" : "";
-const queue = HAS_AI && !pause ? todo.slice(0, PER_RUN) : [];
-console.log(`Events without a summary: ${todo.length}, explaining ${queue.length}` + (HAS_AI ? (pause ? ` (${pause})` : "") : " (no AI key: summaries are skipped)"));
+const providers = loadProviders();
+const HAS_AI = providers.length > 0;
+const poolState = meta.pool || {};
+if (!meta.pool && (meta.lastAskAt || meta.blockedUntil)) poolState.main = { lastAskAt: meta.lastAskAt || 0, blockedUntil: meta.blockedUntil || 0 }; // state of the single-service days
+console.log(`Events without a summary: ${todo.length}; AI services: ${providers.map(p => p.name).join(", ") || "none (summaries are skipped)"}`);
 
 function prompt(batch) {
   const lines = batch.map((x, i) => {
@@ -251,113 +247,27 @@ function prompt(batch) {
 
 ${lines}`;
 }
-
-// Which models to try on an OpenAI-compatible service
-async function modelList() {
-  if (process.env.LLM_MODEL) return process.env.LLM_MODEL.split(",").map(m => m.trim()).filter(Boolean);
-  if (LLM_BASE.includes("generativelanguage.googleapis.com")) {
-    // Google retires model names often: ask the service which ones this key can use, newest "flash" first
-    try {
-      const r = await fetch(LLM_BASE + "/models", { signal: AbortSignal.timeout(20000), headers: { Authorization: `Bearer ${LLM_KEY}` } });
-      if (!r.ok) throw new Error("HTTP " + r.status);
-      const ids = ((await r.json()).data || []).map(m => String(m.id).replace(/^models\//, ""))
-        .filter(id => /^gemini-/.test(id) && !/(image|tts|embedding|live|audio|vision|robotics|computer|thinking|exp|customtools|preview-\d)/i.test(id));
-      const ver = id => parseFloat((id.match(/gemini-(\d+(?:\.\d+)?)/) || [])[1]) || 0;
-      const tier = id => /flash-lite/.test(id) ? 1 : /flash/.test(id) ? 0 : 2; // plain flash first, pro last (small free limits)
-      const pick = ids.sort((x, y) => tier(x) - tier(y) || ver(y) - ver(x) || x.localeCompare(y)).slice(0, 7);
-      console.log("Gemini models available: " + ids.slice(0, 12).join(", ") + " | trying: " + pick.join(", "));
-      return pick;
-    } catch (e) { console.log("Could not list Gemini models: " + e.message); return []; }
-  }
-  if (!LLM_BASE.includes("openrouter.ai")) return [LLM_BASE.includes("deepseek.com") ? "deepseek-chat" : ""].filter(Boolean);
-  try {
-    const r = await fetch(LLM_BASE + "/models", { signal: AbortSignal.timeout(20000) });
-    const ids = ((await r.json()).data || []).map(m => m.id).filter(id => /:free$/.test(id));
-    const rank = id => /deepseek/i.test(id) ? 0 : /(qwen|llama|gemma|mistral)/i.test(id) ? 1 : 2;
-    // Plain chat models first: "thinking" models are slow and often run out of tokens
-    const plain = id => /(r1|reason|think)/i.test(id) ? 1 : 0;
-    return ids.sort((x, y) => rank(x) - rank(y) || plain(x) - plain(y)).slice(0, 4);
-  } catch (e) { console.log("Could not list free models: " + e.message); return []; }
-}
-
-let usedModel = "";
-async function ask(text) {
-  if (!LLM_KEY && process.env.ANTHROPIC_API_KEY) {
-    const r = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST", signal: AbortSignal.timeout(90000),
-      headers: { "x-api-key": process.env.ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01", "content-type": "application/json" },
-      body: JSON.stringify({ model: process.env.ANTHROPIC_MODEL || "claude-haiku-4-5", max_tokens: 8000, messages: [{ role: "user", content: text }] })
-    });
-    if (!r.ok) throw new Error(`Claude HTTP ${r.status}: ${(await r.text()).slice(0, 200)}`);
-    usedModel = "claude";
-    return (await r.json()).content?.[0]?.text || "";
-  }
-  const models = await modelList();
-  if (!models.length) throw new Error("no model to ask");
-  const errors = [];
-  for (const model of models) {
-    try {
-      const call = () => fetch(LLM_BASE + "/chat/completions", {
-        method: "POST", signal: AbortSignal.timeout(180000),
-        headers: { "Authorization": `Bearer ${LLM_KEY}`, "Content-Type": "application/json", "HTTP-Referer": "https://github.com/dsdsnfdjndfjhbhgfd-ops/country-news", "X-Title": "ev.news" },
-        body: JSON.stringify({ model, temperature: 0.2, max_tokens: 8000, messages: [{ role: "user", content: text }] })
-      });
-      let r = await call();
-      // "High demand" (503) is usually brief: wait a little and try this model once more
-      if (r.status === 503) { await new Promise(res => setTimeout(res, 8000)); r = await call(); }
-      const body = await r.text();
-      if (!r.ok) throw new Error(`HTTP ${r.status}: ${body.replace(/\s+/g, " ").slice(0, r.status === 429 ? 900 : 300)}`);
-      let data; try { data = JSON.parse(body); } catch { throw new Error(`not JSON: ${body.slice(0, 120)}`); }
-      // Some models put their reasoning in <think> tags; keep only the answer
-      const content = (data.choices?.[0]?.message?.content || "").replace(/<think>[\s\S]*?<\/think>/g, "");
-      if (!content.includes("{")) throw new Error(`no JSON in answer: ${body.slice(0, 120)}`);
-      usedModel = model;
-      return content;
-    } catch (e) { errors.push(`${model}: ${e.message}`); }
-  }
-  throw new Error(errors.join(" | "));
-}
-
-let summarized = 0, lastError = "";
-for (let i = 0; i < queue.length; i += BATCH) {
-  const batch = queue.slice(i, i + BATCH);
-  if (i) await new Promise(r => setTimeout(r, 7000)); // free tiers allow only a few requests per minute
-  try {
-    const out = await ask(prompt(batch));
-    const body = out.slice(out.indexOf("{"), out.lastIndexOf("}") + 1);
-    let items = [];
-    try { items = JSON.parse(body).items || []; }
-    catch {
-      // Models sometimes leave stray quotes inside the text: pull the pairs out one by one
-      for (const m of body.matchAll(/"id"\s*:\s*(\d+)\s*,\s*"summary"\s*:\s*"([\s\S]*?)"\s*\}/g)) items.push({ id: m[1], summary: m[2].replace(/\\"/g, "'").replace(/"/g, "'") });
-      if (!items.length) throw new Error("answer was not valid JSON");
-    }
+// Hand the events to the pool: every free service takes a batch, a failing one passes it on
+const kept = { n: 0 };
+const pool = HAS_AI ? await runPool({
+  providers, state: poolState, jobs: todo.slice(0, PER_RUN), now, makePrompt: prompt,
+  apply(batch, items, p, model) {
+    let n = 0;
     for (const r of items) {
       const x = batch[Number(r.id) - 1];
       const text = String(r.summary || "").trim();
       if (!x || text.length < 20) continue;
-      summaries[x.g.lead.url] = { text: text.slice(0, 600), at: now, country: x.code, title: x.g.lead.title };
-      summarized++;
+      summaries[x.g.lead.url] = { text: text.slice(0, 600), at: now, country: x.code, title: x.g.lead.title, by: p.name };
+      n++;
     }
-  } catch (e) {
-    console.log("Summaries failed: " + e.message);
-    lastError = e.message;
-    if (/JSON/.test(e.message)) continue; // a malformed answer costs only this batch
-    break;
+    return n;
   }
-}
-console.log(`Summarized ${summarized} events`);
-// A quota error says when to come back ("retry in 1h50m28s"); wait that long (at least 30 minutes)
-let blockedUntil = (meta.blockedUntil || 0) > now ? meta.blockedUntil : 0;
-if (/HTTP 429/.test(lastError)) {
-  const m = lastError.match(/retry in (?:(\d+)h)?(?:(\d+)m)?(?:([\d.]+)s)?/i);
-  const ms = m ? ((+m[1] || 0) * 3600 + (+m[2] || 0) * 60 + (+m[3] || 0)) * 1000 : 0;
-  blockedUntil = now + Math.max(ms, 30 * 60000);
-}
+}) : { done: 0, left: todo.length, report: [] };
+console.log(`Summarized ${pool.done} events; ${pool.report.join("; ")}`);
+const lastModel = Object.values(poolState).map(s => s.model).filter(Boolean).pop();
 await writeFile("data/summary.json", JSON.stringify({
-  updated: new Date().toISOString(), model: usedModel || meta.model || (HAS_AI ? "unavailable" : "off"),
-  lastAskAt: queue.length ? now : (meta.lastAskAt || 0), blockedUntil,
-  lastError: queue.length ? lastError : (meta.lastError || ""), items: summaries
+  updated: new Date().toISOString(), model: lastModel || meta.model || (HAS_AI ? "unavailable" : "off"),
+  pool: poolState, items: summaries
 }));
 
 // ---------- Small summary for the home page ----------
