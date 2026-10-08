@@ -203,31 +203,34 @@ await rm("data/why.json", { force: true }); // retired file
 // ANTHROPIC_API_KEY (Claude) also works. Without a key, or when the service fails or is out of
 // its free limit, events simply have no summary. The text is built only from the headlines and
 // feed summaries of the outlets, not from full articles. Cached by article URL for 3 days.
-// The feed shows 25 events per country: all of them get a summary, those higher up first
-const PER_RUN = Number(process.env.SUMMARY_PER_RUN) || 400, TOP = 25;
+// The feed shows 25 events per country: all of them get a summary, those higher up first.
+// STYLE marks how a summary was written: older, shorter ones are rewritten after the missing ones.
+const PER_RUN = Number(process.env.SUMMARY_PER_RUN) || 800, TOP = 25, STYLE = 2;
 
 let summaries = {};
 let meta = {};
 try { meta = JSON.parse(await readFile("data/summary.json", "utf8")); summaries = meta.items || {}; } catch {}
 for (const [u, v] of Object.entries(summaries)) if (now - (v.at || 0) > 3 * 86400000) delete summaries[u];
 
-const todo = [];
+const todo = [], redo = [];
 for (const code of Object.keys(COUNTRIES)) {
   let items = [];
   try { items = JSON.parse(await readFile(`data/full/${code}.json`, "utf8")).items || []; } catch {}
   const c = { code, ru: NAMES[code][0], en: EN[code], loc: NAMES[code][1] };
   core.cluster(items, c, true).slice(0, TOP).forEach((g, rank) => {
-    if (g.items.some(i => summaries[i.url])) return;
-    todo.push({ code, g, rank });
+    const have = g.items.map(i => summaries[i.url]).filter(Boolean);
+    if (!have.length) todo.push({ code, g, rank });
+    else if (!have.some(h => (h.v || 1) >= STYLE)) redo.push({ code, g, rank });
   });
 }
 // Every country's best events first, then the next ones: the top of each feed is filled soonest
-todo.sort((a, b) => a.rank - b.rank || b.g.score - a.g.score);
+const order = (a, b) => a.rank - b.rank || b.g.score - a.g.score;
+todo.sort(order); redo.sort(order);
 const providers = loadProviders();
 const HAS_AI = providers.length > 0;
 const poolState = meta.pool || {};
 if (!meta.pool && (meta.lastAskAt || meta.blockedUntil)) poolState.main = { lastAskAt: meta.lastAskAt || 0, blockedUntil: meta.blockedUntil || 0 }; // state of the single-service days
-console.log(`Events without a summary: ${todo.length}; AI services: ${providers.map(p => p.name).join(", ") || "none (summaries are skipped)"}`);
+console.log(`Events without a summary: ${todo.length}, with an old short one: ${redo.length}; AI services: ${providers.map(p => p.name).join(", ") || "none (summaries are skipped)"}`);
 
 function prompt(batch) {
   const lines = batch.map((x, i) => {
@@ -235,14 +238,20 @@ function prompt(batch) {
     // Everything the outlets wrote about this event: up to 4 headlines with their feed summaries
     const seen = new Set(), parts = [];
     for (const a of g.items) {
-      if (parts.length >= 4 || seen.has(a.source)) continue;
+      if (parts.length >= 6 || seen.has(a.source)) continue;
       seen.add(a.source);
       parts.push(`«${a.title}»` + (a.desc ? ` — ${a.desc}` : "") + ` (${a.source})`);
     }
     return `${i + 1}. Страна: ${NAMES[x.code][0]}. ${parts.join(" | ")}`;
   }).join("\n");
-  return `Ты редактор новостной сводки. Для каждого события ниже напиши по-русски краткое изложение: 2–3 предложения о том, что произошло, кто участвует, где и когда (если это сказано в тексте).
-Пиши нейтрально и сухо, без оценок и прогнозов. Используй только факты из заголовков и анонсов ниже, не добавляй ничего от себя: ни цифр, ни имён, ни причин. Если данных мало, напиши одно короткое предложение. Не повторяй заголовок дословно. Если текст на английском, переведи смысл на русский. Внутри текста не используй двойные кавычки ("), только «ёлочки».
+  return `Ты редактор новостной сводки. Для каждого события ниже напиши по-русски информативное изложение из 3–5 предложений, чтобы читатель понял суть, не открывая статьи:
+— что именно произошло и чем это закончилось или к чему привело;
+— кто участвует: имена с должностями, страны, ведомства, компании;
+— где и когда;
+— все конкретные детали из текста: цифры, суммы, сроки, число пострадавших, названия документов и решений;
+— причины, контекст и позиции сторон, если они названы; цитату или заявление ключевого участника, если оно есть;
+— если издания сообщают по-разному или приводят разные данные, кратко укажи это.
+Пиши нейтрально, без оценок и прогнозов. Используй только факты из заголовков и анонсов ниже, ничего не добавляй от себя: ни цифр, ни имён, ни причин. Если данных мало, напиши столько, сколько есть, хоть одно предложение, но не выдумывай. Не повторяй заголовок дословно. Если текст на английском, переведи смысл на русский. Внутри текста не используй двойные кавычки ("), только «ёлочки».
 Ответь только JSON: {"items":[{"id":1,"summary":"..."}]}
 
 ${lines}`;
@@ -250,14 +259,16 @@ ${lines}`;
 // Hand the events to the pool: every free service takes a batch, a failing one passes it on
 const kept = { n: 0 };
 const pool = HAS_AI ? await runPool({
-  providers, state: poolState, jobs: todo.slice(0, PER_RUN), now, makePrompt: prompt,
+  providers, state: poolState, jobs: [...todo, ...redo].slice(0, PER_RUN), now, makePrompt: prompt,
   apply(batch, items, p, model) {
     let n = 0;
     for (const r of items) {
       const x = batch[Number(r.id) - 1];
       const text = String(r.summary || "").trim();
       if (!x || text.length < 20) continue;
-      summaries[x.g.lead.url] = { text: text.slice(0, 600), at: now, country: x.code, title: x.g.lead.title, by: p.name };
+      // The new text replaces an older one kept under another article of the same event
+      for (const i of x.g.items) if (i.url !== x.g.lead.url) delete summaries[i.url];
+      summaries[x.g.lead.url] = { text: text.slice(0, 1200), at: now, country: x.code, title: x.g.lead.title, by: p.name, v: STYLE };
       n++;
     }
     return n;

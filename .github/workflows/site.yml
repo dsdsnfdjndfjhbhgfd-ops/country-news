@@ -68,6 +68,12 @@ jobs:
           LLM_KEY_EXTRA1: ${{ secrets.LLM_KEY_EXTRA1 }}   # any other service: also add the variable LLM_BASE_EXTRA1
           LLM_BASE_EXTRA1: ${{ vars.LLM_BASE_EXTRA1 }}
           LLM_MODEL_EXTRA1: ${{ vars.LLM_MODEL_EXTRA1 }}
+          # EXTRA1 per collection: up to RUNS requests of BATCH events, PARALLEL at a time, every GAP minutes
+          LLM_BATCH_EXTRA1: ${{ vars.LLM_BATCH_EXTRA1 || '10' }}
+          LLM_RUNS_EXTRA1: ${{ vars.LLM_RUNS_EXTRA1 || '24' }}
+          LLM_PARALLEL_EXTRA1: ${{ vars.LLM_PARALLEL_EXTRA1 || '6' }}
+          LLM_GAP_EXTRA1: ${{ vars.LLM_GAP_EXTRA1 || '10' }}
+          LLM_MAX_TOKENS: ${{ vars.LLM_MAX_TOKENS }}        # optional: answer length limit (default 30000)
 
       - name: Перезаписать ветку data
         if: github.event_name != 'push'

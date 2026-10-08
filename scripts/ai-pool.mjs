@@ -9,6 +9,9 @@
 //     LLM_MODEL_<NAME>  optional, model id(s) separated by commas
 //     LLM_BATCH_<NAME>  optional, events per request (default: see KNOWN)
 //     LLM_GAP_<NAME>    optional, minutes between requests (default: see KNOWN)
+//     LLM_RUNS_<NAME>   optional, requests per collection (default: see KNOWN)
+//     LLM_PARALLEL_<NAME> optional, how many of those requests go at the same time (default 1)
+//   LLM_MAX_TOKENS                               optional, answer length limit for every service (default 30000)
 //   ANTHROPIC_API_KEY                            Claude (name "claude")
 // Nothing here prints or stores a key.
 
@@ -38,12 +41,15 @@ export function readEnv(env = process.env) {
 export function loadProviders(rawEnv = process.env) {
   const env = readEnv(rawEnv), list = [];
   const num = (v, d) => Number(v) > 0 ? Number(v) : d;
+  // Long enough for "thinking" models, which reason before they answer
+  const maxTokens = num(env.LLM_MAX_TOKENS, 30000);
   const split = v => String(v || "").split(",").map(s => s.trim()).filter(Boolean);
   if (env.LLM_API_KEY) {
     const base = (env.LLM_BASE_URL || "https://openrouter.ai/api/v1").replace(/\/+$/, "");
     const known = Object.values(KNOWN).find(k => k.base === base) || {};
     list.push({ name: "main", kind: "openai", key: env.LLM_API_KEY, base, models: split(env.LLM_MODEL), defaults: known.models || [],
-      batch: num(env.LLM_BATCH, known.batch || 30), gap: num(env.LLM_GAP, known.gap || 100), runs: known.runs || 1 });
+      batch: num(env.LLM_BATCH, known.batch || 30), gap: num(env.LLM_GAP, known.gap || 100), runs: num(env.LLM_RUNS, known.runs || 1),
+      parallel: num(env.LLM_PARALLEL, 1), maxTokens });
   }
   for (const [n, key] of Object.entries(env)) {
     const m = n.match(/^LLM_KEY_([A-Z0-9]+)$/);
@@ -52,9 +58,10 @@ export function loadProviders(rawEnv = process.env) {
     const base = (env["LLM_BASE_" + N] || k.base || "").replace(/\/+$/, "");
     if (!base) { console.log(`Provider ${N}: no address known, add the variable LLM_BASE_${N}`); continue; }
     list.push({ name: N.toLowerCase(), kind: "openai", key, base, models: split(env["LLM_MODEL_" + N]), defaults: k.models || [],
-      batch: num(env["LLM_BATCH_" + N], k.batch || 25), gap: num(env["LLM_GAP_" + N], k.gap || 30), runs: k.runs || 1 });
+      batch: num(env["LLM_BATCH_" + N], k.batch || 25), gap: num(env["LLM_GAP_" + N], k.gap || 30), runs: num(env["LLM_RUNS_" + N], k.runs || 1),
+      parallel: num(env["LLM_PARALLEL_" + N], 1), maxTokens });
   }
-  if (env.ANTHROPIC_API_KEY) list.push({ name: "claude", kind: "claude", key: env.ANTHROPIC_API_KEY, models: [env.ANTHROPIC_MODEL || "claude-haiku-4-5"], defaults: [], batch: 30, gap: 5, runs: 3 });
+  if (env.ANTHROPIC_API_KEY) list.push({ name: "claude", kind: "claude", key: env.ANTHROPIC_API_KEY, models: [env.ANTHROPIC_MODEL || "claude-haiku-4-5"], defaults: [], batch: 30, gap: 5, runs: 3, parallel: 1, maxTokens: 8000 });
   return list;
 }
 
@@ -87,7 +94,7 @@ export async function askProvider(p, text) {
     const r = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST", signal: AbortSignal.timeout(120000),
       headers: { "x-api-key": p.key, "anthropic-version": "2023-06-01", "content-type": "application/json" },
-      body: JSON.stringify({ model: p.models[0], max_tokens: 8000, messages: [{ role: "user", content: text }] })
+      body: JSON.stringify({ model: p.models[0], max_tokens: p.maxTokens || 8000, messages: [{ role: "user", content: text }] })
     });
     if (!r.ok) throw new Error(`HTTP ${r.status}: ${(await r.text()).slice(0, 200)}`);
     return { text: (await r.json()).content?.[0]?.text || "", model: p.models[0] };
@@ -98,9 +105,9 @@ export async function askProvider(p, text) {
   for (const model of models) {
     try {
       const call = () => fetch(p.base + "/chat/completions", {
-        method: "POST", signal: AbortSignal.timeout(180000),
+        method: "POST", signal: AbortSignal.timeout(300000),
         headers: { "Authorization": `Bearer ${p.key}`, "Content-Type": "application/json", "HTTP-Referer": "https://github.com/dsdsnfdjndfjhbhgfd-ops/country-news", "X-Title": "ev.news" },
-        body: JSON.stringify({ model, temperature: 0.2, max_tokens: 8000, messages: [{ role: "user", content: text }] })
+        body: JSON.stringify({ model, temperature: 0.2, max_tokens: p.maxTokens || 30000, messages: [{ role: "user", content: text }] })
       });
       let r = await call();
       if (r.status === 503) { await new Promise(res => setTimeout(res, 8000)); r = await call(); }
@@ -135,32 +142,37 @@ export function parseAnswer(out) {
 // `jobs` is the list of events still without a summary (best first), `makePrompt(batch)` builds a request,
 // `apply(batch, items, provider, model)` stores the answers and returns how many were kept.
 // A provider is skipped while it is paused after an error or while its gap since the last request has not passed.
-export async function runPool({ providers, state, jobs, now, makePrompt, apply, maxBatches = 12, log = console.log }) {
+export async function runPool({ providers, state, jobs, now, makePrompt, apply, maxBatches = 40, log = console.log }) {
   let left = jobs.slice(), done = 0;
   const report = [];
   for (const p of providers) {
     const s = state[p.name] = state[p.name] || {};
     if ((s.blockedUntil || 0) > now) { report.push(`${p.name}: paused until ${new Date(s.blockedUntil).toISOString()}`); continue; }
     if (s.lastAskAt && now - s.lastAskAt < p.gap * 60000) { report.push(`${p.name}: next request is not due yet`); continue; }
-    let used = 0;
-    for (let r = 0; r < p.runs && left.length && maxBatches > 0; r++) {
-      const batch = left.slice(0, p.batch);
-      if (r) await new Promise(res => setTimeout(res, 7000));
-      s.lastAskAt = now; s.asked = (s.asked || 0) + 1; maxBatches--;
-      try {
-        const { text, model } = await askProvider(p, makePrompt(batch));
-        const kept = apply(batch, parseAnswer(text), p, model);
-        s.model = model; s.lastError = ""; s.ok = (s.ok || 0) + 1;
-        left = left.filter(j => !batch.includes(j)); // events the model skipped are retried on the next run
-        done += kept; used += kept;
-      } catch (e) {
-        s.lastError = String(e.message).slice(0, 300);
-        log(`${p.name}: ${s.lastError}`);
-        if (/JSON/.test(e.message)) continue; // a malformed answer costs only this batch
-        // Out of quota: wait as long as the service says (at least 30 min). Other failures: 20 min.
-        s.blockedUntil = now + (/HTTP 429/.test(e.message) ? Math.max(retryAfterMs(e.message), 30 * 60000) : /HTTP 40[13]/.test(e.message) ? 6 * 3600000 : 20 * 60000); // a rejected key is not retried every run
-        break;
+    let used = 0, runs = Math.min(p.runs, maxBatches), stop = false;
+    // `parallel` requests go out together; a round waits for all of them before the next one starts
+    while (runs > 0 && left.length && !stop) {
+      const round = [];
+      for (let k = 0; k < Math.min(p.parallel || 1, runs) && left.length; k++) {
+        const batch = left.splice(0, p.batch); // taken out of the queue; returned if the request fails
+        round.push(batch);
       }
+      runs -= round.length; maxBatches -= round.length;
+      s.lastAskAt = now; s.asked = (s.asked || 0) + round.length;
+      const results = await Promise.all(round.map(batch => askProvider(p, makePrompt(batch))
+        .then(({ text, model }) => ({ batch, kept: apply(batch, parseAnswer(text), p, model), model }))
+        .catch(e => ({ batch, error: e }))));
+      for (const r of results) {
+        if (!r.error) { s.model = r.model; s.lastError = ""; s.ok = (s.ok || 0) + 1; done += r.kept; used += r.kept; continue; }
+        left.unshift(...r.batch); // back to the front of the queue: the next service takes it
+        s.lastError = String(r.error.message).slice(0, 300);
+        log(`${p.name}: ${s.lastError}`);
+        if (/JSON/.test(r.error.message)) continue; // a malformed answer costs only this batch
+        // Out of quota: wait as long as the service says (at least 30 min). Other failures: 20 min.
+        s.blockedUntil = now + (/HTTP 429/.test(r.error.message) ? Math.max(retryAfterMs(r.error.message), 30 * 60000) : /HTTP 40[13]/.test(r.error.message) ? 6 * 3600000 : 20 * 60000); // a rejected key is not retried every run
+        stop = true;
+      }
+      if (runs > 0 && left.length && !stop) await new Promise(res => setTimeout(res, 7000));
     }
     report.push(`${p.name}: +${used}`);
   }
