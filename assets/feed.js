@@ -99,6 +99,31 @@ async function loadSummary(v) {
   try { const r = await fetch("data/summary.json?v=" + encodeURIComponent(v)); if (r.ok) { SUMMARY = (await r.json()).items || {}; summaryVersion = v; } } catch {}
 }
 const summaryFor = g => { for (const i of g.items) if (SUMMARY[i.url]) return SUMMARY[i.url].text; return ""; };
+// Inside the country or its relations with others: marked by the AI together with the summary
+// Events the AI has not seen yet get a rough guess from the headlines: another country or
+// diplomacy named means "out", otherwise "in"
+const OTHER = {
+  RU: ["росси", "москв", "кремл", "путин", "лавров", "russia", "moscow", "kremlin", "putin"], US: ["сша", "америк", "вашингтон", "трамп", "пентагон", "госдеп", "united states", "washington", "trump", "pentagon"],
+  CN: ["китай", "китае", "китая", "кнр", "пекин", "china", "chinese", "beijing"], UA: ["украин", "киев", "зеленск", "всу", "харьков", "одесс", "запорож", "херсон", "донбасс", "ukrain", "kyiv", "zelensky", "kharkiv", "odesa"],
+  IL: ["израил", "нетаньяху", "хамас", "газа", "israel", "netanyahu", "hamas", "gaza"], IR: ["иран", "тегеран", "пезешкиан", "хаменеи", "iran", "tehran", "pezeshkian", "khamenei"],
+  DE: ["германи", "берлин", "мерц", "germany", "berlin", "merz"], GB: ["британ", "лондон", "стармер", "britain", "british", "london", "starmer"],
+  FR: ["франци", "париж", "макрон", "france", "french", "paris", "macron"], TR: ["турци", "анкар", "эрдоган", "turkey", "türkiye", "ankara", "erdogan"],
+  IN: ["индии", "индия", "индийск", "нью-дели", "india", "new delhi"], JP: ["япони", "японск", "токио", "japan", "tokyo"],
+  PL: ["польш", "польск", "варшав", "poland", "polish", "warsaw"], BY: ["беларус", "белорус", "минск", "лукашенк", "belarus", "minsk", "lukashenko"],
+  KZ: ["казахстан", "астан", "токаев", "kazakh", "astana", "tokayev"], MA: ["марокк", "рабат", "morocco", "moroccan"],
+  SA: ["саудовск", "эр-рияд", "saudi", "riyadh"], BR: ["бразил", "brazil", "lula"]
+};
+const ABROAD = ["мид", "посол", "посольств", "дипломат", "переговор", "визит", "саммит", "санкци", "оон", "нато", "евросоюз", "ес ", "снг", "еаэс", "брикс", "шос", "госсекретар", "иностранных дел",
+  "embassy", "ambassador", "diplomat", "talks", "summit", "sanction", "united nations", "nato", "european union", "eu ", "brics", "foreign minister", "foreign ministry", "bilateral", "treaty"];
+function guessScope(g, code) {
+  const t = " " + g.items.slice(0, 4).map(i => low(i.title)).join(" ") + " ";
+  const own = new Set(OTHER[code] || []);
+  if (Object.entries(OTHER).some(([k, words]) => k !== code && words.some(w => !own.has(w) && t.includes(w)))) return "out";
+  if (ABROAD.some(w => new RegExp(`[^a-zа-яё]${w}`).test(t))) return "out";
+  return "in";
+}
+const scopeFor = (g, code) => { for (const i of g.items) { const s = SUMMARY[i.url]; if (s && s.scope) return s.scope; } return guessScope(g, code); };
+const SCOPES = [["in", "Внутренние"], ["out", "Внешние"]];
 
 async function loadPrefetched(code) {
   if (!PREFETCHED.has(code)) return null;
@@ -194,7 +219,7 @@ const PERIODS = [["today", "Сегодня"], ["yesterday", "Вчера"], ["3d"
 const PERIOD_TEXT = { "2d": "за 2 дня", today: "за сегодня", yesterday: "за вчера", "3d": "за 3 дня", week: "за неделю" };
 const prefs = { period: "2d", singles: true, ruTitles: true };
 // Feed view: sphere filter, sort order and whether to show every event
-const view = { sphere: "all", sort: "importance", all: false };
+const view = { sphere: "all", scope: "all", sort: "importance", all: false };
 const FEED_SIZE = 25;
 try { const st = JSON.parse(localStorage.getItem("cn:prefs2")) || {}; prefs.singles = st.singles !== false; prefs.ruTitles = st.ruTitles !== false; } catch {}
 function savePrefs() { try { localStorage.setItem("cn:prefs2", JSON.stringify(prefs)); } catch {} }
@@ -221,6 +246,8 @@ function controls(rerender, counts) {
   const left = el("div", "ctl-group");
   left.append(seg("Сфера", [["all", `Все · ${counts.all}`], ...["Политика", "Безопасность", "Экономика"].map(t => [t, `${t} · ${counts[t] || 0}`])],
     view.sphere, v => { view.sphere = v; Account.saveSettings({ sphere: v }); rerender(); }));
+  left.append(seg("Внутренние или внешние", [["all", "Внутри и вовне"], ...SCOPES.map(([v, t]) => [v, `${t} · ${counts.scope[v] || 0}`])],
+    view.scope, v => { view.scope = v; Account.saveSettings({ scope: v }); rerender(); }));
   left.append(seg("Сортировка", [["importance", "По важности"], ["time", "Сначала новые"]], view.sort, v => { view.sort = v; Account.saveSettings({ sort: v }); rerender(); }));
   box.append(left);
   const sw = el("label", "switch");
@@ -268,9 +295,11 @@ function render(c, allItems, info) {
   markQuick(c.code);
   const items = inPeriod(allItems);
   const everything = cluster(items, c, prefs.singles, Infinity);
-  const counts = { all: everything.length };
+  const counts = { all: everything.length, scope: {} };
   for (const g of everything) counts[g.topic[0]] = (counts[g.topic[0]] || 0) + 1;
   let list = view.sphere === "all" ? everything : everything.filter(g => g.topic[0] === view.sphere);
+  for (const g of list) { g.scope = scopeFor(g, c.code); counts.scope[g.scope] = (counts.scope[g.scope] || 0) + 1; }
+  if (view.scope !== "all") list = list.filter(g => g.scope === view.scope);
   // "Newest first": split into time slots, most important first within each slot
   if (view.sort === "time") {
     for (const g of list) g.slot = timeSlot(g.newest);
@@ -334,6 +363,7 @@ function render(c, allItems, info) {
     facts.append(meter(g.domains, color));
     facts.append(el("span", null, g.domains > 1 ? `пишут ${g.domains} ${plural(g.domains, "издание", "издания", "изданий")}` : "одно издание"));
     if (g.fresh) facts.append(el("span", "fresh", "Новое"));
+    if (g.scope) facts.append(el("span", "scope " + g.scope, g.scope === "out" ? "Внешняя повестка" : "Внутри страны"));
     body.append(facts);
 
     const h = el("h3"); const link = el("a", null, cleanTitle(a.title));
@@ -456,6 +486,7 @@ function applyAccountSettings() {
   if (typeof st.singles === "boolean") { prefs.singles = st.singles; savePrefs(); }
   if (["all", "Политика", "Безопасность", "Экономика"].includes(st.sphere)) view.sphere = st.sphere;
   if (["importance", "time"].includes(st.sort)) view.sort = st.sort;
+  if (["all", "in", "out"].includes(st.scope)) view.scope = st.scope;
   if (["auto", "light", "dark"].includes(st.theme)) applyTheme(st.theme);
   if (typeof st.ruTitles === "boolean") { prefs.ruTitles = st.ruTitles; savePrefs(); }
 }

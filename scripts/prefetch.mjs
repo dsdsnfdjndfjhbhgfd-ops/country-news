@@ -204,8 +204,9 @@ await rm("data/why.json", { force: true }); // retired file
 // its free limit, events simply have no summary. The text is built only from the headlines and
 // feed summaries of the outlets, not from full articles. Cached by article URL for 3 days.
 // The feed shows 25 events per country: all of them get a summary, those higher up first.
-// STYLE marks how a summary was written: older, shorter ones are rewritten after the missing ones.
-const PER_RUN = Number(process.env.SUMMARY_PER_RUN) || 800, TOP = 25, STYLE = 2;
+// STYLE marks how a summary was written: older ones (shorter, or without the inside/outside mark)
+// are rewritten after the missing ones.
+const PER_RUN = Number(process.env.SUMMARY_PER_RUN) || 800, TOP = 25, STYLE = 3;
 
 let summaries = {};
 let meta = {};
@@ -252,7 +253,10 @@ function prompt(batch) {
 — причины, контекст и позиции сторон, если они названы; цитату или заявление ключевого участника, если оно есть;
 — если издания сообщают по-разному или приводят разные данные, кратко укажи это.
 Пиши нейтрально, без оценок и прогнозов. Используй только факты из заголовков и анонсов ниже, ничего не добавляй от себя: ни цифр, ни имён, ни причин. Если данных мало, напиши столько, сколько есть, хоть одно предложение, но не выдумывай. Не пиши о том, чего в тексте нет (никаких «дата не указана», «подробности не сообщаются»), и не перечисляй, какие издания об этом написали, если они сообщают одно и то же. Не повторяй заголовок дословно. Если текст на английском, переведи смысл на русский. Внутри текста не используй двойные кавычки ("), только «ёлочки».
-Ответь только JSON: {"items":[{"id":1,"summary":"..."}]}
+Ещё определи для каждого события, внутреннее оно или внешнее для указанной страны:
+"in" — происходит внутри страны и касается её самой: внутренняя политика, выборы, законы, назначения, экономика и бюджет, происшествия, теракты и преступления на её территории;
+"out" — отношения страны с другими государствами и международными организациями: переговоры, визиты, заявления о других странах, санкции, внешняя торговля, войны и удары с участием других стран, события за её пределами.
+Ответь только JSON: {"items":[{"id":1,"scope":"in","summary":"..."}]}
 
 ${lines}`;
 }
@@ -268,7 +272,8 @@ const pool = HAS_AI ? await runPool({
       if (!x || text.length < 20) continue;
       // The new text replaces an older one kept under another article of the same event
       for (const i of x.g.items) if (i.url !== x.g.lead.url) delete summaries[i.url];
-      summaries[x.g.lead.url] = { text: text.slice(0, 1200), at: now, country: x.code, title: x.g.lead.title, by: p.name, v: STYLE };
+      const scope = ["in", "out"].includes(r.scope) ? r.scope : undefined;
+      summaries[x.g.lead.url] = { text: text.slice(0, 1200), scope, at: now, country: x.code, title: x.g.lead.title, by: p.name, v: STYLE };
       n++;
     }
     return n;

@@ -133,7 +133,7 @@ export function parseAnswer(out) {
   const body = out.slice(out.indexOf("{"), out.lastIndexOf("}") + 1);
   try { return JSON.parse(body).items || []; } catch {}
   const items = [];
-  for (const m of body.matchAll(/"id"\s*:\s*(\d+)\s*,\s*"summary"\s*:\s*"([\s\S]*?)"\s*\}/g)) items.push({ id: m[1], summary: m[2].replace(/\\"/g, "'").replace(/"/g, "'") });
+  for (const m of body.matchAll(/"id"\s*:\s*(\d+)\s*,\s*(?:"scope"\s*:\s*"(\w+)"\s*,\s*)?"summary"\s*:\s*"([\s\S]*?)"\s*\}/g)) items.push({ id: m[1], scope: m[2], summary: m[3].replace(/\\"/g, "'").replace(/"/g, "'") });
   if (!items.length) throw new Error("answer was not valid JSON");
   return items;
 }
