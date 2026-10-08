@@ -58,7 +58,7 @@ a{color:inherit}
 .theme button:hover{color:var(--ink)}
 .theme button[aria-pressed="true"]{background:var(--ink);color:var(--surface)}
 .hero{display:flex;flex-direction:column;gap:18px}
-.ask{margin:0;font-weight:800;font-size:clamp(34px,7.4vw,76px);line-height:1.02;letter-spacing:-.025em;display:flex;flex-wrap:wrap;align-items:baseline;gap:0 .28em}
+.ask{margin:0;font-weight:800;font-size:clamp(32px,6vw,60px);line-height:1.02;letter-spacing:-.025em;display:flex;flex-wrap:wrap;align-items:baseline;gap:0 .28em}
 .ask label{white-space:nowrap}
 .field{position:relative;flex:1 1 6em;min-width:0;display:flex;align-items:baseline}
 #country{font:inherit;letter-spacing:inherit;color:var(--accent);background:transparent;border:0;padding:0 0 .04em;width:100%;min-width:0;
@@ -69,12 +69,14 @@ a{color:inherit}
 #go:hover{background:var(--accent)}
 #go:disabled{opacity:.45;cursor:wait}
 button:focus-visible,a:focus-visible,#country:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
-.lede{margin:0;max-width:56ch;color:var(--muted);font-size:18px}
-.quick{display:flex;flex-wrap:wrap;gap:4px 16px;font-size:16px}
-.quick button{font:500 16px var(--sans);background:none;border:0;padding:2px 0;color:var(--ink);cursor:pointer;text-decoration:underline;text-decoration-color:var(--line);text-underline-offset:4px;text-decoration-thickness:2px}
-.quick button:hover{text-decoration-color:var(--accent);color:var(--accent)}
-.quick span{color:var(--muted)}
+.lede{margin:0;max-width:60ch;color:var(--muted);font-size:17px}
+.quick{display:flex;flex-wrap:wrap;align-items:center;gap:8px;font-size:15px}
+.quick button{font:500 15px var(--sans);background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:6px 13px;color:var(--ink);cursor:pointer;transition:border-color .15s,color .15s,background .15s}
+.quick button:hover{border-color:var(--accent);color:var(--accent)}
+.quick button[aria-current]{background:var(--ink);border-color:var(--ink);color:var(--surface)}
+.quick span{color:var(--muted);margin-right:2px}
 
+.status:empty{display:none}
 .status{min-height:24px;font-size:15px;color:var(--muted);display:flex;align-items:center;gap:10px}
 .spinner{width:14px;height:14px;border-radius:50%;border:2px solid var(--line);border-top-color:var(--accent);animation:spin .8s linear infinite;flex:none}
 @keyframes spin{to{transform:rotate(360deg)}}
@@ -88,12 +90,12 @@ button:focus-visible,a:focus-visible,#country:focus-visible{outline:3px solid va
 .events{list-style:none;margin:0;padding:0}
 .ev{display:grid;grid-template-columns:minmax(0,1fr) 132px;gap:6px 22px;padding:22px 0;border-bottom:1px solid var(--line)}
 .ev.noimg{grid-template-columns:minmax(0,1fr)}
-.ev .body{min-width:0;display:flex;flex-direction:column;gap:8px}
+.ev .body{min-width:0;display:flex;flex-direction:column;gap:10px}
 .ev h3{margin:0;font-family:var(--serif);font-weight:700;font-size:21px;line-height:1.3;letter-spacing:-.005em;text-wrap:pretty}
 .ev h3 a{text-decoration:none}
 .ev h3 a:hover{color:var(--accent);text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:3px}
 .ev .thumb{width:132px;aspect-ratio:4/3;object-fit:cover;border-radius:8px;background:var(--line)}
-.ev.lead{grid-template-columns:minmax(0,1fr);padding-top:26px}
+.ev.lead{grid-template-columns:minmax(0,1fr);padding:26px 26px 24px;margin:18px 0 6px;background:var(--surface);border:1px solid var(--line);border-top:4px solid var(--tc,var(--accent));border-radius:16px}
 .ev.lead h3{font-size:clamp(25px,3.6vw,34px);line-height:1.18}
 .ev.lead .thumb{width:100%;aspect-ratio:16/8;border-radius:12px;order:-1;margin-bottom:8px}
 .facts{display:flex;align-items:center;flex-wrap:wrap;gap:6px 14px;font-size:14px;color:var(--muted)}
@@ -102,6 +104,10 @@ button:focus-visible,a:focus-visible,#country:focus-visible{outline:3px solid va
 .meter i{width:10px;height:10px;border-radius:2px;background:var(--meter-off)}
 .meter i.on{background:var(--tc,var(--ink))}
 .src{font-size:14px;color:var(--muted)}
+.foot{display:flex;justify-content:space-between;align-items:flex-start;gap:8px 16px;flex-wrap:wrap}
+.foot .src{flex:1 1 320px;min-width:0}
+.acts{display:flex;gap:8px;flex-wrap:wrap;flex:none}
+.acts .save-btn,.acts .c-link{padding:5px 12px}
 .switch[hidden]{display:none}
 .translate{display:block;margin-top:4px}
 .c-link{font:700 13px var(--sans);color:var(--muted);text-decoration:none;border:1px solid var(--line);border-radius:999px;padding:3px 10px}
@@ -151,9 +157,22 @@ button:focus-visible,a:focus-visible,#country:focus-visible{outline:3px solid va
 .how .meter{margin-bottom:10px}
 
 footer{font-size:14px;color:var(--muted);border-top:1px solid var(--line);padding-top:16px;max-width:70ch}
+footer p{margin:0 0 8px}
+footer summary{cursor:pointer;font-weight:700;color:var(--ink);width:max-content}
+footer summary:hover{color:var(--accent)}
+footer details p{margin-top:8px}
 footer a{color:var(--muted)}
 
 @media (max-width:560px){
+  .ctl-group{flex-wrap:nowrap;max-width:100%;overflow-x:auto;scrollbar-width:none;margin-inline:-20px;padding-inline:20px}
+  .ctl-group::-webkit-scrollbar{display:none}
+  .seg{flex-wrap:nowrap;flex:none}
+  .seg button{white-space:nowrap}
+  .quick{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;margin-inline:-20px;padding:2px 20px}
+  .quick::-webkit-scrollbar{display:none}
+  .quick button{flex:none;white-space:nowrap}
+  .lede{font-size:16px}
+  .ev.lead{padding:20px 18px;margin-inline:-6px}
   .ev{grid-template-columns:minmax(0,1fr) 84px;gap:6px 14px}
   .ev .thumb{width:84px}
   .ev h3{font-size:19px}
@@ -203,7 +222,10 @@ footer a{color:var(--muted)}
     </div>
   </main>
 
-  <footer>Источники: ТАСС, РИА Новости, Интерфакс, Коммерсантъ, РБК, Ведомости, BBC Русская служба, DW на русском, BBC News, The Guardian, The New York Times, Al Jazeera, Deutsche Welle, France 24, Politico Europe, CNBC, Лента.ру, Газета.ру, Euronews на русском, БелТА, Tengrinews, Курсив, Bloomberg, The Washington Post, The Independent, South China Morning Post, The Times of India, The Japan Times, Notes from Poland, The Kyiv Independent, Взгляд, Российская газета, УНИАН, Euronews, ABC News, CBS News, NPR, Financial Times, Le Monde, Anadolu Agency, Haaretz, Tehran Times, Ukrinform, Ukrainska Pravda, Hindustan Times, The Hindu, Japan Today, Kazinform, The Astana Times, CGTN, Hespress English, North Africa Post, Asharq Al-Awsat, The Rio Times, MercoPress. Новости за последние 2 дня, обновление каждые 15 минут. Важность определяется автоматически: по числу изданий, теме и свежести.</footer>
+  <footer>
+    <p>Новости за последние 2 дня, обновление каждые 15 минут. Важность определяется автоматически: по числу изданий, теме и свежести.</p>
+    <details><summary>Источники: 55 изданий</summary><p>ТАСС, РИА Новости, Интерфакс, Коммерсантъ, РБК, Ведомости, BBC Русская служба, DW на русском, BBC News, The Guardian, The New York Times, Al Jazeera, Deutsche Welle, France 24, Politico Europe, CNBC, Лента.ру, Газета.ру, Euronews на русском, БелТА, Tengrinews, Курсив, Bloomberg, The Washington Post, The Independent, South China Morning Post, The Times of India, The Japan Times, Notes from Poland, The Kyiv Independent, Взгляд, Российская газета, УНИАН, Euronews, ABC News, CBS News, NPR, Financial Times, Le Monde, Anadolu Agency, Haaretz, Tehran Times, Ukrinform, Ukrainska Pravda, Hindustan Times, The Hindu, Japan Today, Kazinform, The Astana Times, CGTN, Hespress English, North Africa Post, Asharq Al-Awsat, The Rio Times, MercoPress.</p></details>
+  </footer>
 </div>
 
 <script src="assets/vendor/supabase.js"></script>

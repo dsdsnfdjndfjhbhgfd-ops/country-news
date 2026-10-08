@@ -40,7 +40,12 @@ function resolve(input) {
 
 const quick = $("#quick");
 const CODE_OF = { "Россия":"RU","США":"US","Китай":"CN","Украина":"UA","Израиль":"IL","Иран":"IR","Германия":"DE","Великобритания":"GB","Франция":"FR","Турция":"TR","Индия":"IN","Япония":"JP","Польша":"PL","Беларусь":"BY","Казахстан":"KZ","Марокко":"MA","Саудовская Аравия":"SA","Бразилия":"BR" };
-// Country chips: the user's own countries first, marked with a star
+// Country chips: the user's own countries first, marked with a star; the open one is highlighted
+let quickCode = null;
+function markQuick(code) {
+  quickCode = code;
+  quick.querySelectorAll("button").forEach(b => b.toggleAttribute("aria-current", b.dataset.code === code));
+}
 function paintQuick() {
   quick.querySelectorAll("button").forEach(b => b.remove());
   const mine = Account.countries;
@@ -48,6 +53,8 @@ function paintQuick() {
   for (const name of order) {
     const b = document.createElement("button");
     b.type = "button"; b.textContent = (mine.includes(CODE_OF[name]) ? "★ " : "") + name;
+    b.dataset.code = CODE_OF[name];
+    if (CODE_OF[name] === quickCode) b.setAttribute("aria-current", "true");
     b.onclick = () => run(name);
     quick.append(b);
   }
@@ -258,6 +265,7 @@ function timeSlot(t) { const h = (Date.now() - t) / 3600000; return SLOTS.findIn
 let shown = null;
 function render(c, allItems, info) {
   shown = { c, allItems, info };
+  markQuick(c.code);
   const items = inPeriod(allItems);
   const everything = cluster(items, c, prefs.singles, Infinity);
   const counts = { all: everything.length };
@@ -360,7 +368,6 @@ function render(c, allItems, info) {
       });
       src.append(tr);
     }
-    body.append(src);
     const isSaved = g.items.some(x => Account.isSaved(x.url));
     const sv = el("button", "save-btn", isSaved ? "Сохранено" : "Сохранить"); sv.type = "button";
     sv.setAttribute("aria-pressed", String(isSaved));
@@ -374,10 +381,10 @@ function render(c, allItems, info) {
         });
       } catch (e) { sv.disabled = false; sv.textContent = e.message; }
     };
-    facts.append(sv);
     const cl = el("a", "c-link", "Обсудить");
     cl.href = `article.html?c=${c.code}&u=${encodeURIComponent(a.url)}#comments`;
-    facts.append(cl);
+    const acts = el("div", "acts"); acts.append(sv, cl);
+    const foot = el("div", "foot"); foot.append(src, acts); body.append(foot);
     discuss.push({ cl, urls: g.items.map(x => x.url) });
     li.append(body);
 
