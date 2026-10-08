@@ -97,6 +97,47 @@ let SUMMARY = {}, summaryVersion = "";
 async function loadSummary(v) {
   if (v === summaryVersion) return;
   try { const r = await fetch("data/summary.json?v=" + encodeURIComponent(v)); if (r.ok) { SUMMARY = (await r.json()).items || {}; summaryVersion = v; } } catch {}
+  try { const r = await fetch("data/essays.json?v=" + encodeURIComponent(v)); if (r.ok) ESSAYS = (await r.json()).countries || {}; } catch {}
+}
+// Essays: 200–300 words per country on its main problem in politics, security and economy
+let ESSAYS = {};
+const ESSAY_TOPICS = ["Политика", "Безопасность", "Экономика"];
+let essayTab = null, essayOpen = false;
+function essayBlock(c) {
+  const mine = ESSAYS[c.code] || {};
+  const topics = ESSAY_TOPICS.filter(t => mine[t] && mine[t].text);
+  if (!topics.length) return null;
+  if (!topics.includes(essayTab)) essayTab = topics.includes(view.sphere) ? view.sphere : topics[0];
+  const box = el("section", "essay"); box.setAttribute("aria-label", "Обзор страны");
+  const head = el("div", "essay-head");
+  head.append(el("h3", null, `Обзор: ${c.ru}`));
+  const tabs = el("div", "seg"); tabs.setAttribute("role", "group"); tabs.setAttribute("aria-label", "Тема обзора");
+  const body = el("div", "essay-body");
+  const paint = () => {
+    tabs.querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.t === essayTab)));
+    const e = mine[essayTab]; body.textContent = "";
+    if (e.title) body.append(el("h4", null, e.title));
+    const paras = e.text.split(/\n\s*\n|\n/).map(x => x.trim()).filter(Boolean);
+    paras.forEach((t, k) => { const pEl = el("p", null, t); if (k > 0 && !essayOpen) pEl.hidden = true; body.append(pEl); });
+    const foot = el("div", "essay-foot");
+    if (paras.length > 1) {
+      const more = el("button", "essay-more", essayOpen ? "Свернуть" : "Читать полностью"); more.type = "button";
+      more.onclick = () => { essayOpen = !essayOpen; paint(); };
+      foot.append(more);
+    }
+    const words = e.text.split(/\s+/).length;
+    foot.append(el("span", null, `${words} слов · ИИ по событиям последних двух дней · обновлено ${ago(e.at)}`));
+    body.append(foot);
+  };
+  for (const t of topics) {
+    const b = el("button", null, t); b.type = "button"; b.dataset.t = t;
+    b.onclick = () => { essayTab = t; paint(); };
+    tabs.append(b);
+  }
+  head.append(tabs);
+  box.append(head, body);
+  paint();
+  return box;
 }
 const summaryFor = g => { for (const i of g.items) if (SUMMARY[i.url]) return SUMMARY[i.url].text; return ""; };
 // Inside the country or its relations with others: marked by the AI together with the summary
@@ -335,6 +376,7 @@ function render(c, allItems, info) {
   out.append(head);
   const rerender = () => { const y = window.scrollY; render(shown.c, shown.allItems, shown.info); window.scrollTo(0, y); };
   out.append(controls(rerender, counts));
+  const essay = essayBlock(c); if (essay) out.append(essay);
 
   if (!groups.length) {
     if (!info.partial) out.append(el("div", "notice", false

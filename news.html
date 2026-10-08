@@ -150,6 +150,15 @@ button:focus-visible,a:focus-visible,#country:focus-visible{outline:3px solid va
 .slot h3{margin:0;font-size:19px;font-weight:800}
 .slot span{font-size:14px;color:var(--muted)}
 .ctl-group{display:flex;flex-wrap:wrap;gap:10px}
+.essay{margin:18px 0 4px;padding:22px 24px;background:var(--surface);border:1px solid var(--line);border-radius:16px;display:flex;flex-direction:column;gap:14px}
+.essay-head{display:flex;justify-content:space-between;align-items:center;gap:10px 16px;flex-wrap:wrap}
+.essay-head h3{margin:0;font-size:19px;font-weight:800}
+.essay-body{display:flex;flex-direction:column;gap:12px}
+.essay-body h4{margin:0;font-family:var(--serif);font-weight:700;font-size:22px;line-height:1.3}
+.essay-body p{margin:0;font-size:16px;line-height:1.6;max-width:70ch}
+.essay-foot{display:flex;align-items:center;flex-wrap:wrap;gap:8px 14px;font-size:13px;color:var(--muted)}
+.essay-more{font:700 14px var(--sans);color:var(--accent);background:none;border:0;padding:0;cursor:pointer}
+.essay-more:hover{text-decoration:underline;text-underline-offset:3px}
 .more{display:block;width:100%;margin-top:18px;padding:14px;font:700 16px var(--sans);color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:12px;cursor:pointer}
 .more:hover{border-color:var(--accent);color:var(--accent)}
 .how{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
@@ -175,6 +184,8 @@ footer a{color:var(--muted)}
   .quick button{flex:none;white-space:nowrap}
   .lede{font-size:16px}
   .ev.lead{padding:20px 18px;margin-inline:-6px}
+  .essay{padding:18px 16px;margin-inline:-6px}
+  .essay-head .seg{max-width:100%;overflow-x:auto}
   .ev{grid-template-columns:minmax(0,1fr);gap:12px}
   .ev .thumb{width:100%;aspect-ratio:16/9;border-radius:12px;order:-1}
   .ev h3{font-size:19px}

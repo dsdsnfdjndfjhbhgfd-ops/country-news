@@ -286,6 +286,67 @@ await writeFile("data/summary.json", JSON.stringify({
   pool: poolState, items: summaries
 }));
 
+// ---------- Essays: 200–300 words per country on its main problem in politics, security, economy ----------
+// One request per country writes all three. Rewritten every ESSAY_HOURS (6 by default), oldest first.
+// Built from the country's current events (with their summaries); kept in data/essays.json.
+const ESSAY_TOPICS = ["Политика", "Безопасность", "Экономика"], ESSAY_HOURS = Number(process.env.ESSAY_HOURS) || 6;
+let essayMeta = {};
+try { essayMeta = JSON.parse(await readFile("data/essays.json", "utf8")); } catch {}
+const essays = essayMeta.countries || {}, essayState = essayMeta.pool || {};
+const essayJobs = [];
+for (const code of Object.keys(COUNTRIES)) {
+  const at = Math.min(...ESSAY_TOPICS.map(t => essays[code]?.[t]?.at || 0));
+  if (now - at < ESSAY_HOURS * 3600000) continue;
+  let items = [];
+  try { items = JSON.parse(await readFile(`data/full/${code}.json`, "utf8")).items || []; } catch {}
+  const c = { code, ru: NAMES[code][0], en: EN[code], loc: NAMES[code][1] };
+  const groups = core.cluster(items, c, true, Infinity);
+  const byTopic = Object.fromEntries(ESSAY_TOPICS.map(t => [t, groups.filter(g => g.topic && g.topic[0] === t).slice(0, 8)]));
+  if (Object.values(byTopic).every(l => !l.length)) continue;
+  essayJobs.push({ code, byTopic, at });
+}
+essayJobs.sort((a, b) => a.at - b.at);
+function essayPrompt([x]) {
+  const block = ESSAY_TOPICS.map(t => {
+    const lines = x.byTopic[t].map((g, i) => {
+      const sum = g.items.map(a => summaries[a.url]).find(Boolean);
+      const text = sum ? sum.text : g.items.slice(0, 3).map(a => `«${a.title}»` + (a.desc ? ` — ${a.desc}` : "")).join(" | ");
+      return `${i + 1}) ${g.lead.title}. ${text} (пишут изданий: ${g.domains})`;
+    });
+    return `### ${t}\n` + (lines.join("\n") || "Событий нет.");
+  }).join("\n\n");
+  return `Ты обозреватель-аналитик. Напиши по-русски три сочинения о стране «${NAMES[x.code][0]}» — по одному на темы «Политика», «Безопасность» и «Экономика». Каждое 200–300 слов.
+Сочинение — связный текст о главной проблеме страны в этой сфере сейчас, а не пересказ новостей по очереди:
+— в первом абзаце сформулируй проблему;
+— дальше раскрой её через события ниже: что происходит, кто участвует и какие у сторон позиции, конкретные факты и цифры;
+— объясни причины и связь событий между собой;
+— в конце скажи, что стоит на кону и от чего зависит развитие (без прогнозов от себя и без оценок «хорошо/плохо»).
+Пиши нейтрально. Все конкретные факты, цифры, имена и даты бери только из событий ниже; общеизвестный фон можно упомянуть одной фразой, но ничего не выдумывай. Если по теме мало событий, напиши короче, но не меньше 120 слов, и не пиши о том, чего в данных нет. Абзацы разделяй пустой строкой (\\n\\n). Внутри текста не используй двойные кавычки ("), только «ёлочки».
+Ответь только JSON: {"items":[{"topic":"Политика","title":"заголовок сочинения","text":"..."},{"topic":"Безопасность",...},{"topic":"Экономика",...}]}
+
+События страны за последние двое суток:
+
+${block}`;
+}
+// The services that can take many requests go first, so a small free quota is not spent on essays
+const essayProviders = providers.map(p => ({ ...p, batch: 1 })).sort((a, b) => b.runs - a.runs);
+const essayPool = HAS_AI && essayJobs.length ? await runPool({
+  providers: essayProviders, state: essayState, jobs: essayJobs, now, makePrompt: essayPrompt, maxBatches: 18,
+  apply([x], items, p, model) {
+    let n = 0;
+    for (const r of items) {
+      const t = ESSAY_TOPICS.find(k => k === String(r.topic || "").trim());
+      const text = String(r.text || "").replace(/\r/g, "").trim();
+      if (!t || text.split(/\s+/).length < 80) continue;
+      (essays[x.code] = essays[x.code] || {})[t] = { title: String(r.title || "").trim().slice(0, 160), text: text.slice(0, 4000), at: now, by: p.name };
+      n++;
+    }
+    return n ? 1 : 0;
+  }
+}) : { done: 0, report: [] };
+console.log(`Essays: ${essayJobs.length} countries due, ${essayPool.done} written; ${essayPool.report.join("; ")}`);
+await writeFile("data/essays.json", JSON.stringify({ updated: new Date().toISOString(), pool: essayState, countries: essays }));
+
 // ---------- Small summary for the home page ----------
 const status = { updated: new Date().toISOString(), sources: SOURCES.map(s => ({ name: s.name, lang: s.lang })), countries: {} };
 for (const code of Object.keys(COUNTRIES)) {
