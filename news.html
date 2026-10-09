@@ -122,6 +122,8 @@ button:focus-visible,a:focus-visible,#country:focus-visible{outline:3px solid va
 .ev.lead .brief{font-size:17px}
 .scope{font-weight:700;font-size:12px;border-radius:4px;padding:1px 6px;color:var(--muted);border:1px solid var(--line)}
 .scope.out{color:var(--t-intl);border-color:currentColor}
+.ai-mark{font-weight:700;font-size:12px;color:var(--muted);border:1px solid var(--line);border-radius:4px;padding:0 6px;cursor:help}
+.ai-mark.high{color:var(--accent);border-color:currentColor}
 .fresh{font-weight:700;font-size:12px;color:var(--surface);background:var(--t-economy);border-radius:4px;padding:1px 6px}
 .src a{color:var(--muted);text-underline-offset:3px}
 .src a:hover{color:var(--accent)}
@@ -225,7 +227,7 @@ footer a{color:var(--muted)}
       </span>
       <datalist id="countries"></datalist>
     </form>
-    <p class="lede">Главные события последних двух дней по ключевым странам: политика, безопасность и экономика. До 25 новостей. Только проверенные издания. Сначала то, о чём пишут сразу несколько из них, в конце новости из одного издания.</p>
+    <p class="lede">Главные события последних двух дней по ключевым странам: политика, безопасность и экономика. До 25 новостей. Только проверенные издания. Порядок определяют число изданий, которые пишут о событии, тема, свежесть и оценка важности от ИИ.</p>
     <div class="quick" id="quick"><span>Страны:</span></div>
   </section>
 
@@ -240,8 +242,8 @@ footer a{color:var(--muted)}
   </main>
 
   <footer>
-    <p>Новости за последние 2 дня, обновление каждые 15 минут. Важность определяется автоматически: по числу изданий, теме и свежести.</p>
-    <details><summary>Источники: 55 изданий</summary><p>ТАСС, РИА Новости, Интерфакс, Коммерсантъ, РБК, Ведомости, BBC Русская служба, DW на русском, BBC News, The Guardian, The New York Times, Al Jazeera, Deutsche Welle, France 24, Politico Europe, CNBC, Лента.ру, Газета.ру, Euronews на русском, БелТА, Tengrinews, Курсив, Bloomberg, The Washington Post, The Independent, South China Morning Post, The Times of India, The Japan Times, Notes from Poland, The Kyiv Independent, Взгляд, Российская газета, УНИАН, Euronews, ABC News, CBS News, NPR, Financial Times, Le Monde, Anadolu Agency, Haaretz, Tehran Times, Ukrinform, Ukrainska Pravda, Hindustan Times, The Hindu, Japan Today, Kazinform, The Astana Times, CGTN, Hespress English, North Africa Post, Asharq Al-Awsat, The Rio Times, MercoPress.</p></details>
+    <p>Новости за последние 2 дня, обновление каждые 15 минут. Важность определяется автоматически: по числу изданий, теме, свежести и оценке ИИ от 1 до 10 (метка «ИИ: 8/10» у события). Новость из одного издания поднимается к главным, если ИИ оценил её на 8 и выше.</p>
+    <p>Источники: около 300 российских и зарубежных изданий, полный список <a href="./#sources">на главной</a>.</p>
   </footer>
 </div>
 

@@ -37,6 +37,17 @@ function drawBoard(status) {
   }
 }
 
+// "Откуда новости": every outlet the collector reads (data/status.json), by language
+function drawSources(list) {
+  if (!list.length) return;
+  document.querySelectorAll("[data-sources]").forEach(n => { n.textContent = String(list.length); });
+  document.querySelectorAll("#sources ul[data-lang]").forEach(ul => {
+    ul.textContent = "";
+    for (const src of list.filter(x => x.lang === ul.dataset.lang).sort((x, y) => x.name.localeCompare(y.name, "ru"))) ul.append(el("li", null, src.name));
+    ul.parentElement.querySelector("h3").textContent = (ul.dataset.lang === "Russian" ? "На русском" : "На английском") + ` (${ul.children.length})`;
+  });
+}
+
 let lastStatus = null;
 const globe = Globe.mount(document.getElementById("globe"), { max: 500 });
 drawBoard(null);
@@ -44,7 +55,7 @@ Account.onChange(e => { if (e !== "TOKEN_REFRESHED") drawBoard(lastStatus); if (
 fetch("data/status.json?t=" + Date.now(), { cache: "no-store" })
   .then(r => r.ok ? r.json() : Promise.reject())
   .then(s => {
-    lastStatus = s; drawBoard(s); globe.setStatus(s);
+    lastStatus = s; drawBoard(s); globe.setStatus(s); drawSources(s.sources || []);
     const t = new Date(s.updated), min = Math.round((Date.now() - t) / 60000);
     const total = Object.values(s.countries).reduce((n, c) => n + c.items, 0);
     document.getElementById("live").textContent =

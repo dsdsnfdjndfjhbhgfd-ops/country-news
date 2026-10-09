@@ -38,7 +38,9 @@ function topicOf(title) {
 }
 function isSoft(title) { const t = norm(title); return SOFT.some(w => t.includes(" " + w)); }
 
-function cluster(items, c, singles, limit = 25) {
+// `rate(g)` (optional) gives the AI's importance mark of an event, 1–10 (data/importance.json).
+// It moves the event up or down: 10 adds as much as five more outlets, 1 takes away four.
+function cluster(items, c, singles, limit = 25, rate = null) {
   const countryStems = [low(c.ru), low(c.en), low(c.loc || "")].flatMap(n => n.split(/\s+/)).filter(w => w.length >= 4).map(w => w.slice(0, 5));
   // Words found in many headlines of this country ("Путин", "заявил", "развитие") say nothing
   // about which event a headline is about, so they are not used for grouping
@@ -46,12 +48,16 @@ function cluster(items, c, singles, limit = 25) {
   const df = new Map();
   for (const st of all) for (const w of st) df.set(w, (df.get(w) || 0) + 1);
   const common = Math.max(6, items.length * 0.025);
-  const groups = [];
+  // Groups are found through the words of their first headline, so a headline is compared only with
+  // groups it shares a word with (in the order they were made), not with every group
+  const groups = [], byStem = new Map();
   items.forEach((a, n) => {
     const st = new Set([...all[n]].filter(w => df.get(w) <= common));
     if (st.size < 2) return;
     let home = null, bestScore = 0;
-    for (const g of groups) {
+    const near = new Set();
+    for (const s of st) for (const g of byStem.get(s) || []) near.add(g);
+    for (const g of [...near].sort((x, y) => x.n - y.n)) {
       if (g.lang !== a.language) continue;
       // Compare with the headline the group started from, so a group cannot drift to other topics
       let shared = 0; for (const s of st) if (g.core.has(s)) shared++;
@@ -59,7 +65,11 @@ function cluster(items, c, singles, limit = 25) {
       if ((shared >= 3 || (shared >= 2 && j >= 0.5)) && j > bestScore) { bestScore = j; home = g; }
     }
     if (home) { home.items.push(a); for (const s of st) home.stems.add(s); }
-    else groups.push({ lang: a.language, core: st, stems: new Set(st), items: [a] });
+    else {
+      const g = { n: groups.length, lang: a.language, core: st, stems: new Set(st), items: [a] };
+      groups.push(g);
+      for (const s of st) { if (!byStem.has(s)) byStem.set(s, []); byStem.get(s).push(g); }
+    }
   });
   for (const g of groups) {
     g.domains = new Set(g.items.map(i => i.source || i.domain)).size;
@@ -71,13 +81,16 @@ function cluster(items, c, singles, limit = 25) {
     g.fresh = ageH < 3;
     // Coverage matters most, but fresh events rise so the feed keeps moving
     g.score = g.domains * 2 + (g.topic ? 3 : 0) + (ageH < 3 ? 4 : ageH < 12 ? 2 : 0);
+    const ai = rate ? rate(g) : null;
+    if (ai >= 1 && ai <= 10) { g.ai = ai; g.score += (ai - 5) * 2; }
   }
   const ranked = groups.filter(g => !g.soft && g.topic)
     .sort((x, y) => y.score - x.score || y.items.length - x.items.length);
-  const multi = ranked.filter(g => g.domains >= 2);
-  // Single-outlet stories always go after the ones several outlets cover
-  if (singles) return multi.concat(ranked.filter(g => g.domains < 2)).slice(0, limit);
-  return (multi.length >= 8 ? multi : multi.concat(ranked.filter(g => g.domains < 2).slice(0, 8 - multi.length))).slice(0, limit);
+  // Main part: what several outlets cover, plus single-outlet stories the AI rates 8 or higher
+  const main = g => g.domains >= 2 || g.ai >= 8;
+  const multi = ranked.filter(main), rest = ranked.filter(g => !main(g));
+  if (singles) return multi.concat(rest).slice(0, limit);
+  return (multi.length >= 8 ? multi : multi.concat(rest.slice(0, 8 - multi.length))).slice(0, limit);
 }
 
 // ---------- "Why it matters" without AI ----------

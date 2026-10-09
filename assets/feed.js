@@ -98,7 +98,11 @@ async function loadSummary(v) {
   if (v === summaryVersion) return;
   try { const r = await fetch("data/summary.json?v=" + encodeURIComponent(v)); if (r.ok) { SUMMARY = (await r.json()).items || {}; summaryVersion = v; } } catch {}
   try { const r = await fetch("data/essays.json?v=" + encodeURIComponent(v)); if (r.ok) ESSAYS = (await r.json()).countries || {}; } catch {}
+  try { const r = await fetch("data/importance.json?v=" + encodeURIComponent(v)); if (r.ok) IMPORTANCE = (await r.json()).items || {}; } catch {}
 }
+// The AI's importance mark of an event (1–10, data/importance.json): core.cluster adds it to the score
+let IMPORTANCE = {};
+const rateOf = g => { for (const i of g.items) if (IMPORTANCE[i.url]) return IMPORTANCE[i.url]; return null; };
 // Essays: 200–300 words per country on its main problem in politics, security and economy
 let ESSAYS = {};
 const ESSAY_TOPICS = ["Политика", "Безопасность", "Экономика"];
@@ -336,7 +340,7 @@ function render(c, allItems, info) {
   shown = { c, allItems, info };
   markQuick(c.code);
   const items = inPeriod(allItems);
-  const everything = cluster(items, c, prefs.singles, Infinity);
+  const everything = cluster(items, c, prefs.singles, Infinity, rateOf);
   const counts = { all: everything.length, scope: {} };
   for (const g of everything) counts[g.topic[0]] = (counts[g.topic[0]] || 0) + 1;
   let list = view.sphere === "all" ? everything : everything.filter(g => g.topic[0] === view.sphere);
@@ -406,6 +410,7 @@ function render(c, allItems, info) {
     facts.append(meter(g.domains, color));
     facts.append(el("span", null, g.domains > 1 ? `пишут ${g.domains} ${plural(g.domains, "издание", "издания", "изданий")}` : "одно издание"));
     if (g.fresh) facts.append(el("span", "fresh", "Новое"));
+    if (g.ai) { const m = el("span", "ai-mark" + (g.ai >= 8 ? " high" : ""), `ИИ: ${g.ai}/10`); m.title = "Важность по оценке ИИ, от 1 до 10. Учитывается в порядке ленты вместе с числом изданий, темой и свежестью."; facts.append(m); }
     if (g.scope) facts.append(el("span", "scope " + g.scope, g.scope === "out" ? "Внешняя повестка" : "Внутри страны"));
     body.append(facts);
 

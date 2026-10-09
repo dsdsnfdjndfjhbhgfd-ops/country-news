@@ -52,7 +52,10 @@
       const items = (await r.json()).items || [];
       const seen = new Set(), from = Date.now() - 48 * 3600000;
       const recent = items.filter(a => { const k = low(a.title).slice(0, 70); if (!a.title || seen.has(k)) return false; seen.add(k); return seenTime(a.seendate) >= from; });
-      const events = cluster(recent, countryOf(c), true, 25).map(g => ({ url: g.lead.url, title: short(g.lead.title), source: g.lead.source || g.lead.domain, outlets: g.domains }));
+      let marks = {};
+      try { const m = await fetch(`data/importance.json?v=${encodeURIComponent(v)}`); if (m.ok) marks = (await m.json()).items || {}; } catch {}
+      const rateOf = g => { for (const i of g.items) if (marks[i.url]) return marks[i.url]; return null; };
+      const events = cluster(recent, countryOf(c), true, 25, rateOf).map(g => ({ url: g.lead.url, title: short(g.lead.title), source: g.lead.source || g.lead.domain, outlets: g.domains }));
       const all = new Map(items.map(a => [a.url, a]));
       feeds[c] = { events, all, loadedAt: Date.now() };
     } catch (e) {

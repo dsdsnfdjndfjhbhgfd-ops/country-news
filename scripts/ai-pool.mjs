@@ -105,7 +105,7 @@ export async function askProvider(p, text) {
   for (const model of models) {
     try {
       const call = () => fetch(p.base + "/chat/completions", {
-        method: "POST", signal: AbortSignal.timeout(300000),
+        method: "POST", signal: AbortSignal.timeout(150000), // a slow answer must not hold the whole collection
         headers: { "Authorization": `Bearer ${p.key}`, "Content-Type": "application/json", "HTTP-Referer": "https://github.com/dsdsnfdjndfjhbhgfd-ops/country-news", "X-Title": "ev.news" },
         body: JSON.stringify({ model, temperature: 0.2, max_tokens: p.maxTokens || 30000, messages: [{ role: "user", content: text }] })
       });
@@ -115,7 +115,7 @@ export async function askProvider(p, text) {
       if (!r.ok) throw new Error(`HTTP ${r.status}: ${body.replace(/\s+/g, " ").slice(0, r.status === 429 ? 900 : 300)}`);
       let data; try { data = JSON.parse(body); } catch { throw new Error(`not JSON: ${body.slice(0, 120)}`); }
       const content = (data.choices?.[0]?.message?.content || "").replace(/<think>[\s\S]*?<\/think>/g, "");
-      if (!content.includes("{")) throw new Error(`no JSON in answer: ${body.slice(0, 120)}`);
+      if (!content.includes("{")) throw new Error(`no JSON in answer (finish: ${data.choices?.[0]?.finish_reason || "?"}, ${content.trim().slice(0, 80) || "empty"})`);
       return { text: content, model };
     } catch (e) { errors.push(`${model}: ${e.message}`); }
   }
@@ -151,13 +151,15 @@ export function parseAnswer(out) {
 // `jobs` is the list of events still without a summary (best first), `makePrompt(batch)` builds a request,
 // `apply(batch, items, provider, model)` stores the answers and returns how many were kept.
 // A provider is skipped while it is paused after an error or while its gap since the last request has not passed.
-export async function runPool({ providers, state, jobs, now, makePrompt, apply, maxBatches = 40, log = console.log }) {
+// `deadline` (a time stamp): no new request starts after it, the rest waits for the next collection.
+export async function runPool({ providers, state, jobs, now, makePrompt, apply, maxBatches = 40, deadline = Infinity, log = console.log }) {
   let left = jobs.slice(), done = 0;
   const report = [];
   for (const p of providers) {
     const s = state[p.name] = state[p.name] || {};
     if ((s.blockedUntil || 0) > now) { report.push(`${p.name}: paused until ${new Date(s.blockedUntil).toISOString()}`); continue; }
     if (s.lastAskAt && now - s.lastAskAt < p.gap * 60000) { report.push(`${p.name}: next request is not due yet`); continue; }
+    if (Date.now() > deadline) { report.push(`${p.name}: out of time, the rest goes to the next run`); continue; }
     let used = 0, runs = Math.min(p.runs, maxBatches), stop = false;
     // `parallel` requests go out together; a round waits for all of them before the next one starts
     while (runs > 0 && left.length && !stop) {
@@ -181,6 +183,7 @@ export async function runPool({ providers, state, jobs, now, makePrompt, apply, 
         s.blockedUntil = now + (/HTTP 429/.test(r.error.message) ? Math.max(retryAfterMs(r.error.message), 30 * 60000) : /HTTP 40[13]/.test(r.error.message) ? 6 * 3600000 : 20 * 60000); // a rejected key is not retried every run
         stop = true;
       }
+      if (Date.now() > deadline) stop = true;
       if (runs > 0 && left.length && !stop) await new Promise(res => setTimeout(res, 7000));
     }
     report.push(`${p.name}: +${used}`);

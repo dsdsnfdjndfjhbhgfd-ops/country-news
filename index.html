@@ -158,7 +158,7 @@ footer a{color:var(--muted)}
   <section class="hero">
     <div class="hero-text">
     <h1>Главное о <mark>18 странах</mark> за последние двое суток</h1>
-    <p>Сайт сам читает 55 российских и зарубежных изданий, раскладывает новости по странам и оставляет только политику, безопасность и экономику. Сверху то, о чём пишут сразу несколько редакций.</p>
+    <p>Сайт сам читает <span data-sources>300</span> российских и зарубежных изданий, раскладывает новости по странам и оставляет только политику, безопасность и экономику. Сверху то, о чём пишут сразу несколько редакций и что ИИ считает важным.</p>
     <div class="cta">
       <a class="btn" href="news.html">Открыть ленту</a>
       <a class="btn ghost" href="#features">Что умеет сайт</a>
@@ -213,9 +213,9 @@ footer a{color:var(--muted)}
     <h2>Как это работает</h2>
     <p class="sub">Всё происходит автоматически, без редактора. Сборщик запускается на GitHub примерно каждые 15–20 минут.</p>
     <ol class="steps">
-      <li><h3>Сбор</h3><p>Забираем свежие материалы прямо из лент 55 изданий и храним их 48 часов.</p></li>
+      <li><h3>Сбор</h3><p>Забираем свежие материалы прямо из лент <span data-sources>300</span> изданий и храним их 48 часов.</p></li>
       <li><h3>Страны</h3><p>Новость относится к стране, если та названа в заголовке или хотя бы дважды в анонсе: по названию, столице, именам лидеров.</p></li>
-      <li><h3>Отбор</h3><p>Похожие заголовки склеиваются в одно событие. Спорт, шоу-бизнес и прочее отсеиваются. Важность: <span class="meter" aria-hidden="true"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></span>сколько изданий пишут, тема и свежесть.</p></li>
+      <li><h3>Отбор</h3><p>Похожие заголовки склеиваются в одно событие. Спорт, шоу-бизнес и прочее отсеиваются. Важность: <span class="meter" aria-hidden="true"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></span>сколько изданий пишут, тема, свежесть и оценка важности от ИИ (от 1 до 10).</p></li>
       <li><h3>Изложение</h3><p>ИИ пишет «Кратко» и «Почему это важно» для главных событий, а раз в 6 часов — обзоры стран. Текст берётся только из заголовков и анонсов изданий.</p></li>
     </ol>
   </section>
@@ -224,8 +224,8 @@ footer a{color:var(--muted)}
     <h2>Откуда новости</h2>
     <p class="sub">Только выбранные издания, без агрегаторов и соцсетей. Ссылка в каждой новости ведёт на первоисточник. Как читатели оценивают эти издания, смотрите в <a href="ratings.html">рейтинге изданий</a>.</p>
     <div class="src" id="sources">
-      <div><h3>На русском</h3><ul><li>ТАСС</li><li>РИА Новости</li><li>Интерфакс</li><li>Коммерсантъ</li><li>РБК</li><li>Ведомости</li><li>BBC Русская служба</li><li>DW на русском</li><li>Лента.ру</li><li>Газета.ру</li><li>Euronews на русском</li><li>БелТА</li><li>Tengrinews</li><li>Курсив</li><li>Взгляд</li><li>Российская газета</li><li>УНИАН</li></ul></div>
-      <div><h3>На английском</h3><ul><li>BBC News</li><li>The Guardian</li><li>The New York Times</li><li>Al Jazeera</li><li>Deutsche Welle</li><li>France 24</li><li>Politico Europe</li><li>CNBC</li><li>Bloomberg</li><li>The Washington Post</li><li>The Independent</li><li>South China Morning Post</li><li>The Times of India</li><li>The Japan Times</li><li>Notes from Poland</li><li>The Kyiv Independent</li><li>Euronews</li><li>ABC News</li><li>CBS News</li><li>NPR</li><li>Financial Times</li><li>Le Monde</li><li>Anadolu Agency</li><li>Haaretz</li><li>Tehran Times</li><li>Ukrinform</li><li>Ukrainska Pravda</li><li>Hindustan Times</li><li>The Hindu</li><li>Japan Today</li><li>Kazinform</li><li>The Astana Times</li><li>CGTN</li><li>Hespress English</li><li>North Africa Post</li><li>Asharq Al-Awsat</li><li>The Rio Times</li><li>MercoPress</li></ul></div>
+      <div><h3>На русском</h3><ul data-lang="Russian"><li>Загружаю список…</li></ul></div>
+      <div><h3>На английском</h3><ul data-lang="English"><li>Загружаю список…</li></ul></div>
     </div>
   </section>
 
@@ -233,7 +233,7 @@ footer a{color:var(--muted)}
     <h2>Что стоит знать</h2>
     <ul class="limits">
       <li>Отбор автоматический. Он опирается на заголовки и анонсы, а не на полный текст статей, поэтому изредка новость попадает не в ту страну или тема определяется неточно.</li>
-      <li>Изложения, обзоры и ответы в чате пишет ИИ. Он старается не добавлять ничего от себя, но может ошибаться: важное проверяйте в первоисточнике.</li>
+      <li>Изложения, обзоры, оценку важности событий и ответы в чате делает ИИ. Он старается не добавлять ничего от себя, но может ошибаться: важное проверяйте в первоисточнике.</li>
       <li>Подробности события всегда в первоисточнике: переходите по ссылке на статью издания.</li>
       <li>Число изданий показывает, насколько широко событие освещают, но не подтверждает, что оно произошло именно так.</li>
       <li>Издания держат в лентах только последние материалы, поэтому сайт видит то, что вышло, пока он работает.</li>
