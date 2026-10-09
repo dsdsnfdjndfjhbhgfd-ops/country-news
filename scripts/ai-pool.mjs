@@ -13,11 +13,11 @@
 //     LLM_PARALLEL_<NAME> optional, how many of those requests go at the same time (default 1)
 //   LLM_MAX_TOKENS                               optional, answer length limit for every service (default 30000)
 //   ANTHROPIC_API_KEY                            Claude (name "claude")
+// Gemini and Groq are switched off: a provider at their address (or named GEMINI / GROQ) is skipped,
+// so all requests go to DeepSeek (now the service in LLM_KEY_EXTRA1 + LLM_BASE_EXTRA1).
 // Nothing here prints or stores a key.
 
 const KNOWN = {
-  GEMINI:     { base: "https://generativelanguage.googleapis.com/v1beta/openai", batch: 30, gap: 100, runs: 1 },
-  GROQ:       { base: "https://api.groq.com/openai/v1", models: ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"], batch: 25, gap: 15, runs: 2 },
   CEREBRAS:   { base: "https://api.cerebras.ai/v1", models: ["llama-3.3-70b", "llama3.1-8b"], batch: 25, gap: 15, runs: 2 },
   MISTRAL:    { base: "https://api.mistral.ai/v1", models: ["mistral-small-latest"], batch: 25, gap: 30, runs: 1 },
   DEEPSEEK:   { base: "https://api.deepseek.com", models: ["deepseek-chat"], batch: 30, gap: 5, runs: 3 },
@@ -27,6 +27,9 @@ const KNOWN = {
   NVIDIA:     { base: "https://integrate.api.nvidia.com/v1", models: ["meta/llama-3.3-70b-instruct"], batch: 25, gap: 30, runs: 1 },
   OPENAI:     { base: "https://api.openai.com/v1", models: ["gpt-4o-mini"], batch: 30, gap: 5, runs: 3 }
 };
+
+const OFF_NAMES = new Set(["GEMINI", "GROQ"]);
+const OFF_BASE = /generativelanguage\.googleapis\.com|api\.groq\.com/i;
 
 // GitHub gives secrets only to steps that name them; ALL_SECRETS carries the whole set as JSON
 // and only names that start with LLM_ or ANTHROPIC_ are ever read from it.
@@ -46,16 +49,20 @@ export function loadProviders(rawEnv = process.env) {
   const split = v => String(v || "").split(",").map(s => s.trim()).filter(Boolean);
   if (env.LLM_API_KEY) {
     const base = (env.LLM_BASE_URL || "https://openrouter.ai/api/v1").replace(/\/+$/, "");
-    const known = Object.values(KNOWN).find(k => k.base === base) || {};
-    list.push({ name: "main", kind: "openai", key: env.LLM_API_KEY, base, models: split(env.LLM_MODEL), defaults: known.models || [],
-      batch: num(env.LLM_BATCH, known.batch || 30), gap: num(env.LLM_GAP, known.gap || 100), runs: num(env.LLM_RUNS, known.runs || 1),
-      parallel: num(env.LLM_PARALLEL, 1), maxTokens });
+    if (OFF_BASE.test(base)) console.log("Provider main: Gemini / Groq are switched off, skipped");
+    else {
+      const known = Object.values(KNOWN).find(k => k.base === base) || {};
+      list.push({ name: "main", kind: "openai", key: env.LLM_API_KEY, base, models: split(env.LLM_MODEL), defaults: known.models || [],
+        batch: num(env.LLM_BATCH, known.batch || 30), gap: num(env.LLM_GAP, known.gap || 100), runs: num(env.LLM_RUNS, known.runs || 1),
+        parallel: num(env.LLM_PARALLEL, 1), maxTokens });
+    }
   }
   for (const [n, key] of Object.entries(env)) {
     const m = n.match(/^LLM_KEY_([A-Z0-9]+)$/);
     if (!m || !key) continue;
     const N = m[1], k = KNOWN[N] || {};
     const base = (env["LLM_BASE_" + N] || k.base || "").replace(/\/+$/, "");
+    if (OFF_NAMES.has(N) || OFF_BASE.test(base)) { console.log(`Provider ${N}: Gemini / Groq are switched off, skipped`); continue; }
     if (!base) { console.log(`Provider ${N}: no address known, add the variable LLM_BASE_${N}`); continue; }
     list.push({ name: N.toLowerCase(), kind: "openai", key, base, models: split(env["LLM_MODEL_" + N]), defaults: k.models || [],
       batch: num(env["LLM_BATCH_" + N], k.batch || 25), gap: num(env["LLM_GAP_" + N], k.gap || 30), runs: num(env["LLM_RUNS_" + N], k.runs || 1),
@@ -67,18 +74,11 @@ export function loadProviders(rawEnv = process.env) {
 
 async function modelsOf(p) {
   if (p.models.length) return p.models;
-  const gemini = p.base.includes("generativelanguage.googleapis.com");
-  if (gemini || p.base.includes("openrouter.ai")) {
+  if (p.base.includes("openrouter.ai")) {
     try {
       const r = await fetch(p.base + "/models", { signal: AbortSignal.timeout(20000), headers: { Authorization: `Bearer ${p.key}` } });
       if (!r.ok) throw new Error("HTTP " + r.status);
       let ids = ((await r.json()).data || []).map(m => String(m.id).replace(/^models\//, ""));
-      if (gemini) {
-        ids = ids.filter(id => /^gemini-/.test(id) && !/(image|tts|embedding|live|audio|vision|robotics|computer|thinking|exp|customtools|preview-\d)/i.test(id));
-        const ver = id => parseFloat((id.match(/gemini-(\d+(?:\.\d+)?)/) || [])[1]) || 0;
-        const tier = id => /flash-lite/.test(id) ? 1 : /flash/.test(id) ? 0 : 2;
-        return ids.sort((x, y) => tier(x) - tier(y) || ver(y) - ver(x) || x.localeCompare(y)).slice(0, 7);
-      }
       ids = ids.filter(id => /:free$/.test(id));
       const rank = id => /deepseek/i.test(id) ? 0 : /(qwen|llama|gemma|mistral)/i.test(id) ? 1 : 2;
       const plain = id => /(r1|reason|think)/i.test(id) ? 1 : 0;

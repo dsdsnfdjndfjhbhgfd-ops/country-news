@@ -51,11 +51,10 @@ jobs:
         run: node scripts/prefetch.mjs
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          LLM_API_KEY: ${{ secrets.LLM_API_KEY }}       # key of the AI service (secret)
+          LLM_API_KEY: ${{ secrets.LLM_API_KEY }}       # key of the AI service (secret); skipped while it points to Gemini
           LLM_BASE_URL: ${{ vars.LLM_BASE_URL }}        # optional: service address
           LLM_MODEL: ${{ vars.LLM_MODEL }}              # optional: model id(s)
           # More AI services: one secret each (a secret that does not exist is simply empty)
-          LLM_KEY_GROQ: ${{ secrets.LLM_KEY_GROQ }}
           LLM_KEY_CEREBRAS: ${{ secrets.LLM_KEY_CEREBRAS }}
           LLM_KEY_MISTRAL: ${{ secrets.LLM_KEY_MISTRAL }}
           LLM_KEY_DEEPSEEK: ${{ secrets.LLM_KEY_DEEPSEEK }}
@@ -64,7 +63,6 @@ jobs:
           LLM_KEY_SAMBANOVA: ${{ secrets.LLM_KEY_SAMBANOVA }}
           LLM_KEY_NVIDIA: ${{ secrets.LLM_KEY_NVIDIA }}
           LLM_KEY_OPENAI: ${{ secrets.LLM_KEY_OPENAI }}
-          LLM_KEY_GEMINI: ${{ secrets.LLM_KEY_GEMINI }}
           LLM_KEY_EXTRA1: ${{ secrets.LLM_KEY_EXTRA1 }}   # any other service: also add the variable LLM_BASE_EXTRA1
           LLM_BASE_EXTRA1: ${{ vars.LLM_BASE_EXTRA1 }}
           LLM_MODEL_EXTRA1: ${{ vars.LLM_MODEL_EXTRA1 }}
