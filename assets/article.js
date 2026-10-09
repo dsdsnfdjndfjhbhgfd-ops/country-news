@@ -182,22 +182,36 @@ function render(c, g, groups, d) {
     const lab = el("span", "label", "Кратко о событии");
     const txt = el("p", "brief-ask", "Пересказа пока нет. ИИ может составить его по заголовкам и анонсам изданий.");
     const btn = el("button", "brief-btn", "Пересказать с помощью ИИ"); btn.type = "button";
-    const note = el("small", null, "Текст пишет ИИ и показывается всем читателям. Лимит: 20 пересказов в сутки на человека.");
+    const limitNote = () => Account.vip
+      ? `Текст пишет ИИ и показывается всем читателям. Лимит с VIP: ${Account.summaryLimit} пересказов в сутки.`
+      : `Текст пишет ИИ и показывается всем читателям. Лимит: ${Account.summaryLimit} пересказа в сутки, с VIP — 25.`;
+    const note = el("small", null, limitNote());
+    // VIP status loads after sign-in: refresh the limit in the note when it arrives
+    Account.onChange(() => { if (note.isConnected) note.textContent = limitNote(); });
     const err = el("small", "brief-err"); err.setAttribute("role", "status"); err.hidden = true;
-    const done = text => {
+    const done = r => {
       bs.textContent = "";
-      bs.append(el("span", "label", "Кратко о событии"), el("p", null, text),
-        el("small", null, "Изложение написано ИИ по заголовкам и анонсам изданий, а не по полным текстам. Подробности смотрите в статьях."));
+      bs.append(el("span", "label", "Кратко о событии"), el("p", null, r.text));
+      if (r.why) bs.append(el("span", "label why", "Почему это важно"), el("p", "why", r.why));
+      bs.append(el("small", null, "Изложение написано ИИ по заголовкам и анонсам изданий, а не по полным текстам. Подробности смотрите в статьях."));
     };
-    btn.onclick = async () => {
+    const ask = label => async () => {
       btn.disabled = true; btn.textContent = "ИИ пишет пересказ…"; err.hidden = true;
       try { done(await Account.requestSummary(c.code, g.items.map(x => x.url))); }
-      catch (e) { err.textContent = e.message; err.hidden = false; btn.disabled = false; btn.textContent = "Пересказать с помощью ИИ"; }
+      catch (e) { err.textContent = e.message; err.hidden = false; btn.disabled = false; btn.textContent = label; }
     };
+    btn.onclick = ask("Пересказать с помощью ИИ");
     bs.append(lab, txt, btn, note, err);
     main.append(bs);
     // Someone may have asked for it already: show that text right away
-    Account.savedSummary(g.items.map(x => x.url)).then(t => { if (t && bs.isConnected) done(t); }).catch(() => {});
+    // (an older one without "why it matters" is shown too; asking again adds "why it matters")
+    Account.savedSummary(g.items.map(x => x.url)).then(r => {
+      if (!r || !r.text || !bs.isConnected) return;
+      if (r.why) return done(r);
+      txt.textContent = r.text;
+      btn.textContent = "Добавить «Почему это важно»";
+      btn.onclick = ask(btn.textContent);
+    }).catch(() => {});
   }
 
   // The outlet's own summary from its feed, plus where to read the full article

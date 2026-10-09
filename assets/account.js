@@ -11,6 +11,7 @@
     : null;
 
   let user = null, recovery = false, admin = false, vip = null;
+  const SUMMARY_LIMITS = { free: 3, vip: 25 };
   let profile = { countries: [], settings: {} };
   const saved = new Map(); // url -> row
   const listeners = new Set();
@@ -231,8 +232,8 @@
     // ---------- Summaries written on request (Edge Function "summarize") ----------
     async savedSummary(urls) {
       if (!sb || !user || !urls.length) return "";
-      const { data } = await sb.from("event_summaries").select("summary").in("url", urls.slice(0, 6)).limit(1);
-      return data?.[0]?.summary || "";
+      const { data } = await sb.from("event_summaries").select("summary, why").in("url", urls.slice(0, 6)).limit(1);
+      return data?.[0] ? { text: data[0].summary || "", why: data[0].why || "" } : null;
     },
     // VIP subscription (250 ₽ for 30 days). For now it unlocks nothing; payments go through
     // the Edge Function "subscribe": test mode until YooKassa keys are added to Supabase secrets.
@@ -261,6 +262,8 @@
       return this.vip;
     },
 
+    // Daily limit of summaries on request; the Edge Function "summarize" checks the same numbers
+    get summaryLimit() { return this.vip ? SUMMARY_LIMITS.vip : SUMMARY_LIMITS.free; },
     async requestSummary(country, urls) {
       if (!user) throw new Error("Войдите, чтобы запросить пересказ.");
       need();
@@ -270,7 +273,9 @@
         try { code = (await error.context.json()).error || ""; } catch {}
         const text = {
           login_required: "Войдите, чтобы запросить пересказ.",
-          limit_user: "Вы использовали все пересказы на сегодня (20 в сутки). Завтра лимит обновится.",
+          limit_user: Account.vip
+            ? `Вы использовали все пересказы на сегодня (${Account.summaryLimit} в сутки). Завтра лимит обновится.`
+            : `Вы использовали все пересказы на сегодня (${Account.summaryLimit} в сутки). С VIP-подпиской — ${SUMMARY_LIMITS.vip} в сутки.`,
           limit_global: "Сегодня общий лимит пересказов исчерпан. Попробуйте завтра.",
           not_configured: "Пересказ по запросу ещё не включён на сайте.",
           ai_unavailable: "ИИ сейчас не отвечает. Попробуйте через несколько минут.",
@@ -280,7 +285,7 @@
         throw new Error(text || "Не получилось получить пересказ. Попробуйте позже.");
       }
       if (!data?.summary) throw new Error("ИИ вернул пустой ответ. Попробуйте ещё раз.");
-      return String(data.summary);
+      return { text: String(data.summary), why: String(data.why || "") };
     },
 
     isSaved(url) { return saved.has(url); },
@@ -336,7 +341,10 @@
         <p class="acc-hint" aria-live="polite" hidden></p>
         <div class="acc-pass">
           <label for="acc-password">Пароль</label>
-          <input id="acc-password" type="password" minlength="6" required>
+          <div class="acc-pw">
+            <input id="acc-password" type="password" minlength="6" required>
+            <button type="button" class="acc-eye" aria-label="Показать пароль" aria-pressed="false" aria-controls="acc-password">Показать</button>
+          </div>
         </div>
         <p class="acc-msg" role="status" aria-live="polite"></p>
         <button type="submit" class="acc-submit"></button>
@@ -346,6 +354,17 @@
     const form = d.querySelector("form"), msg = d.querySelector(".acc-msg"), submit = d.querySelector(".acc-submit");
     const email = d.querySelector("#acc-email"), pass = d.querySelector("#acc-password"), nick = d.querySelector("#acc-nick");
     let mode = "signin";
+    // Show / hide the password as typed
+    const eye = d.querySelector(".acc-eye");
+    const showPass = on => {
+      pass.type = on ? "text" : "password";
+      eye.textContent = on ? "Скрыть" : "Показать";
+      eye.setAttribute("aria-label", on ? "Скрыть пароль" : "Показать пароль");
+      eye.setAttribute("aria-pressed", String(on));
+    };
+    eye.onmousedown = ev => ev.preventDefault(); // keep the cursor in the field
+    eye.onclick = () => showPass(pass.type === "password");
+    d.addEventListener("close", () => showPass(false));
     const TEXT = {
       signin: ["Вход в ev.news", "Войдите, чтобы читать ленту, сохранять новости и выбирать свои страны.", "Войти", "current-password"],
       signup: ["Регистрация", "Нужны ник, почта и пароль. Ник видят другие читатели под вашими комментариями, почту — никто.", "Зарегистрироваться", "new-password"],

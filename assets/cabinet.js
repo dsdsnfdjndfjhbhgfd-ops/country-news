@@ -130,7 +130,17 @@ function renderNewPassword(fromCabinet) {
   const inp = el("input"); inp.type = "password"; inp.id = "np"; inp.autocomplete = "new-password"; inp.minLength = 6;
   const msg = el("p", "msg");
   const btn = el("button", "btn primary", "Сохранить пароль"); btn.type = "submit";
-  f.append(lab, inp, msg, btn);
+  // Show / hide the password as typed (same look as in the sign-in dialog)
+  const pw = el("div", "acc-pw"), eye = el("button", "acc-eye", "Показать");
+  eye.type = "button"; eye.setAttribute("aria-label", "Показать пароль"); eye.setAttribute("aria-pressed", "false");
+  eye.onmousedown = ev => ev.preventDefault();
+  eye.onclick = () => {
+    const on = inp.type === "password";
+    inp.type = on ? "text" : "password"; eye.textContent = on ? "Скрыть" : "Показать";
+    eye.setAttribute("aria-label", on ? "Скрыть пароль" : "Показать пароль"); eye.setAttribute("aria-pressed", String(on));
+  };
+  pw.append(inp, eye);
+  f.append(lab, pw, msg, btn);
   if (fromCabinet) { const c = el("button", "btn", "Отмена"); c.type = "button"; c.onclick = render; f.append(c); }
   f.addEventListener("submit", async e => {
     e.preventDefault();

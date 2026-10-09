@@ -60,3 +60,8 @@
 .star-btn[aria-pressed="true"]{color:var(--accent);border-color:var(--accent)}
 
 .acc-vip{font:800 11px var(--sans);letter-spacing:.04em;color:#3b2a00;background:var(--marker,#f2b33d);border-radius:4px;padding:1px 5px;margin-left:2px}
+.acc-pw{position:relative;margin-top:6px}
+.acc-pw input{margin-top:0;padding-right:96px}
+.acc-eye{position:absolute;top:50%;right:6px;transform:translateY(-50%);font:700 13px var(--sans);color:var(--muted);background:none;border:0;border-radius:8px;padding:8px 10px;cursor:pointer}
+.acc-eye:hover,.acc-eye[aria-pressed="true"]{color:var(--accent)}
+.acc-eye:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
