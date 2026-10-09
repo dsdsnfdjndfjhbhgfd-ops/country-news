@@ -29,7 +29,7 @@ const COUNTRIES = {
   SA: ["саудовск", "саудит", "эр-рияд", "бин салман", "saudi", "riyadh", "bin salman"],
   BR: ["бразили", "бразильск", "лула!", "лулы!", "лулу!", "brazil", "lula!", "brasilia", "brasília", "bolsonaro"]
 };
-const WINDOW_MS = 48 * 3600 * 1000, PER_SOURCE = 150, MAX_ITEMS = 5000;
+const WINDOW_MS = 48 * 3600 * 1000, PER_SOURCE = 600, MAX_ITEMS = 8000;
 
 const L = "a-zа-яё0-9";
 const matchers = Object.fromEntries(Object.entries(COUNTRIES).map(([code, words]) => [code, words.map(w => {
@@ -38,6 +38,8 @@ const matchers = Object.fromEntries(Object.entries(COUNTRIES).map(([code, words]
 })]));
 
 const now = Date.now();
+// The AI steps start no new request after this, so the whole run fits the workflow's time limit
+const DEADLINE = now + (Number(process.env.AI_MINUTES) || 6) * 60000;
 const fresh = (await Promise.all(SOURCES.map(s => fetchFeed(s)))).flat().filter(a => now - a.t < WINDOW_MS && a.t < now + 3600000);
 console.log(`Fresh items from all outlets: ${fresh.length}`);
 
@@ -139,7 +141,7 @@ function ratePrompt(batch) {
 ${lines}`;
 }
 const ratePool = HAS_AI && rateJobs.length ? await runPool({
-  providers: providers.map(p => ({ ...p, batch: RATE_BATCH })), state: impState, jobs: rateJobs, now, makePrompt: ratePrompt, maxBatches: 12,
+  providers: providers.map(p => ({ ...p, batch: RATE_BATCH })), state: impState, jobs: rateJobs, now, makePrompt: ratePrompt, maxBatches: 12, deadline: DEADLINE,
   apply(batch, items) {
     let n = 0;
     for (const r of items) {
@@ -221,7 +223,7 @@ ${lines}`;
 // Hand the events to the pool: every free service takes a batch, a failing one passes it on
 const kept = { n: 0 };
 const pool = HAS_AI ? await runPool({
-  providers, state: poolState, jobs: [...todo, ...redo].slice(0, PER_RUN), now, makePrompt: prompt,
+  providers, state: poolState, jobs: [...todo, ...redo].slice(0, PER_RUN), now, makePrompt: prompt, deadline: DEADLINE,
   apply(batch, items, p, model) {
     let n = 0;
     for (const r of items) {
@@ -288,7 +290,7 @@ ${block}`;
 // The services that can take many requests go first, so a small free quota is not spent on essays
 const essayProviders = providers.map(p => ({ ...p, batch: 1 })).sort((a, b) => b.runs - a.runs);
 const essayPool = HAS_AI && essayJobs.length ? await runPool({
-  providers: essayProviders, state: essayState, jobs: essayJobs, now, makePrompt: essayPrompt, maxBatches: 18,
+  providers: essayProviders, state: essayState, jobs: essayJobs, now, makePrompt: essayPrompt, maxBatches: 18, deadline: DEADLINE,
   apply([x], items, p, model) {
     let n = 0;
     for (const r of items) {

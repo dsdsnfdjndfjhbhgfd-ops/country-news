@@ -48,12 +48,16 @@ function cluster(items, c, singles, limit = 25, rate = null) {
   const df = new Map();
   for (const st of all) for (const w of st) df.set(w, (df.get(w) || 0) + 1);
   const common = Math.max(6, items.length * 0.025);
-  const groups = [];
+  // Groups are found through the words of their first headline, so a headline is compared only with
+  // groups it shares a word with (in the order they were made), not with every group
+  const groups = [], byStem = new Map();
   items.forEach((a, n) => {
     const st = new Set([...all[n]].filter(w => df.get(w) <= common));
     if (st.size < 2) return;
     let home = null, bestScore = 0;
-    for (const g of groups) {
+    const near = new Set();
+    for (const s of st) for (const g of byStem.get(s) || []) near.add(g);
+    for (const g of [...near].sort((x, y) => x.n - y.n)) {
       if (g.lang !== a.language) continue;
       // Compare with the headline the group started from, so a group cannot drift to other topics
       let shared = 0; for (const s of st) if (g.core.has(s)) shared++;
@@ -61,7 +65,11 @@ function cluster(items, c, singles, limit = 25, rate = null) {
       if ((shared >= 3 || (shared >= 2 && j >= 0.5)) && j > bestScore) { bestScore = j; home = g; }
     }
     if (home) { home.items.push(a); for (const s of st) home.stems.add(s); }
-    else groups.push({ lang: a.language, core: st, stems: new Set(st), items: [a] });
+    else {
+      const g = { n: groups.length, lang: a.language, core: st, stems: new Set(st), items: [a] };
+      groups.push(g);
+      for (const s of st) { if (!byStem.has(s)) byStem.set(s, []); byStem.get(s).push(g); }
+    }
   });
   for (const g of groups) {
     g.domains = new Set(g.items.map(i => i.source || i.domain)).size;
