@@ -38,7 +38,9 @@ function topicOf(title) {
 }
 function isSoft(title) { const t = norm(title); return SOFT.some(w => t.includes(" " + w)); }
 
-function cluster(items, c, singles, limit = 25) {
+// `rate(g)` (optional) gives the AI's importance mark of an event, 1–10 (data/importance.json).
+// It moves the event up or down: 10 adds about as much as four more outlets, 1 takes away three.
+function cluster(items, c, singles, limit = 25, rate = null) {
   const countryStems = [low(c.ru), low(c.en), low(c.loc || "")].flatMap(n => n.split(/\s+/)).filter(w => w.length >= 4).map(w => w.slice(0, 5));
   // Words found in many headlines of this country ("Путин", "заявил", "развитие") say nothing
   // about which event a headline is about, so they are not used for grouping
@@ -71,13 +73,17 @@ function cluster(items, c, singles, limit = 25) {
     g.fresh = ageH < 3;
     // Coverage matters most, but fresh events rise so the feed keeps moving
     g.score = g.domains * 2 + (g.topic ? 3 : 0) + (ageH < 3 ? 4 : ageH < 12 ? 2 : 0);
+    const ai = rate ? rate(g) : null;
+    if (ai >= 1 && ai <= 10) { g.ai = ai; g.score += (ai - 5) * 1.5; }
   }
   const ranked = groups.filter(g => !g.soft && g.topic)
     .sort((x, y) => y.score - x.score || y.items.length - x.items.length);
-  const multi = ranked.filter(g => g.domains >= 2);
-  // Single-outlet stories always go after the ones several outlets cover
-  if (singles) return multi.concat(ranked.filter(g => g.domains < 2)).slice(0, limit);
-  return (multi.length >= 8 ? multi : multi.concat(ranked.filter(g => g.domains < 2).slice(0, 8 - multi.length))).slice(0, limit);
+  // Main part: what several outlets cover, plus single-outlet stories the AI rates 8+;
+  // events the AI calls trivial (1–2) go down with the single-outlet ones
+  const main = g => (g.domains >= 2 && !(g.ai <= 2)) || g.ai >= 8;
+  const multi = ranked.filter(main), rest = ranked.filter(g => !main(g));
+  if (singles) return multi.concat(rest).slice(0, limit);
+  return (multi.length >= 8 ? multi : multi.concat(rest.slice(0, 8 - multi.length))).slice(0, limit);
 }
 
 // ---------- "Why it matters" without AI ----------

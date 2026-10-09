@@ -26,10 +26,17 @@ async function check(src) {
   }
 }
 
-// 25 at a time, so a slow site does not hold the others
+// A hard limit per outlet: a site that keeps the connection open cannot hold the check
+const limited = src => Promise.race([check(src), new Promise(res => setTimeout(() => res({ src, ok: false, why: "no answer in 30 s", items: 0, fresh: 0, ms: 30000 }), 30000))]);
+const print = r => console.log(`${r.ok ? "OK  " : "FAIL"} | ${r.src.name} | ${r.src.lang} | items ${r.items}, fresh ${r.fresh} | ${r.ms} ms${r.why ? " | " + r.why : ""}`);
+// 25 at a time, so a slow site does not hold the others; each line is printed as soon as it is known
 const results = [];
-for (let i = 0; i < SOURCES.length; i += 25) results.push(...await Promise.all(SOURCES.slice(i, i + 25).map(check)));
-for (const r of results) console.log(`${r.ok ? "OK  " : "FAIL"} | ${r.src.name} | ${r.src.lang} | items ${r.items}, fresh ${r.fresh} | ${r.ms} ms${r.why ? " | " + r.why : ""}`);
+for (let i = 0; i < SOURCES.length; i += 25) {
+  const batch = await Promise.all(SOURCES.slice(i, i + 25).map(limited));
+  batch.forEach(print);
+  results.push(...batch);
+}
 const ok = results.filter(r => r.ok);
 console.log(`\nWorking: ${ok.length} of ${results.length} (Russian ${ok.filter(r => r.src.lang === "Russian").length}, English ${ok.filter(r => r.src.lang === "English").length})`);
 console.log("FAILED_JSON " + JSON.stringify(results.filter(r => !r.ok).map(r => [r.src.name, r.why])));
+process.exit(0); // timers of abandoned requests must not keep the job alive

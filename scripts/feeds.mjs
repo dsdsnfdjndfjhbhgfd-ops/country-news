@@ -34,8 +34,14 @@ export function parseFeed(xml, src) {
   return out;
 }
 
-// Feed text in its own encoding: some Russian outlets still publish in windows-1251
-export async function readFeed(url, timeout = 25000) {
+// Feed text in its own encoding: some Russian outlets still publish in windows-1251.
+// A hard time limit on top of the request's own: a site that keeps sending must not hold the run.
+export function readFeed(url, timeout = 25000) {
+  let timer;
+  const limit = new Promise((_, reject) => { timer = setTimeout(() => reject(new Error(`no answer in ${timeout / 1000} s`)), timeout + 5000); });
+  return Promise.race([download(url, timeout), limit]).finally(() => clearTimeout(timer));
+}
+async function download(url, timeout) {
   const r = await fetch(url, { signal: AbortSignal.timeout(timeout), redirect: "follow", headers: { "User-Agent": "Mozilla/5.0 (compatible; country-news/1.0)", "Accept": "application/rss+xml, application/atom+xml, application/xml, text/xml, */*" } });
   if (!r.ok) throw new Error("HTTP " + r.status);
   const bytes = new Uint8Array(await r.arrayBuffer());
