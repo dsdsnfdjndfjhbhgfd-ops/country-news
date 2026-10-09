@@ -295,7 +295,7 @@ function commentsSection(c, g) {
 
   const form = el("form", "c-form"); form.noValidate = true;
   const nameRow = el("div", "c-name");
-  const nameLabel = el("label", null, "Ваше имя в комментариях"); nameLabel.htmlFor = "c-name";
+  const nameLabel = el("label", null, "Ваш ник в комментариях"); nameLabel.htmlFor = "c-name";
   const nameInput = el("input"); nameInput.id = "c-name"; nameInput.maxLength = 40; nameInput.placeholder = "Например, Алексей"; nameInput.autocomplete = "nickname";
   nameRow.append(nameLabel, nameInput);
   nameRow.hidden = !!Account.displayName;
@@ -317,7 +317,9 @@ function commentsSection(c, g) {
     for (const cm of items) {
       const li = el("li");
       const head = el("div", "c-head");
-      head.append(el("b", null, cm.author_name || "Читатель"), el("span", null, since(cm.created_at)));
+      head.append(el("b", null, cm.author_name || "Читатель"));
+      if (cm.is_vip) { const v = el("span", "c-vip", "VIP"); v.title = "У читателя VIP-подписка"; head.append(v); }
+      head.append(el("span", null, since(cm.created_at)));
       const own = Account.user && cm.user_id === Account.user.id;
       if (own || Account.isAdmin) {
         const del = el("button", "c-del", own ? "Удалить" : "Удалить как админ"); del.type = "button";

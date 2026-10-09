@@ -17,6 +17,7 @@
   let resolveReady;
   const ready = new Promise(r => (resolveReady = r));
 
+  const cleanNick = v => String(v || "").trim().replace(/\s+/g, " ");
   function notify(event) { for (const fn of listeners) { try { fn(event); } catch (e) { console.error(e); } } }
 
   async function loadUserData() {
@@ -101,9 +102,13 @@
     onChange(fn) { listeners.add(fn); return () => listeners.delete(fn); },
     human,
 
-    async signUp(email, password) {
+    async signUp(email, password, nickname) {
       need();
-      const { data, error } = await sb.auth.signUp({ email, password, options: { emailRedirectTo: SITE + "account.html" } });
+      const nick = cleanNick(nickname);
+      if (nick.length < 2 || nick.length > 40) throw new Error("Ник должен быть от 2 до 40 символов.");
+      if (await this.nicknameTaken(nick)) throw new Error("Этот ник уже занят. Придумайте другой.");
+      // The database copies the nickname into the profile when the account is created
+      const { data, error } = await sb.auth.signUp({ email, password, options: { emailRedirectTo: SITE + "account.html", data: { display_name: nick } } });
       if (error) throw new Error(human(error));
       // With e-mail confirmation on, there is no session until the link is opened
       return { needsConfirmation: !data.session };
@@ -152,11 +157,17 @@
       settingsTimer = setTimeout(flushSettings, 400);
     },
 
+    async nicknameTaken(name) {
+      need();
+      const { data, error } = await sb.rpc("nickname_taken", { nick: cleanNick(name) });
+      return !error && data === true;
+    },
     async setDisplayName(name) {
       if (!user) throw new Error("Войдите в аккаунт.");
-      const clean = String(name || "").trim().replace(/\s+/g, " ");
-      if (clean.length < 2 || clean.length > 40) throw new Error("Имя должно быть от 2 до 40 символов.");
+      const clean = cleanNick(name);
+      if (clean.length < 2 || clean.length > 40) throw new Error("Ник должен быть от 2 до 40 символов.");
       const { error } = await sb.from("profiles").upsert({ id: user.id, display_name: clean, updated_at: new Date().toISOString() });
+      if (error && /duplicate|unique|23505/i.test(error.message + error.code)) throw new Error("Этот ник уже занят. Придумайте другой.");
       if (error) throw new Error(human(error));
       profile.displayName = clean;
     },
@@ -164,8 +175,8 @@
     // ---------- Comments ----------
     async listComments(urls) {
       need();
-      const { data, error } = await sb.from("comments").select("id, url, body, author_name, created_at, user_id")
-        .in("url", urls.slice(0, 100)).order("created_at", { ascending: true }).limit(300);
+      // The authors' current nicknames and VIP marks come from the database function list_comments
+      const { data, error } = await sb.rpc("list_comments", { urls: urls.slice(0, 100) }).limit(300);
       if (error) throw new Error(human(error));
       return data || [];
     },
@@ -176,7 +187,7 @@
       if (text.length > 1000) throw new Error("Комментарий длиннее 1000 символов.");
       const { data, error } = await sb.from("comments").insert({ url, country, body: text }).select("id, url, body, author_name, created_at, user_id").single();
       if (error) throw new Error(human(error));
-      return data;
+      return { ...data, author_name: profile.displayName || data.author_name, is_vip: !!Account.vip };
     },
     async removeComment(id) {
       need();
@@ -299,7 +310,7 @@
     if (!dialog) dialog = buildDialog();
     dialog.setMode(mode);
     dialog.node.showModal();
-    dialog.node.querySelector("input[type=email]").focus();
+    dialog.node.querySelector(mode === "signup" ? "#acc-nick" : "input[type=email]").focus();
   }
 
   function buildDialog() {
@@ -316,6 +327,10 @@
         <p class="acc-lead"></p>
         <div class="acc-social" hidden></div>
         <div class="acc-or" hidden><span>или по почте</span></div>
+        <div class="acc-nick" hidden>
+          <label for="acc-nick">Ник</label>
+          <input id="acc-nick" type="text" minlength="2" maxlength="40" autocomplete="nickname" placeholder="Так вас увидят в комментариях">
+        </div>
         <label for="acc-email">Почта</label>
         <input id="acc-email" type="email" autocomplete="email" required placeholder="you@example.com">
         <p class="acc-hint" aria-live="polite" hidden></p>
@@ -329,11 +344,11 @@
       </form>`;
     document.body.append(d);
     const form = d.querySelector("form"), msg = d.querySelector(".acc-msg"), submit = d.querySelector(".acc-submit");
-    const email = d.querySelector("#acc-email"), pass = d.querySelector("#acc-password");
+    const email = d.querySelector("#acc-email"), pass = d.querySelector("#acc-password"), nick = d.querySelector("#acc-nick");
     let mode = "signin";
     const TEXT = {
       signin: ["Вход в ev.news", "Войдите, чтобы читать ленту, сохранять новости и выбирать свои страны.", "Войти", "current-password"],
-      signup: ["Регистрация", "Нужны только почта и пароль. Адрес проверим сразу, без писем и кодов.", "Зарегистрироваться", "new-password"],
+      signup: ["Регистрация", "Нужны ник, почта и пароль. Ник видят другие читатели под вашими комментариями, почту — никто.", "Зарегистрироваться", "new-password"],
       reset: ["Восстановление пароля", "Пришлём на почту ссылку, по которой можно задать новый пароль.", "Отправить ссылку", ""]
     };
     function setMode(m) {
@@ -343,6 +358,7 @@
       d.querySelector(".acc-lead").textContent = lead;
       submit.textContent = button;
       d.querySelector(".acc-pass").hidden = m === "reset";
+      d.querySelector(".acc-nick").hidden = m !== "signup";
       pass.autocomplete = ac;
       d.querySelector("[data-forgot]").hidden = m !== "signin";
       const social = d.querySelector(".acc-social"), any = social.children.length > 0;
@@ -397,6 +413,10 @@
     form.addEventListener("submit", async e => {
       e.preventDefault();
       msg.className = "acc-msg";
+      if (mode === "signup") {
+        const n = nick.value.trim().replace(/\s+/g, " ");
+        if (n.length < 2 || n.length > 40) { msg.textContent = "Придумайте ник от 2 до 40 символов."; msg.classList.add("err"); nick.focus(); return; }
+      }
       if (!email.value.includes("@")) { msg.textContent = "Введите адрес почты."; msg.classList.add("err"); return; }
       if (mode === "signup") {
         submit.disabled = true; msg.textContent = "Проверяю адрес…";
@@ -409,7 +429,7 @@
       try {
         if (mode === "signin") { await Account.signIn(email.value.trim(), pass.value); d.close(); }
         else if (mode === "signup") {
-          const r = await Account.signUp(email.value.trim(), pass.value);
+          const r = await Account.signUp(email.value.trim(), pass.value, nick.value);
           if (r.needsConfirmation) { msg.textContent = `Готово. Мы отправили письмо на ${email.value.trim()}: откройте его и нажмите ссылку, чтобы подтвердить почту. После этого войдите.`; msg.classList.add("ok"); }
           else d.close();
         } else {

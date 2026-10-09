@@ -21,16 +21,16 @@ function render() {
 
   // Name shown under the person's comments
   const nm = el("section");
-  nm.append(el("h2", null, "Имя в комментариях"), el("p", null, "Его видят другие читатели под вашими комментариями. Почта не показывается."));
+  nm.append(el("h2", null, "Ник"), el("p", null, "Его видят другие читатели под вашими комментариями, в том числе под старыми. Почта не показывается."));
   const nf = el("form", "name-form"); nf.noValidate = true;
   const ni = el("input"); ni.id = "display-name"; ni.maxLength = 40; ni.value = Account.displayName; ni.placeholder = "Например, Алексей";
-  ni.setAttribute("aria-label", "Имя в комментариях");
-  const nb = el("button", "btn", "Сохранить имя"); nb.type = "submit";
+  ni.setAttribute("aria-label", "Ник");
+  const nb = el("button", "btn", "Сохранить ник"); nb.type = "submit";
   const nmsg = el("p", "msg");
   nf.append(ni, nb, nmsg);
   nf.addEventListener("submit", async e => {
     e.preventDefault(); nb.disabled = true;
-    try { await Account.setDisplayName(ni.value); nmsg.textContent = "Имя сохранено. Новые комментарии будут подписаны им."; nmsg.className = "msg ok"; }
+    try { await Account.setDisplayName(ni.value); nmsg.textContent = "Ник сохранён. Им подписаны все ваши комментарии."; nmsg.className = "msg ok"; }
     catch (err) { nmsg.textContent = err.message; nmsg.className = "msg err"; }
     finally { nb.disabled = false; }
   });
