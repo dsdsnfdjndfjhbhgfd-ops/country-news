@@ -5,7 +5,7 @@ import { readFile, writeFile, mkdir, rm } from "node:fs/promises";
 import vm from "node:vm";
 import { loadProviders, runPool } from "./ai-pool.mjs";
 import { SOURCES } from "./sources.mjs";
-import { fetchFeed } from "./feeds.mjs";
+import { fetchAll } from "./feeds.mjs";
 
 // How a country is recognised in a headline or summary. Words match from their start
 // ("украин" matches "Украины"); a trailing "!" means the whole word only.
@@ -40,7 +40,10 @@ const matchers = Object.fromEntries(Object.entries(COUNTRIES).map(([code, words]
 const now = Date.now();
 // The AI steps start no new request after this, so the whole run fits the workflow's time limit
 const DEADLINE = now + (Number(process.env.AI_MINUTES) || 6) * 60000;
-const fresh = (await Promise.all(SOURCES.map(s => fetchFeed(s)))).flat().filter(a => now - a.t < WINDOW_MS && a.t < now + 3600000);
+const perOutlet = await fetchAll(SOURCES);
+const fresh = perOutlet.flat().filter(a => now - a.t < WINDOW_MS && a.t < now + 3600000);
+const silent = SOURCES.filter((s, i) => !perOutlet[i].length).map(s => s.name);
+console.log(`Outlets answered: ${SOURCES.length - silent.length} of ${SOURCES.length}` + (silent.length ? ` (no answer: ${silent.join(", ")})` : ""));
 console.log(`Fresh items from all outlets: ${fresh.length}`);
 
 await mkdir("data/full", { recursive: true });

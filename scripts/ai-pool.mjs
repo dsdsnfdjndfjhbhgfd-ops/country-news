@@ -115,7 +115,7 @@ export async function askProvider(p, text) {
       if (!r.ok) throw new Error(`HTTP ${r.status}: ${body.replace(/\s+/g, " ").slice(0, r.status === 429 ? 900 : 300)}`);
       let data; try { data = JSON.parse(body); } catch { throw new Error(`not JSON: ${body.slice(0, 120)}`); }
       const content = (data.choices?.[0]?.message?.content || "").replace(/<think>[\s\S]*?<\/think>/g, "");
-      if (!content.includes("{")) throw new Error(`no JSON in answer: ${body.slice(0, 120)}`);
+      if (!content.includes("{")) throw new Error(`no JSON in answer (finish: ${data.choices?.[0]?.finish_reason || "?"}, ${content.trim().slice(0, 80) || "empty"})`);
       return { text: content, model };
     } catch (e) { errors.push(`${model}: ${e.message}`); }
   }

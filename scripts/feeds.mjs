@@ -62,3 +62,12 @@ export async function fetchFeed(src, log = console.log) {
   }
   return [];
 }
+
+// All feeds, at most `limit` at a time: hundreds of connections at once make many of them fail
+export async function fetchAll(sources, limit = 24, log = console.log) {
+  const out = new Array(sources.length);
+  let next = 0;
+  async function worker() { while (next < sources.length) { const i = next++; out[i] = await fetchFeed(sources[i], log); } }
+  await Promise.all(Array.from({ length: Math.min(limit, sources.length) }, worker));
+  return out;
+}

@@ -1,7 +1,7 @@
 name: Пробный сбор (без публикации)
 
 # Temporary: runs the collector on a work branch with the real data and AI, prints what it produced
-# (file sizes, AI importance marks, top events). Publishes nothing and pushes nothing. Edit this file to run it again.
+# (file sizes, AI importance marks, top events). Publishes nothing and pushes nothing. Edit this file to run it again (run 3).
 on:
   push:
     branches: ["claude/**"]
@@ -26,7 +26,7 @@ jobs:
         with:
           node-version: 20
       - name: Собрать новости
-        run: time node scripts/prefetch.mjs && ls -l data/full/importance.json
+        run: time node scripts/prefetch.mjs | grep -v ' items$' && ls -l data/full/importance.json
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           LLM_API_KEY: ${{ secrets.LLM_API_KEY }}       # key of the AI service (secret); skipped while it points to Gemini
