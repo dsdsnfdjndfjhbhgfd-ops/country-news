@@ -5,7 +5,8 @@
 // - Results are saved in public.event_summaries and reused for every reader.
 // - Limits per 24 hours: 25 requests for a VIP reader, 3 for everyone else, 400 in total.
 // - The answer is the summary plus "why it matters" (both kept for everyone).
-// - The AI key lives in this project's secrets (LLM_API_KEY), never in the browser.
+// - The AI is DeepSeek (Gemini and Groq are switched off). Its key lives in this project's secrets
+//   (DEEPSEEK_API_KEY), never in the browser; DEEPSEEK_BASE_URL and DEEPSEEK_MODEL are optional.
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
 // The site lives at evnews.site; the old GitHub Pages address is the fallback for its data
@@ -44,47 +45,28 @@ function reply(req: Request, status: number, body: unknown) {
 }
 const plain = (s: string) => String(s || "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
 
-// Models to try (a Gemini key by default; any OpenAI-compatible service via LLM_BASE_URL / LLM_MODEL)
-let modelCache: { at: number; list: string[] } | null = null;
-async function models(base: string, key: string): Promise<string[]> {
-  const fixed = (Deno.env.get("LLM_MODEL") || "").split(",").map((m) => m.trim()).filter(Boolean);
-  if (fixed.length) return fixed;
-  if (modelCache && Date.now() - modelCache.at < 3600_000) return modelCache.list;
-  let list: string[] = [];
-  try {
-    const r = await fetch(base + "/models", { headers: { Authorization: `Bearer ${key}` }, signal: AbortSignal.timeout(15000) });
-    const ids: string[] = ((await r.json()).data || []).map((m: { id: string }) => String(m.id).replace(/^models\//, ""));
-    if (base.includes("generativelanguage.googleapis.com")) {
-      const ok = ids.filter((id) => /^gemini-/.test(id) && !/(image|tts|embedding|live|audio|vision|robotics|computer|thinking|exp|customtools|preview-\d)/i.test(id));
-      const ver = (id: string) => parseFloat((id.match(/gemini-(\d+(?:\.\d+)?)/) || [])[1]) || 0;
-      const tier = (id: string) => (/flash-lite/.test(id) ? 1 : /flash/.test(id) ? 0 : 2);
-      list = ok.sort((x, y) => tier(x) - tier(y) || ver(y) - ver(x) || x.localeCompare(y)).slice(0, 4);
-    } else {
-      list = ids.filter((id) => /:free$/.test(id)).slice(0, 4);
-    }
-  } catch { /* fall through */ }
-  if (list.length) modelCache = { at: Date.now(), list };
-  return list;
-}
+// DeepSeek through an OpenAI-compatible service: the same one the collector uses (plusvibeapi.ru)
+const env = (k: string) => (Deno.env.get(k) || "").trim();
+const DEEPSEEK = {
+  key: env("DEEPSEEK_API_KEY"),
+  base: (env("DEEPSEEK_BASE_URL") || "https://plusvibeapi.ru/v1").replace(/\/+$/, ""),
+  models: (env("DEEPSEEK_MODEL") || "deepseek-v4.1-flash:cxb").split(",").map((m) => m.trim()).filter(Boolean),
+};
 
 async function ask(prompt: string): Promise<{ text: string; model: string }> {
-  const key = Deno.env.get("LLM_API_KEY");
-  if (!key) throw Object.assign(new Error("not_configured"), { code: "not_configured" });
-  const base = (Deno.env.get("LLM_BASE_URL") || "https://generativelanguage.googleapis.com/v1beta/openai").replace(/\/+$/, "");
-  const list = await models(base, key);
-  if (!list.length) throw Object.assign(new Error("no_model"), { code: "ai_unavailable" });
+  if (!DEEPSEEK.key) throw Object.assign(new Error("not_configured"), { code: "not_configured" });
   const errors: string[] = [];
-  for (const model of list) {
+  for (const model of DEEPSEEK.models) {
     try {
-      const call = () => fetch(base + "/chat/completions", {
+      const call = () => fetch(DEEPSEEK.base + "/chat/completions", {
         method: "POST", signal: AbortSignal.timeout(45000),
-        headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ model, temperature: 0.2, max_tokens: 1500, messages: [{ role: "user", content: prompt }] }),
+        headers: { Authorization: `Bearer ${DEEPSEEK.key}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ model, temperature: 0.2, max_tokens: 4000, messages: [{ role: "user", content: prompt }] }), // the model thinks first: room for that too
       });
       let r = await call();
       if (r.status === 503) { await new Promise((res) => setTimeout(res, 3000)); r = await call(); }
       const body = await r.text();
-      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      if (!r.ok) throw new Error(`HTTP ${r.status}: ${body.slice(0, 200)}`);
       const text = String(JSON.parse(body).choices?.[0]?.message?.content || "").replace(/<think>[\s\S]*?<\/think>/g, "").trim();
       if (text.length < 20) throw new Error("empty answer");
       return { text, model };

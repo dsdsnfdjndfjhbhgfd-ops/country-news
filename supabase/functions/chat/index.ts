@@ -5,7 +5,10 @@
 // - Limit: 50 000 tokens per reader per day (question, history, news context and answer together).
 //   The day starts at 00:00 Moscow time. Tokens are reserved before the AI is asked (so two requests
 //   at once cannot pass the limit) and the reservation is replaced with the real count afterwards.
-// - The AI key lives in this project's secrets (LLM_API_KEY), never in the browser.
+// - The AI is DeepSeek (Gemini and Groq are switched off). Its key lives in this project's secrets
+//   (DEEPSEEK_API_KEY), never in the browser; DEEPSEEK_BASE_URL and DEEPSEEK_MODEL are optional.
+// - The chat can use a smarter model of the same service (secret CHAT_MODEL, e.g. a "thinking" DeepSeek).
+//   If it fails or is out of quota, the answer comes from the regular DEEPSEEK_MODEL, so the chat keeps working.
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const SITES = ["https://evnews.site", "https://dsdsnfdjndfjhbhgfd-ops.github.io/country-news"];
@@ -19,7 +22,17 @@ const NAMES: Record<string, string> = {
 const DAILY_TOKENS = 50_000;                 // per reader per day
 const RESET_HOUR_MSK = 0;                    // the day starts at 00:00 Moscow time
 const GLOBAL_DAILY = Number(Deno.env.get("CHAT_GLOBAL_DAILY_TOKENS")) || 3_000_000; // whole site, protects the key
-const MAX_ANSWER = 1500, MIN_ANSWER = 300;   // answer tokens
+const env = (k: string) => (Deno.env.get(k) || "").trim();
+const list = (v: string) => v.split(",").map((m) => m.trim()).filter(Boolean);
+// DeepSeek through an OpenAI-compatible service: the same one the collector uses (plusvibeapi.ru)
+const DEEPSEEK = {
+  key: env("DEEPSEEK_API_KEY"),
+  base: (env("DEEPSEEK_BASE_URL") || "https://plusvibeapi.ru/v1").replace(/\/+$/, ""),
+  models: list(env("DEEPSEEK_MODEL") || "deepseek-v4.1-flash:cxb"),
+};
+const CHAT_MODELS = list(env("CHAT_MODEL"));
+// Answer tokens. DeepSeek thinks before answering and the thinking counts too, so it gets room for both.
+const MAX_ANSWER = Number(env("CHAT_MAX_TOKENS")) || 4000, MIN_ANSWER = 300;
 const MAX_EVENTS = 25, MAX_QUESTION = 1000, MAX_HISTORY = 8;
 
 const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, {
@@ -65,54 +78,32 @@ async function siteJson(path: string, keepMs = 0) {
   return hit?.data ?? null;
 }
 
-// Models to try (a Gemini key by default; any OpenAI-compatible service via LLM_BASE_URL / LLM_MODEL)
-let modelCache: { at: number; list: string[] } | null = null;
-async function models(base: string, key: string): Promise<string[]> {
-  const fixed = (Deno.env.get("LLM_MODEL") || "").split(",").map((m) => m.trim()).filter(Boolean);
-  if (fixed.length) return fixed;
-  if (modelCache && Date.now() - modelCache.at < 3600_000) return modelCache.list;
-  let list: string[] = [];
-  try {
-    const r = await fetch(base + "/models", { headers: { Authorization: `Bearer ${key}` }, signal: AbortSignal.timeout(15000) });
-    const ids: string[] = ((await r.json()).data || []).map((m: { id: string }) => String(m.id).replace(/^models\//, ""));
-    if (base.includes("generativelanguage.googleapis.com")) {
-      const ok = ids.filter((id) => /^gemini-/.test(id) && !/(image|tts|embedding|live|audio|vision|robotics|computer|thinking|exp|customtools|preview-\d)/i.test(id));
-      const ver = (id: string) => parseFloat((id.match(/gemini-(\d+(?:\.\d+)?)/) || [])[1]) || 0;
-      const tier = (id: string) => (/flash-lite/.test(id) ? 1 : /flash/.test(id) ? 0 : 2);
-      list = ok.sort((x, y) => tier(x) - tier(y) || ver(y) - ver(x) || x.localeCompare(y)).slice(0, 3);
-    } else {
-      list = ids.filter((id) => /:free$/.test(id)).slice(0, 3);
-    }
-  } catch { /* fall through */ }
-  if (list.length) modelCache = { at: Date.now(), list };
-  return list;
-}
-
 type Msg = { role: "system" | "user" | "assistant"; content: string };
-// Every attempt that the service billed is counted, even when its answer was unusable
-async function ask(messages: Msg[], maxTokens: number): Promise<{ text: string; tokens: number }> {
-  const key = Deno.env.get("LLM_API_KEY");
-  if (!key) throw Object.assign(new Error("not_configured"), { code: "not_configured", tokens: 0 });
-  const base = (Deno.env.get("LLM_BASE_URL") || "https://generativelanguage.googleapis.com/v1beta/openai").replace(/\/+$/, "");
-  const list = await models(base, key);
-  if (!list.length) throw Object.assign(new Error("no_model"), { code: "ai_unavailable", tokens: 0 });
+// The chat's own model first (if set), then the regular one. Every attempt that the service billed
+// is counted, even when its answer was unusable.
+async function ask(messages: Msg[], maxTokens: number): Promise<{ text: string; tokens: number; model: string }> {
+  if (!DEEPSEEK.key) throw Object.assign(new Error("not_configured"), { code: "not_configured", tokens: 0 });
+  const models = [...new Set([...CHAT_MODELS, ...DEEPSEEK.models])];
   const promptTokens = estimate(messages.map((m) => m.content).join("\n"));
+  const effort = env("CHAT_REASONING"); // optional: "low" / "medium" / "high" for models that think
   let tokens = 0;
   const errors: string[] = [];
-  for (const model of list) {
+  for (const model of models) {
     try {
-      const r = await fetch(base + "/chat/completions", {
-        method: "POST", signal: AbortSignal.timeout(60000),
-        headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ model, temperature: 0.3, max_tokens: maxTokens, messages }),
+      const smart = CHAT_MODELS.includes(model);
+      const r = await fetch(DEEPSEEK.base + "/chat/completions", {
+        method: "POST", signal: AbortSignal.timeout(smart ? 75000 : 45000),
+        headers: { Authorization: `Bearer ${DEEPSEEK.key}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ model, temperature: 0.3, max_tokens: maxTokens, messages, ...(smart && effort ? { reasoning_effort: effort } : {}) }),
       });
       const body = await r.text();
-      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      if (!r.ok) throw new Error(`HTTP ${r.status}: ${body.slice(0, 200)}`);
       const j = JSON.parse(body);
       const text = String(j.choices?.[0]?.message?.content || "").replace(/<think>[\s\S]*?<\/think>/g, "").trim();
       tokens += Number(j.usage?.total_tokens) || promptTokens + estimate(text);
-      if (text.length < 2) throw new Error("empty answer");
-      return { text, tokens };
+      if (text.length < 2) throw new Error("empty answer" + (j.choices?.[0]?.finish_reason ? ` (${j.choices[0].finish_reason})` : ""));
+      if (errors.length) console.log("AI fallback: " + errors.join(" | "));
+      return { text, tokens, model };
     } catch (e) { errors.push(`${model}: ${(e as Error).message}`); }
   }
   console.log("AI failed: " + errors.join(" | "));
@@ -218,10 +209,10 @@ ${ctx.reviews.length ? `\nОбзоры сайта по стране:\n${ctx.revi
 
   // 5. Ask the AI, then count what was really spent
   try {
-    const { text, tokens } = await ask(messages, maxAnswer);
+    const { text, tokens, model } = await ask(messages, maxAnswer);
     const { data: now } = await admin.rpc("chat_settle", { uid: user.id, d: day, delta: tokens - reserved });
     const answer = text.replace(/\*\*(.+?)\*\*/g, "$1").replace(/^#{1,6}\s+/gm, "").replace(/^\s*[*-]\s+/gm, "— ").slice(0, 8000);
-    return reply(req, 200, { answer, urls: ctx.urls, tokens, ...limits(Number(now) || 0) });
+    return reply(req, 200, { answer, urls: ctx.urls, tokens, model, ...limits(Number(now) || 0) });
   } catch (e) {
     const err = e as { code?: string; tokens?: number };
     const { data: now } = await admin.rpc("chat_settle", { uid: user.id, d: day, delta: (err.tokens || 0) - reserved });

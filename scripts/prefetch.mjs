@@ -197,8 +197,7 @@ await rm("data/why.json", { force: true }); // retired file
 // Works with any OpenAI-compatible service, set through repository secrets/variables:
 //   LLM_API_KEY   key of the service (a secret; never put it into the code)
 //   LLM_BASE_URL  optional variable. Default OpenRouter (free ":free" models);
-//                 Google Gemini: https://generativelanguage.googleapis.com/v1beta/openai
-//                 DeepSeek: https://api.deepseek.com
+//                 DeepSeek: https://api.deepseek.com. Gemini and Groq are switched off (see ai-pool.mjs).
 //   LLM_MODEL     optional variable, one or several model ids separated by commas.
 // ANTHROPIC_API_KEY (Claude) also works. Without a key, or when the service fails or is out of
 // its free limit, events simply have no summary. The text is built only from the headlines and
@@ -230,7 +229,10 @@ todo.sort(order); redo.sort(order);
 const providers = loadProviders();
 const HAS_AI = providers.length > 0;
 const poolState = meta.pool || {};
+// Services that are no longer connected (e.g. the switched-off Gemini and Groq) leave the saved state
+const forgetGone = state => { for (const k of Object.keys(state)) if (!providers.some(p => p.name === k)) delete state[k]; };
 if (!meta.pool && (meta.lastAskAt || meta.blockedUntil)) poolState.main = { lastAskAt: meta.lastAskAt || 0, blockedUntil: meta.blockedUntil || 0 }; // state of the single-service days
+forgetGone(poolState);
 console.log(`Events without a summary: ${todo.length}, with an old short one: ${redo.length}; AI services: ${providers.map(p => p.name).join(", ") || "none (summaries are skipped)"}`);
 
 function prompt(batch) {
@@ -295,6 +297,7 @@ const ESSAY_TOPICS = ["Политика", "Безопасность", "Экон�
 let essayMeta = {};
 try { essayMeta = JSON.parse(await readFile("data/essays.json", "utf8")); } catch {}
 const essays = essayMeta.countries || {}, essayState = essayMeta.pool || {};
+forgetGone(essayState);
 const essayJobs = [];
 for (const code of Object.keys(COUNTRIES)) {
   const at = Math.min(...ESSAY_TOPICS.map(t => essays[code]?.[t]?.at || 0));

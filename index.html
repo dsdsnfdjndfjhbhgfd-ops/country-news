@@ -6,7 +6,7 @@
 <meta name="referrer" content="strict-origin-when-cross-origin">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>ev.news</title>
-<meta name="description" content="Главные политические, военные и экономические события 18 ключевых стран за последние двое суток из 55 изданий.">
+<meta name="description" content="Главные политические, военные и экономические события 18 ключевых стран за последние двое суток из 55 изданий: краткие изложения, обзоры стран и чат с ИИ.">
 <script src="assets/boot.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -107,6 +107,27 @@ section > p.sub{margin:0 0 22px;color:var(--muted);max-width:60ch}
 .src ul{margin:0;padding:0;list-style:none;display:flex;flex-wrap:wrap;gap:6px}
 .src li{font-size:15px;padding:4px 10px;border-radius:999px;background:var(--bg)}
 
+.feats{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
+.feat{display:flex;flex-direction:column;gap:6px;padding:20px;background:var(--surface);border:1px solid var(--line);border-radius:14px;min-width:0}
+.feat h3{margin:0;font-size:18px;line-height:1.3}
+.feat p{margin:0;font-size:15px;color:var(--muted)}
+.feat a{margin-top:auto;padding-top:6px;font-size:14px;font-weight:700;color:var(--accent);text-decoration:none}
+.feat a:hover{text-decoration:underline;text-underline-offset:3px}
+.tier{display:flex;align-items:center;gap:10px;margin:0 0 12px;font-size:15px;font-weight:700;color:var(--muted)}
+.tier::after{content:"";flex:1;height:1px;background:var(--line)}
+.vip{margin-top:28px;display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:20px 32px;padding:clamp(20px,3vw,30px);background:var(--surface);border:2px solid var(--marker);border-radius:18px}
+.vip h3{margin:0 0 8px;font-size:clamp(22px,3vw,28px);font-weight:800;letter-spacing:-.01em;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.vip h3 .acc-vip{font-size:13px;padding:2px 7px}
+.vip > div > p{margin:0;color:var(--muted)}
+.vip ul{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:12px}
+.vip li{padding-left:26px;position:relative;font-size:16px}
+.vip li::before{content:"";position:absolute;left:4px;top:.5em;width:10px;height:10px;border-radius:3px;background:var(--marker)}
+.vip li b{display:block}
+.vip li span{color:var(--muted);font-size:15px}
+.vip .cta{margin-top:18px}
+.vip small{display:block;margin-top:12px;font-size:13px;color:var(--muted)}
+@media (max-width:760px){.vip{grid-template-columns:minmax(0,1fr)}}
+
 .limits{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:10px;max-width:70ch}
 .limits li::marker{color:var(--muted)}
 
@@ -123,6 +144,7 @@ footer a{color:var(--muted)}
       <a href="news.html#RU">Лента</a>
       <a href="chat.html">Чат с ИИ</a>
       <a href="ratings.html">Рейтинг изданий</a>
+      <a href="#features">Возможности</a>
       <a href="#how">Как это работает</a>
       <span data-account></span>
       <div class="theme" role="group" aria-label="Тема оформления">
@@ -139,9 +161,9 @@ footer a{color:var(--muted)}
     <p>Сайт сам читает 55 российских и зарубежных изданий, раскладывает новости по странам и оставляет только политику, безопасность и экономику. Сверху то, о чём пишут сразу несколько редакций.</p>
     <div class="cta">
       <a class="btn" href="news.html">Открыть ленту</a>
-      <a class="btn ghost" href="#how">Как это работает</a>
+      <a class="btn ghost" href="#features">Что умеет сайт</a>
     </div>
-    <p class="note">Лента открывается после бесплатной регистрации: нужны только почта и пароль. С аккаунтом можно выбрать свои страны и сохранять новости.</p>
+    <p class="note">Лента открывается после бесплатной регистрации: нужны только ник, почта и пароль. С аккаунтом можно выбрать свои страны, сохранять и обсуждать новости, а с VIP-подпиской — спрашивать ИИ о любой из 18 стран.</p>
     <div class="live" id="live">Загружаю последние данные…</div>
     </div>
     <div class="globe" id="globe"></div>
@@ -153,6 +175,40 @@ footer a{color:var(--muted)}
     <div class="board" id="board"></div>
   </section>
 
+  <section id="features">
+    <h2>Что умеет ev.news</h2>
+    <p class="sub">Всё основное бесплатно после регистрации. VIP-подписка добавляет чат с ИИ и больше пересказов.</p>
+    <p class="tier">С аккаунтом — бесплатно</p>
+    <div class="feats">
+      <div class="feat"><h3>Лента по 18 странам</h3><p>До 25 главных событий страны. Фильтры по теме (политика, безопасность, экономика), внутренняя или внешняя повестка, сортировка по важности или по времени, период от сегодня до недели.</p><a href="news.html">Открыть ленту →</a></div>
+      <div class="feat"><h3>«Кратко» и «Почему это важно»</h3><p>ИИ пересказывает главные события в нескольких предложениях: кто участвует, цифры, позиции сторон — и объясняет, что событие меняет.</p></div>
+      <div class="feat"><h3>Обзоры стран</h3><p>Раз в 6 часов ИИ пишет для каждой страны три обзора по 200–300 слов: главная проблема в политике, безопасности и экономике по событиям последних двух дней.</p></div>
+      <div class="feat"><h3>Пересказ по запросу</h3><p>Если у события ещё нет изложения, его можно заказать на странице события: 3 пересказа в сутки, с VIP — 25. Готовый пересказ видят все читатели.</p></div>
+      <div class="feat"><h3>Мои страны и сохранённое</h3><p>Избранные страны идут первыми, важные новости можно сохранить (до 500). Страны и настройки ленты хранятся в аккаунте и работают на всех устройствах.</p></div>
+      <div class="feat"><h3>Перевод</h3><p>Любую зарубежную статью можно открыть в переводе Яндекса или Google, а в Chrome заголовки переводятся на русский прямо в ленте.</p></div>
+      <div class="feat"><h3>Обсуждения</h3><p>Комментарии под каждым событием. Под комментарием виден ник автора, свою реплику можно удалить.</p></div>
+      <div class="feat"><h3>Рейтинг изданий</h3><p>Читатели ставят изданиям от одной до пяти звёзд. Итоги видны всем, кто какую оценку поставил — нет.</p><a href="ratings.html">Смотреть рейтинг →</a></div>
+    </div>
+
+    <div class="vip">
+      <div>
+        <h3>VIP-подписка <span class="acc-vip">VIP</span></h3>
+        <p>250 ₽ за 30 дней, оформляется в кабинете. Продлевается вручную, без автосписаний.</p>
+        <div class="cta">
+          <a class="btn" href="chat.html">Открыть чат с ИИ</a>
+          <a class="btn ghost" href="account.html">Оформить VIP</a>
+        </div>
+        <small>Сейчас подписка работает в тестовом режиме: деньги не списываются.</small>
+      </div>
+      <ul>
+        <li><b>Чат с ИИ по любой стране</b><span>Вопросы о новостях за два дня или о политике, безопасности и экономике в целом. ИИ видит главные события ленты и ссылается на них.</span></li>
+        <li><b>50 000 токенов в сутки</b><span>Примерно 8–15 вопросов в день. Лимит обновляется в 00:00 по Москве.</span></li>
+        <li><b>25 пересказов в сутки</b><span>Вместо 3 без подписки. По каждому событию — изложение и «Почему это важно».</span></li>
+        <li><b>Метка VIP</b><span>В шапке сайта рядом с кабинетом и у вашего ника в комментариях.</span></li>
+      </ul>
+    </div>
+  </section>
+
   <section id="how">
     <h2>Как это работает</h2>
     <p class="sub">Всё происходит автоматически, без редактора. Сборщик запускается на GitHub примерно каждые 15–20 минут.</p>
@@ -160,6 +216,7 @@ footer a{color:var(--muted)}
       <li><h3>Сбор</h3><p>Забираем свежие материалы прямо из лент 55 изданий и храним их 48 часов.</p></li>
       <li><h3>Страны</h3><p>Новость относится к стране, если та названа в заголовке или хотя бы дважды в анонсе: по названию, столице, именам лидеров.</p></li>
       <li><h3>Отбор</h3><p>Похожие заголовки склеиваются в одно событие. Спорт, шоу-бизнес и прочее отсеиваются. Важность: <span class="meter" aria-hidden="true"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></span>сколько изданий пишут, тема и свежесть.</p></li>
+      <li><h3>Изложение</h3><p>ИИ пишет «Кратко» и «Почему это важно» для главных событий, а раз в 6 часов — обзоры стран. Текст берётся только из заголовков и анонсов изданий.</p></li>
     </ol>
   </section>
 
@@ -175,7 +232,8 @@ footer a{color:var(--muted)}
   <section>
     <h2>Что стоит знать</h2>
     <ul class="limits">
-      <li>Отбор автоматический. Они опираются на заголовки и анонсы, а не на полный текст статей, поэтому изредка новость попадает не в ту страну или тема определяется неточно.</li>
+      <li>Отбор автоматический. Он опирается на заголовки и анонсы, а не на полный текст статей, поэтому изредка новость попадает не в ту страну или тема определяется неточно.</li>
+      <li>Изложения, обзоры и ответы в чате пишет ИИ. Он старается не добавлять ничего от себя, но может ошибаться: важное проверяйте в первоисточнике.</li>
       <li>Подробности события всегда в первоисточнике: переходите по ссылке на статью издания.</li>
       <li>Число изданий показывает, насколько широко событие освещают, но не подтверждает, что оно произошло именно так.</li>
       <li>Издания держат в лентах только последние материалы, поэтому сайт видит то, что вышло, пока он работает.</li>
