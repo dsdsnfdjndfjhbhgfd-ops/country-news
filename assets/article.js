@@ -165,11 +165,14 @@ function render(c, g, groups, d) {
   }
 
   // Short AI summary of the event, if the collector has written one
-  const briefText = (g.items.map(i => d.brief[i.url]).find(Boolean) || {}).text;
+  const brief = g.items.map(i => d.brief[i.url]).find(Boolean) || {};
+  const briefText = brief.text;
   if (briefText) {
     const bs = el("section", "brief-box");
-    bs.append(el("span", "label", "Кратко о событии"), el("p", null, briefText),
-      el("small", null, "Изложение написано ИИ по заголовкам и анонсам изданий, а не по полным текстам. Подробности смотрите в статьях."));
+    bs.append(el("span", "label", "Кратко о событии"), el("p", null, briefText));
+    // Then why the event matters, written by the AI together with the summary
+    if (brief.why) bs.append(el("span", "label why", "Почему это важно"), el("p", "why", brief.why));
+    bs.append(el("small", null, "Изложение написано ИИ по заголовкам и анонсам изданий, а не по полным текстам. Подробности смотрите в статьях."));
     main.append(bs);
   }
 

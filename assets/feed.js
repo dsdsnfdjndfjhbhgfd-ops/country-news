@@ -140,6 +140,7 @@ function essayBlock(c) {
   return box;
 }
 const summaryFor = g => { for (const i of g.items) if (SUMMARY[i.url]) return SUMMARY[i.url].text; return ""; };
+const whyFor = g => { for (const i of g.items) if (SUMMARY[i.url]) return SUMMARY[i.url].why || ""; return ""; };
 // Inside the country or its relations with others: marked by the AI together with the summary
 // Events the AI has not seen yet get a rough guess from the headlines: another country or
 // diplomacy named means "out", otherwise "in"
@@ -416,6 +417,8 @@ function render(c, allItems, info) {
     h.append(link); body.append(h);
     const brief = summaryFor(g);
     if (brief) { const s = el("p", "brief"); s.append(el("b", null, "Кратко. "), document.createTextNode(brief)); body.append(s); }
+    const why = whyFor(g);
+    if (why) { const s = el("p", "brief why"); s.append(el("b", null, "Почему это важно. "), document.createTextNode(why)); body.append(s); }
 
     const src = el("div", "src");
     if (a.language === "English") { src.append(el("span", "lang", "EN")); src.append(document.createTextNode(" ")); }

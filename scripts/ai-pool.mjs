@@ -132,8 +132,17 @@ export function retryAfterMs(message) {
 export function parseAnswer(out) {
   const body = out.slice(out.indexOf("{"), out.lastIndexOf("}") + 1);
   try { return JSON.parse(body).items || []; } catch {}
+  // Broken JSON: read each {...} object field by field
   const items = [];
-  for (const m of body.matchAll(/"id"\s*:\s*(\d+)\s*,\s*(?:"scope"\s*:\s*"(\w+)"\s*,\s*)?"summary"\s*:\s*"([\s\S]*?)"\s*\}/g)) items.push({ id: m[1], scope: m[2], summary: m[3].replace(/\\"/g, "'").replace(/"/g, "'") });
+  // A value runs up to the next `", "key":` or the closing `"}`, so stray quotes inside it survive
+  const field = (obj, k) => {
+    const m = obj.match(new RegExp(`"${k}"\\s*:\\s*(?:(\\d+)|"([\\s\\S]*?)"\\s*(?=,\\s*"\\w+"\\s*:|\\}))`));
+    return !m ? undefined : m[1] != null ? m[1] : m[2].replace(/\\"/g, "'").replace(/"/g, "'").replace(/\\n/g, "\n");
+  };
+  for (const [obj] of body.matchAll(/\{[^{}]*"id"[^{}]*\}/g)) {
+    const id = field(obj, "id");
+    if (id != null) items.push({ id, scope: field(obj, "scope"), summary: field(obj, "summary"), why: field(obj, "why"), topic: field(obj, "topic"), title: field(obj, "title"), text: field(obj, "text") });
+  }
   if (!items.length) throw new Error("answer was not valid JSON");
   return items;
 }
