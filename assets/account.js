@@ -12,6 +12,7 @@
 
   let user = null, recovery = false, admin = false, vip = null;
   const SUMMARY_LIMITS = { free: 3, vip: 25 };
+  const CHAT_TOKENS = 50000;
   let profile = { countries: [], settings: {} };
   const saved = new Map(); // url -> row
   const listeners = new Set();
@@ -235,7 +236,7 @@
       const { data } = await sb.from("event_summaries").select("summary, why").in("url", urls.slice(0, 6)).limit(1);
       return data?.[0] ? { text: data[0].summary || "", why: data[0].why || "" } : null;
     },
-    // VIP subscription (250 ₽ for 30 days). For now it unlocks nothing; payments go through
+    // VIP subscription (250 ₽ for 30 days): AI chat and more summaries. Payments go through
     // the Edge Function "subscribe": test mode until YooKassa keys are added to Supabase secrets.
     get vip() { return vip && vip.status === "active" && Date.parse(vip.expires_at) > Date.now() ? { ...vip } : null; },
     get vipRecord() { return vip ? { ...vip } : null; },
@@ -286,6 +287,39 @@
       }
       if (!data?.summary) throw new Error("ИИ вернул пустой ответ. Попробуйте ещё раз.");
       return { text: String(data.summary), why: String(data.why || "") };
+    },
+
+    // ---------- AI chat about a country, VIP only (Edge Function "chat") ----------
+    // 50 000 tokens per day, the day starts at 00:00 Moscow time; the server counts and checks them
+    chatLimit: CHAT_TOKENS,
+    async chatStatus() {
+      if (!sb || !user || !this.vip) return null;
+      const { data, error } = await sb.functions.invoke("chat", { body: { action: "status" } });
+      return error ? null : data;
+    },
+    async chat(country, urls, messages) {
+      if (!user) throw new Error("Войдите, чтобы задать вопрос.");
+      need();
+      const { data, error } = await sb.functions.invoke("chat", { body: { country, urls: urls.slice(0, 25), messages } });
+      if (error) {
+        let body = {};
+        try { body = await error.context.json(); } catch {}
+        const text = {
+          login_required: "Войдите, чтобы задать вопрос.",
+          vip_required: "Чат с ИИ доступен только с VIP-подпиской.",
+          limit_user: "Дневной лимит чата исчерпан (50 000 токенов в сутки). Он обновится в 00:00 по Москве.",
+          limit_global: "Сегодня общий лимит чата на сайте исчерпан. Попробуйте завтра.",
+          not_configured: "Чат с ИИ ещё не включён на сайте.",
+          ai_unavailable: "ИИ сейчас не отвечает. Попробуйте через несколько минут.",
+          data_unavailable: "Не удалось получить новости страны. Попробуйте позже."
+        }[body.error];
+        const e = new Error(text || "Не получилось получить ответ. Попробуйте позже.");
+        e.usage = body.limit ? body : null;
+        if (body.error === "limit_user" && body.used < body.limit) e.message = "Вопрос с историей разговора не помещается в остаток дневного лимита. Начните новый разговор или дождитесь 00:00 по Москве.";
+        throw e;
+      }
+      if (!data?.answer) throw new Error("ИИ вернул пустой ответ. Попробуйте ещё раз.");
+      return data;
     },
 
     isSaved(url) { return saved.has(url); },

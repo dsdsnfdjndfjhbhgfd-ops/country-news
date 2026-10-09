@@ -139,6 +139,129 @@ function essayBlock(c) {
   paint();
   return box;
 }
+// AI chat about the country, VIP only (Edge Function "chat"). The AI sees the events of the feed
+// as shown (up to 25) and the country's essays; the conversation is kept per country while the page is open.
+const CHATS = {};
+let chatUsage = null, chatOpen = false, chatPaint = null;
+try { chatOpen = localStorage.getItem("cn:chat") === "1"; } catch {}
+const CHAT_IDEAS = ["Что главное произошло за эти два дня?", "Кто сейчас главные политические игроки и чего они добиваются?", "Как эти события могут сказаться на экономике?"];
+const fmtNum = n => Number(n || 0).toLocaleString("ru-RU");
+function chatState(code) { return CHATS[code] || (CHATS[code] = { msgs: [], draft: "", busy: false, error: "", pin: [] }); }
+function loadChatUsage() {
+  if (!Account.vip) { chatUsage = null; return; }
+  Account.chatStatus().then(u => { if (u) { chatUsage = u; if (chatPaint) chatPaint(); } });
+}
+// "[3]" in an answer links to the event page of the 3rd event the AI was given
+function chatText(text, urls, code) {
+  const p = el("div", "chat-text");
+  let last = 0;
+  for (const m of text.matchAll(/\[(\d{1,2})\]/g)) {
+    const url = urls[Number(m[1]) - 1];
+    if (!url) continue;
+    p.append(document.createTextNode(text.slice(last, m.index)));
+    const a = el("a", "chat-ref", m[1]); a.href = `article.html?c=${code}&u=${encodeURIComponent(url)}`; a.title = "Открыть событие";
+    p.append(a); last = m.index + m[0].length;
+  }
+  p.append(document.createTextNode(text.slice(last)));
+  return p;
+}
+function askAbout(c, g) {
+  const st = chatState(c.code);
+  st.draft = `Расскажи подробнее о событии «${cleanTitle(g.lead.title)}»: что произошло, кто участвует и почему это важно?`;
+  st.pin = [g.lead.url];
+  chatOpen = true; try { localStorage.setItem("cn:chat", "1"); } catch {}
+  if (chatPaint) chatPaint();
+  const box = $(".chat"); if (box) { box.scrollIntoView({ behavior: "smooth", block: "start" }); box.querySelector("textarea")?.focus(); }
+}
+function chatBlock(c, feedUrls) {
+  if (!PREFETCHED.has(c.code)) return null;
+  const box = el("section", "chat"); box.setAttribute("aria-label", "Чат с ИИ о стране");
+  const st = chatState(c.code);
+  const paint = () => {
+    box.textContent = "";
+    const vip = !!Account.vip;
+    const head = el("div", "chat-head");
+    const h = el("h3"); h.append(document.createTextNode(`Спросить ИИ: ${c.ru} `), el("span", "acc-vip", "VIP"));
+    head.append(h);
+    if (vip) {
+      const tg = el("button", "essay-more", chatOpen ? "Свернуть" : "Открыть чат"); tg.type = "button";
+      tg.setAttribute("aria-expanded", String(chatOpen));
+      tg.onclick = () => { chatOpen = !chatOpen; try { localStorage.setItem("cn:chat", chatOpen ? "1" : "0"); } catch {} paint(); if (chatOpen) box.querySelector("textarea")?.focus(); };
+      head.append(tg);
+    }
+    box.append(head);
+    if (!vip) {
+      box.append(el("p", "chat-lead", "Задавайте вопросы о новостях этой ленты и о политике страны в целом: ИИ ответит со ссылками на события. Доступно с VIP-подпиской, до 50 000 токенов в сутки."));
+      const a = el("a", "chat-buy", "Оформить VIP"); a.href = "account.html"; box.append(a);
+      return;
+    }
+    if (!chatOpen) {
+      box.append(el("p", "chat-lead", st.msgs.length ? `В разговоре ${st.msgs.length} ${plural(st.msgs.length, "сообщение", "сообщения", "сообщений")}.` : "Вопросы о новостях этой ленты и о политике страны в целом."));
+      return;
+    }
+    const log = el("div", "chat-log"); log.setAttribute("role", "log"); log.setAttribute("aria-live", "polite");
+    if (!st.msgs.length) {
+      log.append(el("p", "chat-lead", "ИИ видит события ленты (с учётом выбранных фильтров) и обзоры страны. Можно спросить о конкретной новости или о политике в целом."));
+      const ideas = el("div", "chat-ideas");
+      for (const q of CHAT_IDEAS) { const b = el("button", null, q); b.type = "button"; b.onclick = () => send(q); ideas.append(b); }
+      log.append(ideas);
+    }
+    for (const m of st.msgs) {
+      const row = el("div", "chat-msg " + (m.role === "user" ? "me" : "ai"));
+      row.append(m.role === "user" ? el("div", "chat-text", m.content) : chatText(m.content, m.urls || [], c.code));
+      log.append(row);
+    }
+    if (st.busy) { const w = el("div", "chat-msg ai wait"); w.append(el("span", "spinner"), document.createTextNode("ИИ думает…")); log.append(w); }
+    box.append(log);
+    if (st.error) box.append(el("p", "chat-err", st.error));
+
+    const form = el("form", "chat-form");
+    const ta = el("textarea"); ta.rows = 2; ta.maxLength = 1000; ta.placeholder = "Ваш вопрос о стране или о новостях ленты"; ta.value = st.draft;
+    ta.setAttribute("aria-label", "Вопрос ИИ");
+    ta.oninput = () => { st.draft = ta.value; };
+    ta.onkeydown = e => { if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); form.requestSubmit(); } };
+    const go = el("button", "chat-send", "Спросить"); go.type = "submit"; go.disabled = st.busy;
+    form.onsubmit = e => { e.preventDefault(); send(ta.value); };
+    form.append(ta, go);
+    box.append(form);
+
+    const foot = el("div", "essay-foot");
+    if (chatUsage) {
+      const left = Math.max(0, chatUsage.limit - chatUsage.used);
+      foot.append(el("span", null, `Осталось ${fmtNum(left)} из ${fmtNum(chatUsage.limit)} токенов на сегодня, лимит обновится в 00:00 по Москве`));
+    } else foot.append(el("span", null, `Лимит: ${fmtNum(Account.chatLimit)} токенов в сутки, обновляется в 00:00 по Москве`));
+    if (st.msgs.length && !st.busy) {
+      const reset = el("button", "essay-more", "Новый разговор"); reset.type = "button";
+      reset.onclick = () => { st.msgs = []; st.error = ""; st.pin = []; paint(); };
+      foot.append(reset);
+    }
+    foot.append(el("span", null, "Ответы пишет ИИ и может ошибаться"));
+    box.append(foot);
+    log.scrollTop = log.scrollHeight;
+  };
+  async function send(text) {
+    const q = String(text || "").trim();
+    if (!q || st.busy) return;
+    st.msgs.push({ role: "user", content: q.slice(0, 1000) });
+    st.draft = ""; st.error = ""; st.busy = true;
+    const urls = [...new Set([...st.pin, ...feedUrls])].slice(0, 25);
+    if (chatPaint) chatPaint();
+    try {
+      const r = await Account.chat(c.code, urls, st.msgs.map(m => ({ role: m.role, content: m.content })));
+      st.msgs.push({ role: "assistant", content: r.answer, urls: r.urls || urls });
+      chatUsage = { used: r.used, limit: r.limit, resetAt: r.resetAt };
+    } catch (e) {
+      st.msgs.pop(); st.draft = q; st.error = e.message;
+      if (e.usage) chatUsage = { used: e.usage.used, limit: e.usage.limit, resetAt: e.usage.resetAt };
+    }
+    st.busy = false;
+    if (chatPaint) chatPaint();
+  }
+  // The feed is redrawn often (filters, refresh): the latest block repaints its own country's chat
+  chatPaint = () => { if (box.isConnected) paint(); };
+  paint();
+  return box;
+}
 const summaryFor = g => { for (const i of g.items) if (SUMMARY[i.url]) return SUMMARY[i.url].text; return ""; };
 const whyFor = g => { for (const i of g.items) if (SUMMARY[i.url]) return SUMMARY[i.url].why || ""; return ""; };
 // Inside the country or its relations with others: marked by the AI together with the summary
@@ -378,6 +501,7 @@ function render(c, allItems, info) {
   const rerender = () => { const y = window.scrollY; render(shown.c, shown.allItems, shown.info); window.scrollTo(0, y); };
   out.append(controls(rerender, counts));
   const essay = essayBlock(c); if (essay) out.append(essay);
+  const chat = chatBlock(c, list.slice(0, FEED_SIZE).map(g => g.lead.url)); if (chat) out.append(chat);
 
   if (!groups.length) {
     if (!info.partial) out.append(el("div", "notice", false
@@ -459,6 +583,11 @@ function render(c, allItems, info) {
     const cl = el("a", "c-link", "Обсудить");
     cl.href = `article.html?c=${c.code}&u=${encodeURIComponent(a.url)}#comments`;
     const acts = el("div", "acts"); acts.append(sv, cl);
+    if (Account.vip && PREFETCHED.has(c.code)) {
+      const ai = el("button", "save-btn", "Спросить ИИ"); ai.type = "button"; ai.title = "Задать вопрос об этом событии в чате";
+      ai.onclick = () => askAbout(c, g);
+      acts.append(ai);
+    }
     const foot = el("div", "foot"); foot.append(src, acts); body.append(foot);
     discuss.push({ cl, urls: g.items.map(x => x.url) });
     li.append(body);
@@ -545,9 +674,13 @@ function begin() { if (started || !Account.user) return; started = true; applyAc
 Account.ready.then(() => { paintQuick(); if (Account.user) begin(); else showGate(); });
 Account.onChange(event => {
   if (event === "SIGNED_IN" || event === "INITIAL_SESSION") {
-    paintQuick(); begin();
+    paintQuick(); loadChatUsage(); begin();
   } else if (event === "SIGNED_OUT") {
-    started = false; paintQuick(); showGate();
+    started = false; chatUsage = null; for (const k in CHATS) delete CHATS[k];
+    paintQuick(); showGate();
+  } else if (event === "VIP") {
+    loadChatUsage();
+    if (shown) { const y = window.scrollY; render(shown.c, shown.allItems, shown.info); window.scrollTo(0, y); }
   } else if (event === "PROFILE" || event === "SAVED") {
     paintQuick();
     if (shown) { const y = window.scrollY; render(shown.c, shown.allItems, shown.info); window.scrollTo(0, y); }

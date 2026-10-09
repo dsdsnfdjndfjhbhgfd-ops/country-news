@@ -82,7 +82,7 @@ function render() {
   main.append(pw);
 }
 
-// VIP subscription: 250 ₽ for 30 days. Test mode until YooKassa is connected; unlocks nothing yet.
+// VIP subscription: 250 ₽ for 30 days. Test mode until YooKassa is connected.
 function vipSection() {
   const box = el("section", "vip");
   const v = Account.vip, rec = Account.vipRecord;
@@ -94,7 +94,7 @@ function vipSection() {
   } else {
     box.append(el("p", null, rec ? "Подписка закончилась. Её можно продлить ещё на 30 дней." : "Поддержите ev.news и получите VIP-статус на 30 дней."));
   }
-  box.append(el("p", "vip-note", "Сейчас подписка работает в тестовом режиме: деньги не списываются, а VIP пока не даёт дополнительных возможностей. Они появятся позже."));
+  box.append(el("p", "vip-note", "VIP открывает чат с ИИ по каждой стране (до 50 000 токенов в сутки) и 25 пересказов в сутки вместо 3. Сейчас подписка работает в тестовом режиме: деньги не списываются."));
   const btn = el("button", "btn primary", v ? "Продлить на 30 дней за 250 ₽" : "Оформить за 250 ₽"); btn.type = "button";
   const msg = el("p", "msg"); msg.setAttribute("role", "status");
   btn.onclick = async () => {
