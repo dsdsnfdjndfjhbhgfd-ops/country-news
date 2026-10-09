@@ -31,8 +31,8 @@ const DEEPSEEK = {
   models: list(env("DEEPSEEK_MODEL") || "deepseek-v4.1-flash:cxb"),
 };
 const CHAT_MODELS = list(env("CHAT_MODEL"));
-// Answer tokens. Smart models think before answering and the thinking counts too, so they get more room.
-const MAX_ANSWER = Number(env("CHAT_MAX_TOKENS")) || (CHAT_MODELS.length ? 4000 : 1500), MIN_ANSWER = 300;
+// Answer tokens. DeepSeek thinks before answering and the thinking counts too, so it gets room for both.
+const MAX_ANSWER = Number(env("CHAT_MAX_TOKENS")) || 4000, MIN_ANSWER = 300;
 const MAX_EVENTS = 25, MAX_QUESTION = 1000, MAX_HISTORY = 8;
 
 const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, {

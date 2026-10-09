@@ -61,7 +61,7 @@ async function ask(prompt: string): Promise<{ text: string; model: string }> {
       const call = () => fetch(DEEPSEEK.base + "/chat/completions", {
         method: "POST", signal: AbortSignal.timeout(45000),
         headers: { Authorization: `Bearer ${DEEPSEEK.key}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ model, temperature: 0.2, max_tokens: 1500, messages: [{ role: "user", content: prompt }] }),
+        body: JSON.stringify({ model, temperature: 0.2, max_tokens: 4000, messages: [{ role: "user", content: prompt }] }), // the model thinks first: room for that too
       });
       let r = await call();
       if (r.status === 503) { await new Promise((res) => setTimeout(res, 3000)); r = await call(); }
