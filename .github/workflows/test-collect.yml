@@ -1,0 +1,73 @@
+name: Пробный сбор (без публикации)
+
+# Temporary: runs the collector on a work branch with the real data and AI, prints what it produced
+# (file sizes, AI importance marks, top events). Publishes nothing and pushes nothing.
+on:
+  push:
+    branches: ["claude/**"]
+    paths: [".github/workflows/test-collect.yml"]
+
+permissions:
+  contents: read
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Взять последние данные
+        run: |
+          git fetch -q --depth 1 origin data
+          rm -rf data && mkdir data
+          git --work-tree=data checkout FETCH_HEAD -- .
+          git reset -q
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Собрать новости
+        run: time node scripts/prefetch.mjs
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          LLM_API_KEY: ${{ secrets.LLM_API_KEY }}       # key of the AI service (secret); skipped while it points to Gemini
+          LLM_BASE_URL: ${{ vars.LLM_BASE_URL }}        # optional: service address
+          LLM_MODEL: ${{ vars.LLM_MODEL }}              # optional: model id(s)
+          # More AI services: one secret each (a secret that does not exist is simply empty)
+          LLM_KEY_CEREBRAS: ${{ secrets.LLM_KEY_CEREBRAS }}
+          LLM_KEY_MISTRAL: ${{ secrets.LLM_KEY_MISTRAL }}
+          LLM_KEY_DEEPSEEK: ${{ secrets.LLM_KEY_DEEPSEEK }}
+          LLM_KEY_OPENROUTER: ${{ secrets.LLM_KEY_OPENROUTER }}
+          LLM_KEY_TOGETHER: ${{ secrets.LLM_KEY_TOGETHER }}
+          LLM_KEY_SAMBANOVA: ${{ secrets.LLM_KEY_SAMBANOVA }}
+          LLM_KEY_NVIDIA: ${{ secrets.LLM_KEY_NVIDIA }}
+          LLM_KEY_OPENAI: ${{ secrets.LLM_KEY_OPENAI }}
+          LLM_KEY_EXTRA1: ${{ secrets.LLM_KEY_EXTRA1 }}   # any other service: also add the variable LLM_BASE_EXTRA1
+          LLM_BASE_EXTRA1: ${{ vars.LLM_BASE_EXTRA1 }}
+          LLM_MODEL_EXTRA1: ${{ vars.LLM_MODEL_EXTRA1 }}
+          # EXTRA1 per collection: up to RUNS requests of BATCH events, PARALLEL at a time, at most every GAP minutes
+          LLM_BATCH_EXTRA1: ${{ vars.LLM_BATCH_EXTRA1 || '10' }}
+          LLM_RUNS_EXTRA1: ${{ vars.LLM_RUNS_EXTRA1 || '24' }}
+          LLM_PARALLEL_EXTRA1: ${{ vars.LLM_PARALLEL_EXTRA1 || '6' }}
+          LLM_GAP_EXTRA1: ${{ vars.LLM_GAP_EXTRA1 || '1' }}   # requests go out only when events lack a summary
+          LLM_MAX_TOKENS: ${{ vars.LLM_MAX_TOKENS }}        # optional: answer length limit (default 30000)
+
+      - name: Что получилось
+        run: |
+          du -sh data
+          ls -l data/*.json | awk '{print $5, $9}' | sort -n | tail -12
+          node -e '
+            const fs = require("fs"), vm = require("vm");
+            const imp = JSON.parse(fs.readFileSync("data/importance.json", "utf8")).items;
+            const marks = Object.values(imp), hist = {};
+            for (const m of marks) hist[m] = (hist[m] || 0) + 1;
+            console.log("AI marks:", marks.length, JSON.stringify(hist));
+            const core = vm.createContext({ Date, Math, Set, Map, JSON });
+            vm.runInContext(fs.readFileSync("assets/core.js", "utf8"), core);
+            const rate = g => { for (const i of g.items) if (imp[i.url]) return imp[i.url]; return null; };
+            const C = { RU: ["Россия", "Russia", "России"], UA: ["Украина", "Ukraine", "Украине"], BR: ["Бразилия", "Brazil", "Бразилии"], MA: ["Марокко", "Morocco", "Марокко"] };
+            for (const [code, [ru, en, loc]] of Object.entries(C)) {
+              const items = JSON.parse(fs.readFileSync("data/" + code + ".json", "utf8")).items;
+              const t = Date.now(); const gs = core.cluster(items, { code, ru, en, loc }, true, 10, rate);
+              console.log("\n" + code + ": " + items.length + " items, grouped in " + (Date.now() - t) + " ms");
+              gs.forEach((g, i) => console.log(" " + (i + 1) + ". [" + g.domains + " outlets, AI " + (g.ai ?? "-") + ", score " + g.score.toFixed(1) + "] " + g.lead.title.slice(0, 90)));
+            }'
