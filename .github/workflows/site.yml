@@ -92,7 +92,7 @@ jobs:
       - name: Подготовить сайт
         run: |
           mkdir -p "$RUNNER_TEMP/site"
-          cp -r index.html news.html account.html article.html ratings.html assets data "$RUNNER_TEMP/site/"
+          cp -r index.html news.html account.html article.html ratings.html chat.html assets data "$RUNNER_TEMP/site/"
           rm -rf "$RUNNER_TEMP/site/data/full"   # the collector's working copies are not needed by the site
           touch "$RUNNER_TEMP/site/.nojekyll"
           # Stamp scripts and styles with the version, so browsers fetch new code right after an update

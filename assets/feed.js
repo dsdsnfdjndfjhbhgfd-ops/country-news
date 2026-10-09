@@ -459,6 +459,11 @@ function render(c, allItems, info) {
     const cl = el("a", "c-link", "Обсудить");
     cl.href = `article.html?c=${c.code}&u=${encodeURIComponent(a.url)}#comments`;
     const acts = el("div", "acts"); acts.append(sv, cl);
+    if (Account.vip && PREFETCHED.has(c.code)) {
+      const ai = el("a", "c-link", "Спросить ИИ"); ai.title = "Задать вопрос об этом событии в чате с ИИ";
+      ai.href = `chat.html?c=${c.code}&u=${encodeURIComponent(a.url)}`;
+      acts.append(ai);
+    }
     const foot = el("div", "foot"); foot.append(src, acts); body.append(foot);
     discuss.push({ cl, urls: g.items.map(x => x.url) });
     li.append(body);
@@ -548,6 +553,8 @@ Account.onChange(event => {
     paintQuick(); begin();
   } else if (event === "SIGNED_OUT") {
     started = false; paintQuick(); showGate();
+  } else if (event === "VIP") {
+    if (shown) { const y = window.scrollY; render(shown.c, shown.allItems, shown.info); window.scrollTo(0, y); }
   } else if (event === "PROFILE" || event === "SAVED") {
     paintQuick();
     if (shown) { const y = window.scrollY; render(shown.c, shown.allItems, shown.info); window.scrollTo(0, y); }

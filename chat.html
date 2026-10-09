@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://bsgidggxlzinntgdnxgt.supabase.co wss://bsgidggxlzinntgdnxgt.supabase.co https://dns.google; object-src 'none'; base-uri 'self'; form-action 'self'; frame-src 'none'">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>ev.news · чат с ИИ</title>
+<meta name="description" content="Вопросы ИИ о новостях и политике страны: для читателей с VIP-подпиской.">
+<script src="assets/boot.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;700;800&family=Literata:opsz,wght@7..72,500;7..72,700&display=swap">
+<link rel="stylesheet" href="assets/account.css">
+<style>
+/* Layout: one column. Heading, country chips, then the chat card; the events the AI sees fold out below it. */
+:root{
+  --bg:#f3f5f9; --surface:#ffffff; --ink:#0f1b2d; --muted:#5d6b82; --line:#dbe1ea;
+  --accent:#2557d6; --on-accent:#ffffff; --marker:#f2b33d;
+  --t-economy:#0f8a7e; --t-security:#d14b5a;
+  --sans:"Onest",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --serif:"Literata",Georgia,"Times New Roman",serif;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0b1220; --surface:#121b2d; --ink:#e7edf6; --muted:#8e9bb2; --line:#223049;
+  --accent:#7aa5ff; --on-accent:#0b1220; --marker:#e0a43a;
+  --t-economy:#3dc4b2; --t-security:#ff7d88; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0b1220; --surface:#121b2d; --ink:#e7edf6; --muted:#8e9bb2; --line:#223049;
+  --accent:#7aa5ff; --on-accent:#0b1220; --marker:#e0a43a;
+  --t-economy:#3dc4b2; --t-security:#ff7d88; color-scheme:dark}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:17px;line-height:1.55;padding-inline:20px;padding-block:20px 72px;-webkit-font-smoothing:antialiased}
+a{color:inherit}
+a:focus-visible,button:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
+.wrap{max-width:860px;margin:0 auto;display:flex;flex-direction:column;gap:28px}
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.brand{font-weight:800;font-size:22px;text-decoration:none;letter-spacing:-.02em}
+.brand span{color:var(--accent)}
+.nav{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.nav a{font-weight:500;text-decoration:none;color:var(--muted)}
+.nav a:hover,.nav a[aria-current]{color:var(--accent)}
+h1{margin:0;font-weight:800;font-size:clamp(32px,5vw,48px);letter-spacing:-.025em;line-height:1.1;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+h1 .acc-vip{font-size:14px;padding:3px 8px}
+.lede{margin:10px 0 0;color:var(--muted);max-width:62ch}
+
+.countries{display:flex;flex-wrap:wrap;gap:8px}
+.countries button{font:500 15px var(--sans);background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:6px 13px;color:var(--ink);cursor:pointer;transition:border-color .15s,color .15s,background .15s}
+.countries button:hover{border-color:var(--accent);color:var(--accent)}
+.countries button[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:var(--surface)}
+.countries button .dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--accent);margin-left:6px;vertical-align:2px}
+.countries button[aria-pressed="true"] .dot{background:var(--surface)}
+
+.panel{padding:22px 24px;background:var(--surface);border:1px solid var(--line);border-radius:18px;display:flex;flex-direction:column;gap:14px}
+.panel-head{display:flex;justify-content:space-between;align-items:baseline;gap:6px 16px;flex-wrap:wrap}
+.panel-head h2{margin:0;font-size:clamp(22px,3vw,26px);font-weight:800;letter-spacing:-.01em}
+.usage{font-size:14px;color:var(--muted)}
+.meter{height:6px;border-radius:999px;background:var(--line);overflow:hidden}
+.meter i{display:block;height:100%;background:var(--accent);border-radius:inherit}
+.meter.low i{background:var(--t-security)}
+.lead{margin:0;font-size:15px;color:var(--muted);max-width:68ch}
+.status{font-size:15px;color:var(--muted);display:flex;align-items:center;gap:10px}
+.spinner{width:14px;height:14px;border-radius:50%;border:2px solid var(--line);border-top-color:var(--accent);animation:spin .8s linear infinite;flex:none}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+.log{display:flex;flex-direction:column;gap:12px;min-height:120px;max-height:min(62vh,620px);overflow-y:auto;overscroll-behavior:contain;padding:2px}
+.m{max-width:86%;padding:11px 15px;border-radius:16px;font-size:16px;line-height:1.55}
+.m.me{align-self:flex-end;background:var(--accent);color:var(--on-accent);border-bottom-right-radius:4px}
+.m.ai{align-self:flex-start;background:var(--bg);border:1px solid var(--line);border-bottom-left-radius:4px}
+.m.wait{display:flex;align-items:center;gap:10px;color:var(--muted)}
+.m .text{white-space:pre-wrap;overflow-wrap:anywhere}
+.ref{display:inline-block;min-width:1.5em;margin:0 1px;padding:0 4px;font:700 12px/1.6 var(--sans);text-align:center;text-decoration:none;color:var(--accent);border:1px solid currentColor;border-radius:6px;vertical-align:1px}
+.ref:hover{background:var(--accent);color:var(--on-accent)}
+.ideas{display:flex;flex-wrap:wrap;gap:8px}
+.ideas button{font:500 14px var(--sans);text-align:left;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:8px 12px;cursor:pointer}
+.ideas button:hover{border-color:var(--accent);color:var(--accent)}
+.ideas button:disabled{opacity:.5;cursor:wait}
+
+.form{display:flex;gap:10px;align-items:flex-end}
+.form textarea{flex:1;min-width:0;resize:vertical;min-height:52px;max-height:260px;font:500 16px/1.4 var(--sans);color:var(--ink);background:var(--bg);border:2px solid var(--line);border-radius:14px;padding:11px 13px}
+.form textarea:focus{outline:none;border-color:var(--accent)}
+.send{flex:none;font:700 15px var(--sans);color:var(--surface);background:var(--ink);border:0;border-radius:999px;padding:13px 20px;cursor:pointer}
+.send:hover{background:var(--accent);color:var(--on-accent)}
+.send:disabled{opacity:.45;cursor:wait}
+.err{margin:0;font-size:14px;color:var(--t-security)}
+.foot{display:flex;align-items:center;flex-wrap:wrap;gap:8px 16px;font-size:13px;color:var(--muted)}
+.linkbtn{font:700 14px var(--sans);color:var(--accent);background:none;border:0;padding:0;cursor:pointer}
+.linkbtn:hover{text-decoration:underline;text-underline-offset:3px}
+
+.events summary{cursor:pointer;font-weight:700;width:max-content;max-width:100%}
+.events summary:hover{color:var(--accent)}
+.events ol{margin:12px 0 0;padding:0;list-style:none;display:flex;flex-direction:column;gap:8px;counter-reset:ev}
+.events li{display:grid;grid-template-columns:2.2em minmax(0,1fr);gap:8px;font-size:15px;line-height:1.4}
+.events li b{font:700 12px/1.6 var(--sans);text-align:center;color:var(--muted);border:1px solid var(--line);border-radius:6px;align-self:start}
+.events li.pin b{color:var(--accent);border-color:var(--accent)}
+.events a{text-decoration:none;font-family:var(--serif);font-weight:500}
+.events a:hover{color:var(--accent);text-decoration:underline;text-underline-offset:3px}
+.events small{color:var(--muted);font-family:var(--sans)}
+
+.buy{align-self:flex-start;font:700 16px var(--sans);text-decoration:none;color:var(--surface);background:var(--ink);border-radius:999px;padding:12px 22px}
+.buy:hover{background:var(--accent);color:var(--on-accent)}
+.perks{margin:0;padding-left:20px;color:var(--ink);font-size:16px}
+.note{font-size:14px;color:var(--muted);border-top:1px solid var(--line);padding-top:16px;max-width:70ch}
+.note p{margin:0 0 8px}
+
+@media (max-width:560px){
+  .countries{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;margin-inline:-20px;padding:2px 20px}
+  .countries::-webkit-scrollbar{display:none}
+  .countries button{flex:none;white-space:nowrap}
+  .panel{padding:18px 16px;margin-inline:-6px}
+  .m{max-width:100%}
+  .form{flex-direction:column;align-items:stretch}
+}
+@media (prefers-reduced-motion:reduce){.spinner{animation:none}.countries button{transition:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="topbar">
+    <a class="brand" href="./">ev<span>.news</span></a>
+    <nav class="nav"><a href="./">Главная</a><a href="news.html">Лента</a><a href="chat.html" aria-current="page">Чат с ИИ</a><a href="ratings.html">Рейтинг изданий</a><span data-account></span></nav>
+  </header>
+
+  <section>
+    <h1>Чат с ИИ <span class="acc-vip">VIP</span></h1>
+    <p class="lede">Выберите страну и спросите ИИ о её новостях за последние два дня или о политике, безопасности и экономике в целом. ИИ видит главные события ленты и ссылается на них номерами.</p>
+  </section>
+
+  <div class="countries" id="countries" role="group" aria-label="Страна"></div>
+
+  <main id="app"><p class="status"><span class="spinner"></span>Загрузка…</p></main>
+
+  <div class="note">
+    <p>Лимит — 50 000 токенов в сутки: в него входят вопрос, история разговора, новости, которые получает ИИ, и ответ. Один вопрос обычно расходует 3–6 тысяч токенов. Лимит обновляется в 00:00 по Москве.</p>
+    <p>Разговор хранится только в этой вкладке браузера, отдельно для каждой страны. Ответы пишет ИИ, он может ошибаться: проверяйте важное по ссылкам на события.</p>
+  </div>
+</div>
+
+<script src="assets/vendor/supabase.js"></script>
+<script src="assets/email-check.js"></script>
+<script src="assets/account.js"></script>
+<script src="assets/core.js"></script>
+<script src="assets/chat.js"></script>
+</body>
+</html>
