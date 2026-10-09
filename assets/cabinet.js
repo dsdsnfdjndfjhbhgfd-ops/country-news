@@ -17,6 +17,7 @@ function render() {
   if (Account.isAdmin) left.append(el("p", "admin-note", "Вы администратор: можете удалять любые комментарии на страницах событий."));
   who.append(left, out);
   main.append(who);
+  main.append(vipSection());
 
   // Name shown under the person's comments
   const nm = el("section");
@@ -81,6 +82,35 @@ function render() {
   main.append(pw);
 }
 
+// VIP subscription: 250 ₽ for 30 days. Test mode until YooKassa is connected; unlocks nothing yet.
+function vipSection() {
+  const box = el("section", "vip");
+  const v = Account.vip, rec = Account.vipRecord;
+  const head = el("div", "vip-head");
+  head.append(el("h2", null, "VIP-подписка"), el("span", "vip-price", "250 ₽ / 30 дней"));
+  box.append(head);
+  if (v) {
+    box.append(el("p", "vip-state on", `Подписка активна до ${new Date(v.expires_at).toLocaleDateString("ru-RU", { day: "numeric", month: "long" })} включительно.`));
+  } else {
+    box.append(el("p", null, rec ? "Подписка закончилась. Её можно продлить ещё на 30 дней." : "Поддержите ev.news и получите VIP-статус на 30 дней."));
+  }
+  box.append(el("p", "vip-note", "Сейчас подписка работает в тестовом режиме: деньги не списываются, а VIP пока не даёт дополнительных возможностей. Они появятся позже."));
+  const btn = el("button", "btn primary", v ? "Продлить на 30 дней за 250 ₽" : "Оформить за 250 ₽"); btn.type = "button";
+  const msg = el("p", "msg"); msg.setAttribute("role", "status");
+  btn.onclick = async () => {
+    btn.disabled = true; msg.textContent = ""; msg.className = "msg";
+    try {
+      const r = await Account.buyVip();
+      if (r.redirect) { msg.textContent = "Переходим на страницу оплаты…"; return; }
+      // Account.refreshVip() redraws the cabinet, so the message goes onto the new section
+      const m = main.querySelector(".vip .msg");
+      if (m) { m.textContent = r.mode === "test" ? "Готово! Тестовая подписка оформлена, деньги не списаны." : "Готово! Подписка оформлена."; m.className = "msg ok"; }
+    } catch (e) { msg.textContent = e.message; msg.className = "msg err"; btn.disabled = false; }
+  };
+  box.append(btn, msg);
+  return box;
+}
+
 function alertMsg(text) { const m = el("p", "msg err", text); main.prepend(m); setTimeout(() => m.remove(), 6000); }
 
 function renderSignedOut() {
@@ -112,5 +142,14 @@ function renderNewPassword(fromCabinet) {
   main.append(f); inp.focus();
 }
 
-Account.ready.then(render);
+Account.ready.then(async () => {
+  render();
+  // Back from the payment page: check the payment and show the result
+  if (new URLSearchParams(location.search).get("vip") === "return" && Account.user) {
+    history.replaceState(null, "", location.pathname);
+    const v = await Account.refreshVip(true);
+    const m = main.querySelector(".vip .msg");
+    if (m) { m.textContent = v ? "Оплата прошла, подписка активна." : "Оплата ещё не подтверждена. Если вы оплатили, обновите страницу через минуту."; m.className = "msg " + (v ? "ok" : ""); }
+  }
+});
 Account.onChange(e => { if (e !== "TOKEN_REFRESHED") render(); });

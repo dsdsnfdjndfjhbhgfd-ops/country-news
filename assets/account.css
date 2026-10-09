@@ -58,3 +58,5 @@
 .star-btn{font:700 14px var(--sans);color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:6px 12px;cursor:pointer}
 .star-btn:hover{border-color:var(--accent)}
 .star-btn[aria-pressed="true"]{color:var(--accent);border-color:var(--accent)}
+
+.acc-vip{font:800 11px var(--sans);letter-spacing:.04em;color:#3b2a00;background:var(--marker,#f2b33d);border-radius:4px;padding:1px 5px;margin-left:2px}

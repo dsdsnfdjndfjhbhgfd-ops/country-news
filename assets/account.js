@@ -10,7 +10,7 @@
     ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
     : null;
 
-  let user = null, recovery = false, admin = false;
+  let user = null, recovery = false, admin = false, vip = null;
   let profile = { countries: [], settings: {} };
   const saved = new Map(); // url -> row
   const listeners = new Set();
@@ -20,12 +20,14 @@
   function notify(event) { for (const fn of listeners) { try { fn(event); } catch (e) { console.error(e); } } }
 
   async function loadUserData() {
-    const [p, s, adm] = await Promise.all([
+    const [p, s, adm, sub] = await Promise.all([
       sb.from("profiles").select("countries, settings, display_name").eq("id", user.id).maybeSingle(),
       sb.from("saved").select("*").order("created_at", { ascending: false }),
-      sb.rpc("am_i_admin").then(r => r, () => ({ data: false }))
+      sb.rpc("am_i_admin").then(r => r, () => ({ data: false })),
+      sb.from("subscriptions").select("plan, status, provider, started_at, expires_at").eq("user_id", user.id).maybeSingle().then(r => r, () => ({ data: null }))
     ]);
     admin = adm?.data === true;
+    vip = sub?.data || null;
     profile = { countries: p.data?.countries || [], settings: p.data?.settings || {}, displayName: p.data?.display_name || "" };
     if (!p.data) await sb.from("profiles").upsert({ id: user.id }); // accounts made before the trigger existed
     saved.clear();
@@ -37,7 +39,7 @@
     user = session?.user || null;
     if (event === "PASSWORD_RECOVERY") recovery = true;
     if (user && user.id !== before) { try { await loadUserData(); } catch (e) { console.error(e); } }
-    if (!user) { profile = { countries: [], settings: {} }; saved.clear(); admin = false; }
+    if (!user) { profile = { countries: [], settings: {} }; saved.clear(); admin = false; vip = null; }
     resolveReady();
     notify(event);
   }
@@ -221,6 +223,33 @@
       const { data } = await sb.from("event_summaries").select("summary").in("url", urls.slice(0, 6)).limit(1);
       return data?.[0]?.summary || "";
     },
+    // VIP subscription (250 ₽ for 30 days). For now it unlocks nothing; payments go through
+    // the Edge Function "subscribe": test mode until YooKassa keys are added to Supabase secrets.
+    get vip() { return vip && vip.status === "active" && Date.parse(vip.expires_at) > Date.now() ? { ...vip } : null; },
+    get vipRecord() { return vip ? { ...vip } : null; },
+    async buyVip() {
+      if (!user) throw new Error("Войдите, чтобы оформить подписку.");
+      need();
+      const { data, error } = await sb.functions.invoke("subscribe", { body: { action: "buy" } });
+      if (error) {
+        let code = "";
+        try { code = (await error.context.json()).error || ""; } catch {}
+        throw new Error(code === "payment_unavailable" ? "Платёжный сервис сейчас недоступен. Попробуйте позже." : "Не удалось оформить подписку. Попробуйте ещё раз.");
+      }
+      if (data?.confirmation_url) { location.href = data.confirmation_url; return { redirect: true }; }
+      await this.refreshVip();
+      return { mode: data?.mode };
+    },
+    // After coming back from the payment page: ask the server to look at the payment, then reload VIP
+    async refreshVip(check = false) {
+      if (!user || !sb) return null;
+      if (check) await sb.functions.invoke("subscribe", { body: { action: "check" } }).catch(() => {});
+      const { data } = await sb.from("subscriptions").select("plan, status, provider, started_at, expires_at").eq("user_id", user.id).maybeSingle();
+      vip = data || null;
+      notify("VIP");
+      return this.vip;
+    },
+
     async requestSummary(country, urls) {
       if (!user) throw new Error("Войдите, чтобы запросить пересказ.");
       need();
@@ -400,6 +429,7 @@
       if (user) {
         const a = el("a", "acc-me"); a.href = "account.html"; a.title = user.email;
         a.append(el("span", "acc-avatar", (user.email || "?")[0].toUpperCase()), el("span", "acc-name", "Кабинет"));
+        if (Account.vip) a.append(el("span", "acc-vip", "VIP"));
         slot.append(a);
       } else {
         const b = el("button", "acc-login", "Войти"); b.type = "button";
