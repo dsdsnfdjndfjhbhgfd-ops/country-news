@@ -1,6 +1,6 @@
 # ev.news
 
-Сайт: https://dsdsnfdjndfjhbhgfd-ops.github.io/country-news/ (главная о проекте), лента: `news.html#RU`, страница события: `article.html?c=RU&u=<ссылка на статью>`
+Сайт: https://evnews.site/ (главная о проекте; старый адрес https://dsdsnfdjndfjhbhgfd-ops.github.io/country-news/ переадресует туда), лента: `news.html#RU`, страница события: `article.html?c=RU&u=<ссылка на статью>`
 
 Вводишь страну и видишь главные события недели: только то, о чём пишут несколько изданий, без спорта и шоу-бизнеса.
 

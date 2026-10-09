@@ -12,8 +12,15 @@
 // YooKassa notifications: set https://<project>.supabase.co/functions/v1/subscribe as the HTTP notification URL.
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
-const SITE = "https://dsdsnfdjndfjhbhgfd-ops.github.io/country-news/";
-const ORIGINS = ["https://dsdsnfdjndfjhbhgfd-ops.github.io"];
+// The site lives at evnews.site; the old GitHub Pages address keeps working (it redirects there)
+const SITE = "https://evnews.site/";
+const ORIGINS = ["https://evnews.site", "https://www.evnews.site", "https://dsdsnfdjndfjhbhgfd-ops.github.io"];
+const OLD = "https://dsdsnfdjndfjhbhgfd-ops.github.io";
+// Where to send the reader back after paying: the address they paid from
+const siteFor = (req: Request) => {
+  const o = req.headers.get("origin") || "";
+  return o === OLD ? OLD + "/country-news/" : ORIGINS.includes(o) ? o + "/" : SITE;
+};
 const PRICE = Number(Deno.env.get("VIP_PRICE_RUB")) || 250;
 const DAYS = 30;
 const SHOP = Deno.env.get("YOOKASSA_SHOP_ID") || "", SECRET = Deno.env.get("YOOKASSA_SECRET_KEY") || "";
@@ -105,7 +112,7 @@ Deno.serve(async (req: Request) => {
     const payment: Record<string, unknown> = {
       amount: { value, currency: "RUB" },
       capture: true,
-      confirmation: { type: "redirect", return_url: SITE + "account.html?vip=return" },
+      confirmation: { type: "redirect", return_url: siteFor(req) + "account.html?vip=return" },
       description: `VIP-подписка ev.news на ${DAYS} дней`,
       metadata: { user_id: user.id },
     };
