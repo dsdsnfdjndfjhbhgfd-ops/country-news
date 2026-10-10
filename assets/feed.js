@@ -87,7 +87,7 @@ function skeleton(c) {
 async function dataVersion() {
   try {
     const r = await fetch("data/status.json?t=" + Date.now(), { cache: "no-store" });
-    if (r.ok) return (await r.json()).updated || "";
+    if (r.ok) { const st = await r.json(); if (Array.isArray(st.sources)) SOURCE_LIST = st.sources; return st.updated || ""; }
   } catch {}
   return String(Math.floor(Date.now() / 60000)); // fallback: a new version every minute
 }
@@ -263,11 +263,16 @@ function meter(n, color) {
 // ---------- Viewer settings: period and single-outlet stories ----------
 const PERIODS = [["today", "Сегодня"], ["yesterday", "Вчера"], ["3d", "3 дня"], ["week", "Неделя"]];
 const PERIOD_TEXT = { "2d": "за 2 дня", today: "за сегодня", yesterday: "за вчера", "3d": "за 3 дня", week: "за неделю" };
-const prefs = { period: "2d", singles: true, ruTitles: true };
+const prefs = { period: "2d", singles: true, ruTitles: true, outlets: [], outletMode: "any" };
 // Feed view: sphere filter, sort order and whether to show every event
 const view = { sphere: "all", scope: "all", sort: "importance", all: false };
 const FEED_SIZE = 25;
-try { const st = JSON.parse(localStorage.getItem("cn:prefs2")) || {}; prefs.singles = st.singles !== false; prefs.ruTitles = st.ruTitles !== false; } catch {}
+try {
+  const st = JSON.parse(localStorage.getItem("cn:prefs2")) || {};
+  prefs.singles = st.singles !== false; prefs.ruTitles = st.ruTitles !== false;
+  if (Array.isArray(st.outlets)) prefs.outlets = st.outlets.map(String).slice(0, 400);
+  if (st.outletMode === "only") prefs.outletMode = "only";
+} catch {}
 function savePrefs() { try { localStorage.setItem("cn:prefs2", JSON.stringify(prefs)); } catch {} }
 function inPeriod(items) {
   const from2d = Date.now() - 48 * 3600000;
@@ -277,6 +282,110 @@ function inPeriod(items) {
   const [from, to] = { today: [t0, Infinity], yesterday: [t0 - day, t0], "3d": [t0 - 2 * day, Infinity], week: [-Infinity, Infinity] }[prefs.period] || [-Infinity, Infinity];
   return items.filter(a => { const t = seenTime(a.seendate); return isNaN(t) ? prefs.period === "week" : t >= from && t < to; });
 }
+// ---------- Outlets: news that the chosen outlets write about ----------
+let SOURCE_LIST = []; // every outlet the collector reads, [{ name, lang }] from data/status.json
+function outletLabel() { return prefs.outlets.length ? `Издания: выбрано ${prefs.outlets.length}` : "Издания: все"; }
+function setOutlets(list, mode) {
+  prefs.outlets = list; prefs.outletMode = mode === "only" ? "only" : "any"; savePrefs();
+  Account.saveSettings({ outlets: prefs.outlets, outletMode: prefs.outletMode });
+}
+// The line under the filters while outlets are chosen: which ones, change, show all
+function outletNote(rerender, periodItems) {
+  const box = el("div", "outlet-note");
+  const names = prefs.outlets.slice(0, 3).join(", ") + (prefs.outlets.length > 3 ? ` и ещё ${prefs.outlets.length - 3}` : "");
+  box.append(el("span", null, (prefs.outletMode === "only" ? "Лента только из публикаций изданий: " : "События, о которых пишут: ") + names + "."));
+  const edit = el("button", null, "Изменить"); edit.type = "button"; edit.onclick = () => openOutlets(shown.c, periodItems, rerender);
+  const all = el("button", null, "Показать все издания"); all.type = "button"; all.onclick = () => { setOutlets([], prefs.outletMode); rerender(); };
+  box.append(edit, all);
+  return box;
+}
+function openOutlets(c, periodItems, rerender) {
+  const counts = new Map();
+  for (const a of periodItems) counts.set(a.source, (counts.get(a.source) || 0) + 1);
+  const langOf = new Map(SOURCE_LIST.map(s => [s.name, s.lang]));
+  for (const a of periodItems) if (!langOf.has(a.source)) langOf.set(a.source, a.language);
+  for (const n of prefs.outlets) if (!langOf.has(n)) langOf.set(n, "");
+  const outlets = [...langOf].map(([name, lang]) => ({ name, lang, n: counts.get(name) || 0 }))
+    .sort((x, y) => y.n - x.n || x.name.localeCompare(y.name, "ru"));
+  const chosen = new Set(prefs.outlets);
+  let mode = prefs.outletMode;
+
+  const d = el("dialog", "src-dialog"); d.setAttribute("aria-labelledby", "src-title");
+  const form = el("form", "src-form"); form.method = "dialog";
+  form.onsubmit = e => e.preventDefault(); // Enter in the search field must not close the window
+  const close = el("button", "src-close", "×"); close.type = "button"; close.setAttribute("aria-label", "Закрыть"); close.onclick = () => d.close();
+  form.append(close, Object.assign(el("h2", null, "Издания"), { id: "src-title" }));
+  form.append(el("p", "src-lead", `Выберите издания, чьи новости хотите видеть. Выбор действует для всех стран; число рядом — сколько публикаций о стране «${c.ru}» у издания ${PERIOD_TEXT[prefs.period]}.`));
+  const modes = el("div", "seg src-modes"); modes.setAttribute("role", "group"); modes.setAttribute("aria-label", "Как отбирать");
+  const hint = el("p", "src-hint");
+  const paintMode = () => {
+    modes.querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.m === mode)));
+    hint.textContent = mode === "only"
+      ? "Лента строится только из публикаций выбранных изданий: число изданий у события и важность считаются по ним."
+      : "Показываются события, о которых пишет хотя бы одно из выбранных изданий; заголовок и ссылка — от него, число изданий — по всем.";
+  };
+  for (const [m, t] of [["any", "Пишет хотя бы одно"], ["only", "Только выбранные"]]) {
+    const b = el("button", null, t); b.type = "button"; b.dataset.m = m; b.onclick = () => { mode = m; paintMode(); };
+    modes.append(b);
+  }
+  form.append(modes, hint);
+  const search = el("input", "src-search"); search.type = "search"; search.placeholder = "Найти издание"; search.setAttribute("aria-label", "Найти издание");
+  const quick = el("div", "src-quick");
+  const list = el("div", "src-list");
+  const count = el("span", "src-count");
+  const boxes = new Map();
+  const paintCount = () => { count.textContent = chosen.size ? `Выбрано: ${chosen.size}` : "Ничего не выбрано — показываются все издания"; };
+  const sync = () => { for (const [name, cb] of boxes) cb.checked = chosen.has(name); paintCount(); };
+  for (const [t, pick] of [["Все на русском", o => o.lang === "Russian"], ["Все на английском", o => o.lang === "English"], ["Пишут о стране", o => o.n > 0]]) {
+    const b = el("button", null, t); b.type = "button";
+    b.onclick = () => { for (const o of outlets) if (pick(o)) chosen.add(o.name); sync(); };
+    quick.append(b);
+  }
+  const none = el("button", null, "Снять выбор"); none.type = "button"; none.onclick = () => { chosen.clear(); sync(); };
+  quick.append(none);
+  const section = (title, rows) => {
+    if (!rows.length) return;
+    const h = el("h3", null, title); list.append(h);
+    for (const o of rows) {
+      const row = el("label", "src-row"); row.dataset.name = o.name.toLowerCase();
+      const cb = el("input"); cb.type = "checkbox"; cb.checked = chosen.has(o.name);
+      cb.onchange = () => { cb.checked ? chosen.add(o.name) : chosen.delete(o.name); paintCount(); };
+      boxes.set(o.name, cb);
+      row.append(cb, el("span", "src-name", o.name));
+      if (o.lang) row.append(el("span", "lang", o.lang === "Russian" ? "RU" : "EN"));
+      row.append(el("span", "src-n", o.n ? String(o.n) : "—"));
+      list.append(row);
+    }
+  };
+  section(`Пишут о стране «${c.ru}»`, outlets.filter(o => o.n > 0));
+  section("Сейчас не пишут о ней", outlets.filter(o => !o.n));
+  search.oninput = () => {
+    const q = search.value.trim().toLowerCase();
+    list.querySelectorAll(".src-row").forEach(r => { r.hidden = !!q && !r.dataset.name.includes(q); });
+    list.querySelectorAll("h3").forEach(h => {
+      let n = h.nextElementSibling, any = false;
+      while (n && n.tagName !== "H3") { if (!n.hidden) any = true; n = n.nextElementSibling; }
+      h.hidden = !any;
+    });
+  };
+  const foot = el("div", "src-foot");
+  const apply = el("button", "src-apply", "Показать"); apply.type = "button";
+  apply.onclick = () => {
+    // Everything chosen means no filter
+    const names = chosen.size >= outlets.length ? [] : outlets.map(o => o.name).filter(n => chosen.has(n));
+    setOutlets(names, mode); d.close(); rerender();
+  };
+  foot.append(count, apply);
+  form.append(search, quick, list, foot);
+  d.append(form);
+  d.addEventListener("close", () => d.remove());
+  d.addEventListener("click", e => { if (e.target === d) d.close(); });
+  document.body.append(d);
+  paintMode(); paintCount();
+  d.showModal();
+  search.focus();
+}
+
 function seg(label, options, current, onPick) {
   const g = el("div", "seg"); g.setAttribute("role", "group"); g.setAttribute("aria-label", label);
   for (const [v, text] of options) {
@@ -287,7 +396,7 @@ function seg(label, options, current, onPick) {
   }
   return g;
 }
-function controls(rerender, counts) {
+function controls(rerender, counts, periodItems) {
   const box = el("div", "controls");
   const left = el("div", "ctl-group");
   left.append(seg("Сфера", [["all", `Все · ${counts.all}`], ...["Политика", "Безопасность", "Экономика"].map(t => [t, `${t} · ${counts[t] || 0}`])],
@@ -301,7 +410,10 @@ function controls(rerender, counts) {
   cb.onchange = () => { prefs.singles = cb.checked; savePrefs(); Account.saveSettings({ singles: prefs.singles }); rerender(); };
   sw.append(cb, el("span", "track"), el("span", null, "Новости из одного издания"));
   const right = el("div", "ctl-group");
-  right.append(sw);
+  const ob = el("button", "outlets-btn" + (prefs.outlets.length ? " on" : ""), outletLabel()); ob.type = "button";
+  ob.setAttribute("aria-haspopup", "dialog");
+  ob.onclick = () => openOutlets(shown.c, periodItems, rerender);
+  right.append(ob, sw);
   // Only in browsers with a built-in translator (Chrome on a computer)
   if (Translate.titles.supported) {
     const tw = el("label", "switch");
@@ -339,8 +451,16 @@ let shown = null;
 function render(c, allItems, info) {
   shown = { c, allItems, info };
   markQuick(c.code);
-  const items = inPeriod(allItems);
-  const everything = cluster(items, c, prefs.singles, Infinity, rateOf);
+  const periodItems = inPeriod(allItems);
+  // Chosen outlets: "only" builds the feed from their publications alone; "any" keeps the events
+  // at least one of them writes about (with the full count of outlets) and shows their headline
+  const chosen = new Set(prefs.outlets), byOutlets = chosen.size > 0;
+  const items = byOutlets && prefs.outletMode === "only" ? periodItems.filter(a => chosen.has(a.source)) : periodItems;
+  let everything = cluster(items, c, prefs.singles, Infinity, rateOf);
+  if (byOutlets) {
+    everything = everything.filter(g => g.items.some(i => chosen.has(i.source)));
+    for (const g of everything) g.lead = g.items.find(i => chosen.has(i.source));
+  }
   const counts = { all: everything.length, scope: {} };
   for (const g of everything) counts[g.topic[0]] = (counts[g.topic[0]] || 0) + 1;
   let list = view.sphere === "all" ? everything : everything.filter(g => g.topic[0] === view.sphere);
@@ -380,12 +500,14 @@ function render(c, allItems, info) {
   }
   out.append(head);
   const rerender = () => { const y = window.scrollY; render(shown.c, shown.allItems, shown.info); window.scrollTo(0, y); };
-  out.append(controls(rerender, counts));
+  out.append(controls(rerender, counts, periodItems));
+  if (byOutlets) out.append(outletNote(rerender, periodItems));
   const essay = essayBlock(c); if (essay) out.append(essay);
 
   if (!groups.length) {
     if (!info.partial) out.append(el("div", "notice", false
       ? "За последнюю неделю важных событий не найдено. Попробуйте позже или выберите другую страну."
+      : byOutlets ? `Выбранные издания ${PERIOD_TEXT[prefs.period]} не писали о важных событиях этой страны. Добавьте издания или покажите все.`
       : `Важных событий ${PERIOD_TEXT[prefs.period]} не найдено.` + (prefs.singles ? " Данные обновляются каждые 15 минут, загляните позже." : " Включите новости из одного издания.")));
     return;
   }
@@ -544,6 +666,7 @@ function applyAccountSettings() {
   if (["all", "in", "out"].includes(st.scope)) view.scope = st.scope;
   if (["auto", "light", "dark"].includes(st.theme)) applyTheme(st.theme);
   if (typeof st.ruTitles === "boolean") { prefs.ruTitles = st.ruTitles; savePrefs(); }
+  if (Array.isArray(st.outlets)) { prefs.outlets = st.outlets.map(String).slice(0, 400); prefs.outletMode = st.outletMode === "only" ? "only" : "any"; savePrefs(); }
 }
 function startCountry() {
   const fromHash = location.hash.slice(1).toUpperCase();
