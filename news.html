@@ -163,6 +163,39 @@ button:focus-visible,a:focus-visible,#country:focus-visible{outline:3px solid va
 .essay-foot{display:flex;align-items:center;flex-wrap:wrap;gap:8px 14px;font-size:13px;color:var(--muted)}
 .essay-more{font:700 14px var(--sans);color:var(--accent);background:none;border:0;padding:0;cursor:pointer}
 .essay-more:hover{text-decoration:underline;text-underline-offset:3px}
+.outlets-btn{font:700 14px var(--sans);color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:7px 14px;cursor:pointer;white-space:nowrap}
+.outlets-btn:hover{border-color:var(--accent);color:var(--accent)}
+.outlets-btn.on{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.outlet-note{display:flex;align-items:baseline;flex-wrap:wrap;gap:6px 14px;margin-top:10px;padding:10px 14px;background:var(--surface);border:1px solid var(--accent);border-radius:12px;font-size:15px}
+.outlet-note span{flex:1 1 280px;min-width:0}
+.outlet-note button{font:700 14px var(--sans);color:var(--accent);background:none;border:0;padding:0;cursor:pointer}
+.outlet-note button:hover{text-decoration:underline;text-underline-offset:3px}
+.src-dialog{border:0;padding:0;border-radius:18px;background:var(--surface);color:var(--ink);width:min(560px,calc(100vw - 24px));max-height:min(86vh,760px);box-shadow:0 20px 60px rgba(10,15,30,.35)}
+.src-dialog::backdrop{background:rgba(10,15,30,.55)}
+.src-form{display:flex;flex-direction:column;gap:12px;padding:22px 22px 18px;max-height:inherit;position:relative;font-family:var(--sans)}
+.src-form h2{margin:0;font-size:24px;font-weight:800}
+.src-close{position:absolute;top:10px;right:12px;width:36px;height:36px;border:0;background:none;color:var(--muted);font-size:26px;line-height:1;cursor:pointer;border-radius:50%}
+.src-close:hover{color:var(--ink);background:var(--bg)}
+.src-lead,.src-hint{margin:0;font-size:14px;color:var(--muted)}
+.src-form .src-modes{display:flex;flex:none;flex-wrap:nowrap;width:100%;max-width:420px}
+.src-form .src-modes button{flex:1 1 0;min-width:0;white-space:normal;line-height:1.25}
+.src-search{width:100%;font:500 16px var(--sans);color:var(--ink);background:var(--bg);border:2px solid var(--line);border-radius:10px;padding:10px 12px}
+.src-search:focus{outline:none;border-color:var(--accent)}
+.src-quick{display:flex;flex-wrap:wrap;gap:6px}
+.src-quick button{font:500 13px var(--sans);color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:999px;padding:5px 11px;cursor:pointer}
+.src-quick button:hover{border-color:var(--accent);color:var(--accent)}
+.src-list{flex:1 1 auto;min-height:120px;overflow-y:auto;overscroll-behavior:contain;border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:4px 0}
+.src-list h3{margin:10px 0 4px;font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+.src-row{display:flex;align-items:center;gap:10px;padding:6px 4px;border-radius:8px;cursor:pointer;font-size:15px}
+.src-row:hover{background:var(--bg)}
+.src-row input{width:18px;height:18px;accent-color:var(--accent);flex:none}
+.src-name{flex:1;min-width:0;overflow-wrap:anywhere}
+.src-n{font-size:13px;color:var(--muted);min-width:2.5em;text-align:right}
+.src-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.src-count{font-size:14px;color:var(--muted)}
+.src-apply{font:700 15px var(--sans);color:var(--surface);background:var(--ink);border:0;border-radius:999px;padding:11px 22px;cursor:pointer}
+.src-apply:hover{background:var(--accent);color:var(--on-accent)}
+.src-dialog button:focus-visible,.src-row input:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
 .more{display:block;width:100%;margin-top:18px;padding:14px;font:700 16px var(--sans);color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:12px;cursor:pointer}
 .more:hover{border-color:var(--accent);color:var(--accent)}
 .how{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
@@ -190,6 +223,7 @@ footer a{color:var(--muted)}
   .ev.lead{padding:20px 18px;margin-inline:-6px}
   .essay{padding:18px 16px;margin-inline:-6px}
   .essay-head .seg{max-width:100%;overflow-x:auto}
+  .src-form{padding:18px 14px 14px}
   .ev{grid-template-columns:minmax(0,1fr);gap:12px}
   .ev .thumb{width:100%;aspect-ratio:16/9;border-radius:12px;order:-1}
   .ev h3{font-size:19px}
