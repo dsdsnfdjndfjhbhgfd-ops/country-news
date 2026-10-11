@@ -27,7 +27,8 @@ const COUNTRIES = {
   KZ: ["казахстан", "казахск", "астан", "алмат", "токаев", "kazakh", "astana", "almaty", "tokayev"],
   MA: ["марокк", "рабат", "касабланк", "марракеш", "морокк", "morocco", "moroccan", "rabat!", "casablanca", "marrakech", "marrakesh"],
   SA: ["саудовск", "саудит", "эр-рияд", "бин салман", "saudi", "riyadh", "bin salman"],
-  BR: ["бразили", "бразильск", "лула!", "лулы!", "лулу!", "brazil", "lula!", "brasilia", "brasília", "bolsonaro"]
+  BR: ["бразили", "бразильск", "лула!", "лулы!", "лулу!", "brazil", "lula!", "brasilia", "brasília", "bolsonaro"],
+  YE: ["йемен", "хусит", "ансар алла", "ходейд", "аден!", "адена!", "адене!", "yemen", "houthi", "ansar allah", "ansarallah", "sanaa", "sana'a", "hodeidah", "aden!"]
 };
 const WINDOW_MS = 48 * 3600 * 1000, PER_SOURCE = 600, MAX_ITEMS = 8000;
 
@@ -92,9 +93,9 @@ const NAMES = {
   IL: ["Израиль", "Израиле"], IR: ["Иран", "Иране"], DE: ["Германия", "Германии"],
   GB: ["Великобритания", "Великобритании"], FR: ["Франция", "Франции"], TR: ["Турция", "Турции"],
   IN: ["Индия", "Индии"], JP: ["Япония", "Японии"], PL: ["Польша", "Польше"], BY: ["Беларусь", "Беларуси"], KZ: ["Казахстан", "Казахстане"],
-  MA: ["Марокко", "Марокко"], SA: ["Саудовская Аравия", "Саудовской Аравии"], BR: ["Бразилия", "Бразилии"]
+  MA: ["Марокко", "Марокко"], SA: ["Саудовская Аравия", "Саудовской Аравии"], BR: ["Бразилия", "Бразилии"], YE: ["Йемен", "Йемене"]
 };
-const EN = { RU: "Russia", US: "United States", CN: "China", UA: "Ukraine", IL: "Israel", IR: "Iran", DE: "Germany", GB: "United Kingdom", FR: "France", TR: "Turkey", IN: "India", JP: "Japan", PL: "Poland", BY: "Belarus", KZ: "Kazakhstan", MA: "Morocco", SA: "Saudi Arabia", BR: "Brazil" };
+const EN = { RU: "Russia", US: "United States", CN: "China", UA: "Ukraine", IL: "Israel", IR: "Iran", DE: "Germany", GB: "United Kingdom", FR: "France", TR: "Turkey", IN: "India", JP: "Japan", PL: "Poland", BY: "Belarus", KZ: "Kazakhstan", MA: "Morocco", SA: "Saudi Arabia", BR: "Brazil", YE: "Yemen" };
 const core = vm.createContext({ Date, Math, Set, Map, JSON });
 vm.runInContext(await readFile("assets/core.js", "utf8"), core);
 await rm("data/why.json", { force: true }); // retired file

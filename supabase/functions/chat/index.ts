@@ -13,11 +13,11 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const SITES = ["https://evnews.site", "https://dsdsnfdjndfjhbhgfd-ops.github.io/country-news"];
 const ORIGINS = ["https://evnews.site", "https://www.evnews.site", "https://dsdsnfdjndfjhbhgfd-ops.github.io"];
-const COUNTRIES = new Set("RU US CN UA IL IR DE GB FR TR IN JP PL BY KZ MA SA BR".split(" "));
+const COUNTRIES = new Set("RU US CN UA IL IR DE GB FR TR IN JP PL BY KZ MA SA BR YE".split(" "));
 const NAMES: Record<string, string> = {
   RU: "Россия", US: "США", CN: "Китай", UA: "Украина", IL: "Израиль", IR: "Иран", DE: "Германия", GB: "Великобритания",
   FR: "Франция", TR: "Турция", IN: "Индия", JP: "Япония", PL: "Польша", BY: "Беларусь", KZ: "Казахстан",
-  MA: "Марокко", SA: "Саудовская Аравия", BR: "Бразилия",
+  MA: "Марокко", SA: "Саудовская Аравия", BR: "Бразилия", YE: "Йемен",
 };
 const DAILY_TOKENS = 50_000;                 // per reader per day
 const RESET_HOUR_MSK = 0;                    // the day starts at 00:00 Moscow time

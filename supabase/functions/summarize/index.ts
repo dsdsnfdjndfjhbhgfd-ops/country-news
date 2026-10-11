@@ -19,11 +19,11 @@ async function siteJson(path: string) {
   }
   return null;
 }
-const COUNTRIES = new Set("RU US CN UA IL IR DE GB FR TR IN JP PL BY KZ MA SA BR".split(" "));
+const COUNTRIES = new Set("RU US CN UA IL IR DE GB FR TR IN JP PL BY KZ MA SA BR YE".split(" "));
 const NAMES: Record<string, string> = {
   RU: "Россия", US: "США", CN: "Китай", UA: "Украина", IL: "Израиль", IR: "Иран", DE: "Германия", GB: "Великобритания",
   FR: "Франция", TR: "Турция", IN: "Индия", JP: "Япония", PL: "Польша", BY: "Беларусь", KZ: "Казахстан",
-  MA: "Марокко", SA: "Саудовская Аравия", BR: "Бразилия",
+  MA: "Марокко", SA: "Саудовская Аравия", BR: "Бразилия", YE: "Йемен",
 };
 const VIP_DAILY = 25, FREE_DAILY = 3, GLOBAL_DAILY = 400;
 

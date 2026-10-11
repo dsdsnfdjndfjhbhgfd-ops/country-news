@@ -6,12 +6,12 @@
 (function () {
   const $ = s => document.querySelector(s);
   const app = $("#app"), bar = $("#countries");
-  const CODES = "RU US CN UA IL IR DE GB FR TR IN JP PL BY KZ MA SA BR".split(" ");
-  const NAMES = { RU: "Россия", US: "США", CN: "Китай", UA: "Украина", IL: "Израиль", IR: "Иран", DE: "Германия", GB: "Великобритания", FR: "Франция", TR: "Турция", IN: "Индия", JP: "Япония", PL: "Польша", BY: "Беларусь", KZ: "Казахстан", MA: "Марокко", SA: "Саудовская Аравия", BR: "Бразилия" };
+  const CODES = "RU US CN UA IL IR DE GB FR TR IN JP PL BY KZ MA SA BR YE".split(" ");
+  const NAMES = { RU: "Россия", US: "США", CN: "Китай", UA: "Украина", IL: "Израиль", IR: "Иран", DE: "Германия", GB: "Великобритания", FR: "Франция", TR: "Турция", IN: "Индия", JP: "Япония", PL: "Польша", BY: "Беларусь", KZ: "Казахстан", MA: "Марокко", SA: "Саудовская Аравия", BR: "Бразилия", YE: "Йемен" };
   const ruName = { of: c => NAMES[c] || c }, enName = new Intl.DisplayNames(["en"], { type: "region" });
   const EN = { US: "United States", GB: "United Kingdom", TR: "Turkey" };
   // Locative names help the grouping ignore the country's own name in headlines ("в Казахстане")
-  const LOC_RU = { RU: "России", US: "США", CN: "Китае", UA: "Украине", IL: "Израиле", IR: "Иране", DE: "Германии", GB: "Великобритании", FR: "Франции", TR: "Турции", IN: "Индии", JP: "Японии", PL: "Польше", BY: "Беларуси", KZ: "Казахстане", MA: "Марокко", SA: "Саудовской Аравии", BR: "Бразилии" };
+  const LOC_RU = { RU: "России", US: "США", CN: "Китае", UA: "Украине", IL: "Израиле", IR: "Иране", DE: "Германии", GB: "Великобритании", FR: "Франции", TR: "Турции", IN: "Индии", JP: "Японии", PL: "Польше", BY: "Беларуси", KZ: "Казахстане", MA: "Марокко", SA: "Саудовской Аравии", BR: "Бразилии", YE: "Йемене" };
   const countryOf = code => ({ code, ru: ruName.of(code), en: EN[code] || enName.of(code), loc: LOC_RU[code] || "" });
   const IDEAS = ["Что главное произошло за эти два дня?", "Кто сейчас главные политические игроки и чего они добиваются?", "Как эти события могут сказаться на экономике?", "Какие главные риски для страны сейчас?"];
   const STORE = "ev:chat:";
@@ -129,7 +129,7 @@
     const box = el("section", "panel");
     box.append(el("h2", null, "Чат доступен с VIP-подпиской"));
     const ul = el("ul", "perks");
-    for (const t of ["Вопросы о новостях любой из 18 стран за последние два дня", "Разбор политики, безопасности и экономики страны с позициями сторон", "Ответы со ссылками на события ленты", "До 50 000 токенов в сутки, лимит обновляется в 00:00 по Москве"]) ul.append(el("li", null, t));
+    for (const t of ["Вопросы о новостях любой из 19 стран за последние два дня", "Разбор политики, безопасности и экономики страны с позициями сторон", "Ответы со ссылками на события ленты", "До 50 000 токенов в сутки, лимит обновляется в 00:00 по Москве"]) ul.append(el("li", null, t));
     const a = el("a", "buy", "Оформить VIP в кабинете"); a.href = "account.html";
     box.append(ul, a);
     return box;

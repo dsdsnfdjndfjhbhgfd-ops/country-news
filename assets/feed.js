@@ -8,13 +8,13 @@ function applyTheme(t) {
 let savedTheme = "auto"; try { savedTheme = localStorage.getItem("cn:theme") || "auto"; } catch {}
 applyTheme(savedTheme);
 document.querySelectorAll(".theme button").forEach(b => b.onclick = () => { applyTheme(b.dataset.t); Account.saveSettings({ theme: b.dataset.t }); });
-const QUICK = ["Россия","США","Китай","Украина","Израиль","Иран","Германия","Великобритания","Франция","Турция","Индия","Япония","Польша","Беларусь","Казахстан","Марокко","Саудовская Аравия","Бразилия"];
+const QUICK = ["Россия","США","Китай","Украина","Израиль","Иран","Германия","Великобритания","Франция","Турция","Индия","Япония","Польша","Беларусь","Казахстан","Марокко","Саудовская Аравия","Бразилия","Йемен"];
 // Countries collected ahead of time by the GitHub Action (scripts/prefetch.mjs)
-const PREFETCHED = new Set("RU US CN UA IL IR DE GB FR TR IN JP PL BY KZ MA SA BR".split(" "));
+const PREFETCHED = new Set("RU US CN UA IL IR DE GB FR TR IN JP PL BY KZ MA SA BR YE".split(" "));
 const ALIASES = { "сша":"US","америка":"US","штаты":"US","usa":"US","uk":"GB","англия":"GB","британия":"GB","великобритания":"GB","оаэ":"AE","uae":"AE","эмираты":"AE","корея":"KR","южная корея":"KR","северная корея":"KP","кндр":"KP","чехия":"CZ","молдавия":"MD","киргизия":"KG","белоруссия":"BY","беларусь":"BY","казахстан":"KZ","саудовская аравия":"SA","саудия":"SA","морокко":"MA" };
 const EN_FIX = { US:"United States", GB:"United Kingdom", KP:"North Korea", KR:"South Korea", CZ:"Czech Republic", MM:"Myanmar", CD:"Democratic Republic of the Congo", CG:"Republic of the Congo", CI:"Ivory Coast", PS:"Palestine", TR:"Turkey", AE:"United Arab Emirates" };
 // Prepositional case for the headline ("в Казахстане")
-const LOC = { RU:"России", US:"США", CN:"Китае", UA:"Украине", KZ:"Казахстане", DE:"Германии", TR:"Турции", IL:"Израиле", IN:"Индии", BY:"Беларуси", FR:"Франции", JP:"Японии", GB:"Великобритании", IR:"Иране", UZ:"Узбекистане", KG:"Киргизии", AM:"Армении", AZ:"Азербайджане", GE:"Грузии", PL:"Польше", IT:"Италии", ES:"Испании", BR:"Бразилии", KR:"Южной Корее", KP:"КНДР", SA:"Саудовской Аравии", AE:"ОАЭ", EG:"Египте", MD:"Молдове", TJ:"Таджикистане", MA:"Марокко" };
+const LOC = { YE:"Йемене", RU:"России", US:"США", CN:"Китае", UA:"Украине", KZ:"Казахстане", DE:"Германии", TR:"Турции", IL:"Израиле", IN:"Индии", BY:"Беларуси", FR:"Франции", JP:"Японии", GB:"Великобритании", IR:"Иране", UZ:"Узбекистане", KG:"Киргизии", AM:"Армении", AZ:"Азербайджане", GE:"Грузии", PL:"Польше", IT:"Италии", ES:"Испании", BR:"Бразилии", KR:"Южной Корее", KP:"КНДР", SA:"Саудовской Аравии", AE:"ОАЭ", EG:"Египте", MD:"Молдове", TJ:"Таджикистане", MA:"Марокко" };
 
 const ruNames = new Intl.DisplayNames(["ru"], { type: "region" });
 const enNames = new Intl.DisplayNames(["en"], { type: "region" });
@@ -39,7 +39,7 @@ function resolve(input) {
 }
 
 const quick = $("#quick");
-const CODE_OF = { "Россия":"RU","США":"US","Китай":"CN","Украина":"UA","Израиль":"IL","Иран":"IR","Германия":"DE","Великобритания":"GB","Франция":"FR","Турция":"TR","Индия":"IN","Япония":"JP","Польша":"PL","Беларусь":"BY","Казахстан":"KZ","Марокко":"MA","Саудовская Аравия":"SA","Бразилия":"BR" };
+const CODE_OF = { "Россия":"RU","США":"US","Китай":"CN","Украина":"UA","Израиль":"IL","Иран":"IR","Германия":"DE","Великобритания":"GB","Франция":"FR","Турция":"TR","Индия":"IN","Япония":"JP","Польша":"PL","Беларусь":"BY","Казахстан":"KZ","Марокко":"MA","Саудовская Аравия":"SA","Бразилия":"BR","Йемен":"YE" };
 // Country chips: the user's own countries first, marked with a star; the open one is highlighted
 let quickCode = null;
 function markQuick(code) {
@@ -157,7 +157,8 @@ const OTHER = {
   IN: ["индии", "индия", "индийск", "нью-дели", "india", "new delhi"], JP: ["япони", "японск", "токио", "japan", "tokyo"],
   PL: ["польш", "польск", "варшав", "poland", "polish", "warsaw"], BY: ["беларус", "белорус", "минск", "лукашенк", "belarus", "minsk", "lukashenko"],
   KZ: ["казахстан", "астан", "токаев", "kazakh", "astana", "tokayev"], MA: ["марокк", "рабат", "morocco", "moroccan"],
-  SA: ["саудовск", "эр-рияд", "saudi", "riyadh"], BR: ["бразил", "brazil", "lula"]
+  SA: ["саудовск", "эр-рияд", "saudi", "riyadh"], BR: ["бразил", "brazil", "lula"],
+  YE: ["йемен", "хусит", "yemen", "houthi"]
 };
 const ABROAD = ["мид", "посол", "посольств", "дипломат", "переговор", "визит", "саммит", "санкци", "оон", "нато", "евросоюз", "ес ", "снг", "еаэс", "брикс", "шос", "госсекретар", "иностранных дел",
   "embassy", "ambassador", "diplomat", "talks", "summit", "sanction", "united nations", "nato", "european union", "eu ", "brics", "foreign minister", "foreign ministry", "bilateral", "treaty"];
