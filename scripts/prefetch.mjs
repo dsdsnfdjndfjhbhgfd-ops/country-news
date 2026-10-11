@@ -4,7 +4,7 @@
 import { readFile, writeFile, mkdir, rm } from "node:fs/promises";
 import vm from "node:vm";
 import { loadProviders, runPool } from "./ai-pool.mjs";
-import { SOURCES } from "./sources.mjs";
+import { SOURCES, GROUPS } from "./sources.mjs";
 import { fetchAll } from "./feeds.mjs";
 
 // How a country is recognised in a headline or summary. Words match from their start
@@ -309,6 +309,45 @@ const essayPool = HAS_AI && essayJobs.length ? await runPool({
 }) : { done: 0, report: [] };
 console.log(`Essays: ${essayJobs.length} countries due, ${essayPool.done} written; ${essayPool.report.join("; ")}`);
 await writeFile("data/essays.json", JSON.stringify({ updated: new Date().toISOString(), pool: essayState, countries: essays }));
+
+// ---------- Views of media groups: how Arab, Russian, European... outlets cover a country ----------
+// No AI here. For every country and group of outlets (GROUPS in sources.mjs) the group's own main events:
+// core.cluster over the group's articles only, so the order follows what this group writes most about.
+// data/views/<CODE>.json is read by the Edge Function `views`, which writes the AI text when a reader asks;
+// the page shows the groups and their numbers from the small data/views.json.
+const VIEW_TOP = 15, VIEW_MIN = 3; // events per group; a group with fewer events is not offered
+await mkdir("data/views", { recursive: true });
+const groupOf = new Map(SOURCES.filter(s => s.group).map(s => [s.name, s.group]));
+const viewIndex = {
+  updated: new Date().toISOString(),
+  groups: GROUPS.map(g => ({ ...g, outlets: SOURCES.filter(s => s.group === g.id).map(s => s.name) })),
+  countries: {}
+};
+for (const code of Object.keys(COUNTRIES)) {
+  const byGroup = {};
+  for (const a of await fullItems(code)) { const g = groupOf.get(a.source); if (g) (byGroup[g] = byGroup[g] || []).push(a); }
+  const file = {}, counts = {};
+  for (const { id } of GROUPS) {
+    const items = byGroup[id] || [];
+    const events = core.cluster(items, countryOf(code), true, VIEW_TOP, rateOf);
+    if (events.length < VIEW_MIN) continue;
+    // [articles, outlets] of the group about this country in the last two days
+    counts[id] = [items.length, new Set(items.map(a => a.source)).size];
+    file[id] = events.map(g => {
+      const seen = new Set(), arts = [];
+      for (const a of g.items) {
+        if (arts.length >= 3 || seen.has(a.source)) continue;
+        seen.add(a.source);
+        arts.push({ url: a.url, title: a.title, source: a.source, ...(a.desc ? { desc: a.desc } : {}) });
+      }
+      return { n: g.domains, topic: g.topic[0], items: arts };
+    });
+  }
+  viewIndex.countries[code] = counts;
+  await writeFile(`data/views/${code}.json`, JSON.stringify({ updated: viewIndex.updated, groups: file }));
+}
+await writeFile("data/views.json", JSON.stringify(viewIndex));
+console.log("Media groups: " + Object.entries(viewIndex.countries).map(([c, g]) => `${c} ${Object.keys(g).length}`).join(", "));
 
 // ---------- Small summary for the home page ----------
 const status = { updated: new Date().toISOString(), sources: SOURCES.map(s => ({ name: s.name, lang: s.lang })), countries: {} };

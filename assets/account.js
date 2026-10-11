@@ -12,6 +12,7 @@
 
   let user = null, recovery = false, admin = false, vip = null;
   const SUMMARY_LIMITS = { free: 3, vip: 25 };
+  const VIEW_LIMITS = { free: 3, vip: 20 }; // new "Взгляд СМИ" texts per day (Edge Function "views")
   const CHAT_TOKENS = 50000;
   let profile = { countries: [], settings: {} };
   const saved = new Map(); // url -> row
@@ -287,6 +288,33 @@
       }
       if (!data?.summary) throw new Error("ИИ вернул пустой ответ. Попробуйте ещё раз.");
       return { text: String(data.summary), why: String(data.why || "") };
+    },
+
+    // "Взгляд СМИ": how a group of outlets covers a country (Edge Function "views"). A text written in the
+    // last 3 hours is shared by every reader and free; a new one counts against the daily limit.
+    get viewLimit() { return this.vip ? VIEW_LIMITS.vip : VIEW_LIMITS.free; },
+    async requestView(country, group) {
+      if (!user) throw new Error("Войдите, чтобы узнать взгляд СМИ.");
+      need();
+      const { data, error } = await sb.functions.invoke("views", { body: { country, group } });
+      if (error) {
+        let code = "";
+        try { code = (await error.context.json()).error || ""; } catch {}
+        const text = {
+          login_required: "Войдите, чтобы узнать взгляд СМИ.",
+          limit_user: Account.vip
+            ? `Вы использовали все новые обзоры СМИ на сегодня (${Account.viewLimit} в сутки). Завтра лимит обновится.`
+            : `Вы использовали все новые обзоры СМИ на сегодня (${Account.viewLimit} в сутки). С VIP-подпиской — ${VIEW_LIMITS.vip} в сутки.`,
+          limit_global: "Сегодня общий лимит обзоров СМИ исчерпан. Попробуйте завтра.",
+          not_configured: "Взгляд СМИ ещё не включён на сайте.",
+          ai_unavailable: "ИИ сейчас не отвечает. Попробуйте через несколько минут.",
+          too_few: "Эта группа изданий почти не писала о стране за последние два дня.",
+          data_unavailable: "Не удалось получить публикации. Попробуйте позже."
+        }[code];
+        throw new Error(text || "Не получилось получить взгляд СМИ. Попробуйте позже.");
+      }
+      if (!data?.text) throw new Error("ИИ вернул пустой ответ. Попробуйте ещё раз.");
+      return data;
     },
 
     // ---------- AI chat about a country, VIP only (Edge Function "chat") ----------
