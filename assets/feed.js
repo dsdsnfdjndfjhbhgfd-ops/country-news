@@ -99,6 +99,7 @@ async function loadSummary(v) {
   try { const r = await fetch("data/summary.json?v=" + encodeURIComponent(v)); if (r.ok) { SUMMARY = (await r.json()).items || {}; summaryVersion = v; } } catch {}
   try { const r = await fetch("data/essays.json?v=" + encodeURIComponent(v)); if (r.ok) ESSAYS = (await r.json()).countries || {}; } catch {}
   try { const r = await fetch("data/importance.json?v=" + encodeURIComponent(v)); if (r.ok) IMPORTANCE = (await r.json()).items || {}; } catch {}
+  try { const r = await fetch("data/views.json?v=" + encodeURIComponent(v)); if (r.ok) VIEWS = await r.json(); } catch {}
 }
 // The AI's importance mark of an event (1–10, data/importance.json): core.cluster adds it to the score
 let IMPORTANCE = {};
@@ -140,6 +141,111 @@ function essayBlock(c) {
   }
   head.append(tabs);
   box.append(head, body);
+  paint();
+  return box;
+}
+
+// ---------- "Взгляд СМИ": how a group of outlets (Arab, Russian, European...) covers the country ----------
+// data/views.json (collector): the groups, their outlets and, per country, [articles, outlets] of every group
+// that wrote enough. The text is written by the AI on request (Edge Function "views", Account.requestView)
+// and kept for every reader for 3 hours; nothing is asked until the reader picks a group.
+let VIEWS = { groups: [], countries: {} };
+let viewGroup = null;                 // the group picked last (kept when the country changes)
+const viewAnswers = new Map();        // "RU:arab" -> answer, { error } or { loading: true }
+let viewPaint = null;                 // repaints the block on the page now
+const TONE = { positive: "сочувственный", neutral: "нейтральный", critical: "критический", mixed: "разный" };
+const eventLink = (code, url) => `article.html?c=${code}&u=${encodeURIComponent(url)}`;
+// "[3]" in the AI text becomes a link to that event
+function withRefs(text, code, events) {
+  const p = el("p");
+  for (const part of text.split(/(\[\d{1,2}\])/)) {
+    const m = part.match(/^\[(\d{1,2})\]$/), e = m && events[Number(m[1]) - 1];
+    if (e) { const a = el("a", "ref", m[1]); a.href = eventLink(code, e.url); a.title = e.title; p.append(a); }
+    else if (part && !m) p.append(part); // a number with no such event is dropped
+  }
+  return p;
+}
+async function askView(c, g) {
+  const key = c.code + ":" + g.id;
+  viewAnswers.set(key, { loading: true }); viewPaint?.();
+  try { viewAnswers.set(key, await Account.requestView(c.code, g.id)); }
+  catch (e) { viewAnswers.set(key, { error: e.message }); }
+  viewPaint?.();
+}
+function viewsBlock(c) {
+  const counts = (VIEWS.countries || {})[c.code] || {};
+  const groups = (VIEWS.groups || []).filter(g => counts[g.id]);
+  if (!groups.length) { viewPaint = null; return null; }
+  const box = el("section", "views"); box.setAttribute("aria-label", "Взгляд СМИ");
+  const head = el("div", "views-head");
+  head.append(el("h3", null, "Взгляд СМИ"), el("p", null, `Выберите группу изданий: ИИ опишет, как они пишут о ${c.loc || c.ru}, — темы, тон и оценки.`));
+  const chips = el("div", "views-groups"); chips.setAttribute("role", "group"); chips.setAttribute("aria-label", "Группа изданий");
+  const body = el("div", "views-body"); body.setAttribute("aria-live", "polite");
+  for (const g of groups) {
+    const [arts, outlets] = counts[g.id];
+    const b = el("button", null, g.name); b.type = "button"; b.dataset.g = g.id;
+    b.append(el("small", null, String(arts)));
+    b.title = `${g.about}. О стране за два дня: ${arts} ${plural(arts, "публикация", "публикации", "публикаций")}, ${outlets} ${plural(outlets, "издание", "издания", "изданий")}`;
+    b.onclick = () => {
+      viewGroup = g.id;
+      const have = viewAnswers.get(c.code + ":" + g.id);
+      if (!have || have.error) askView(c, g); else paint();
+    };
+    chips.append(b);
+  }
+  const paint = () => {
+    const g = groups.find(x => x.id === viewGroup);
+    const v = g && viewAnswers.get(c.code + ":" + g.id);
+    // Another country keeps the picked group only if its text for this country is already here
+    chips.querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", String(!!v && b.dataset.g === g.id)));
+    body.textContent = "";
+    if (!v) return;
+    if (v.loading) {
+      const [arts, outlets] = counts[g.id];
+      const st = el("p", "views-wait"); st.append(el("span", "spinner"), `ИИ читает ${arts} ${plural(arts, "публикацию", "публикации", "публикаций")} ${outlets} ${plural(outlets, "издания", "изданий", "изданий")}: ${g.title} о ${c.loc || c.ru}. Обычно это 20–60 секунд.`);
+      body.append(st); return;
+    }
+    if (v.error) {
+      const p = el("p", "views-err", v.error);
+      const again = el("button", "essay-more", "Попробовать ещё раз"); again.type = "button"; again.onclick = () => askView(c, g);
+      body.append(p, again); return;
+    }
+    const top = el("div", "views-title");
+    top.append(el("h4", null, `Как ${v.title} пишут о ${c.loc || c.ru}`));
+    top.append(el("span", "views-tone " + v.tone, `Тон: ${TONE[v.tone] || "нейтральный"}`));
+    body.append(top);
+    if (v.stance) body.append(el("p", "views-stance", v.stance));
+    for (const t of String(v.text).split(/\n\s*\n|\n/).map(x => x.trim()).filter(Boolean)) body.append(withRefs(t, c.code, v.events || []));
+    if (v.themes?.length) {
+      const th = el("div", "views-themes"); th.append(el("span", null, "Темы:"));
+      for (const t of v.themes) th.append(el("b", null, t));
+      body.append(th);
+    }
+    if (v.events?.length) {
+      const det = el("details", "views-events");
+      det.append(el("summary", null, `События, о которых пишут ${v.title} (${v.events.length})`));
+      const ol = el("ol");
+      v.events.forEach((e, i) => {
+        const li = el("li"); li.append(el("b", null, String(i + 1)));
+        const span = el("span"); const a = el("a", null, e.title); a.href = eventLink(c.code, e.url);
+        span.append(a, el("small", null, ` · ${e.source}` + (e.n > 1 ? ` и ещё ${e.n - 1} ${plural(e.n - 1, "издание", "издания", "изданий")}` : "")));
+        li.append(span); ol.append(li);
+      });
+      det.append(ol); body.append(det);
+    }
+    const outletsOf = (VIEWS.groups.find(x => x.id === g.id) || {}).outlets || [];
+    const foot = el("div", "essay-foot");
+    foot.append(el("span", null, `ИИ по заголовкам и анонсам ${v.articles} ${plural(v.articles, "публикации", "публикаций", "публикаций")} из ${v.outlets} ${plural(v.outlets, "издания", "изданий", "изданий")} за два дня · написано ${ago(Date.parse(v.at))}` +
+      (v.stale ? " · новее сейчас нет" : "")));
+    if (outletsOf.length) {
+      const who = el("details", "views-who");
+      who.append(el("summary", null, "Какие издания в группе"), el("p", null, `${g.about}: ${outletsOf.join(", ")}.`));
+      foot.append(who);
+    }
+    body.append(foot);
+  };
+  box.append(head, chips, body);
+  viewPaint = () => { if (box.isConnected) paint(); };
   paint();
   return box;
 }
@@ -504,6 +610,7 @@ function render(c, allItems, info) {
   out.append(controls(rerender, counts, periodItems));
   if (byOutlets) out.append(outletNote(rerender, periodItems));
   const essay = essayBlock(c); if (essay) out.append(essay);
+  const views = viewsBlock(c); if (views) out.append(views);
 
   if (!groups.length) {
     if (!info.partial) out.append(el("div", "notice", false
