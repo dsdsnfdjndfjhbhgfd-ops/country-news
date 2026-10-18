@@ -207,15 +207,18 @@ ${ctx.reviews.length ? `\nОбзоры сайта по стране:\n${ctx.revi
   if (rErr) { console.log("reserve failed: " + rErr.message); return reply(req, 500, { error: "server" }); }
   if (total == null) return reply(req, 429, { error: "limit_user", ...limits(await usage(user.id, day)) });
 
-  // 5. Ask the AI, then count what was really spent
+  // 5. Ask the AI, then count what was really spent. Each question is logged for the admin page (table chat_log).
+  const question = history[history.length - 1].content.slice(0, 500);
+  const log = (tokens: number, model: string | null, ok: boolean) =>
+    admin.from("chat_log").insert({ user_id: user.id, country, question, tokens: Math.max(0, tokens), model: model ? model.slice(0, 100) : null, ok });
   try {
     const { text, tokens, model } = await ask(messages, maxAnswer);
-    const { data: now } = await admin.rpc("chat_settle", { uid: user.id, d: day, delta: tokens - reserved });
+    const [{ data: now }] = await Promise.all([admin.rpc("chat_settle", { uid: user.id, d: day, delta: tokens - reserved }), log(tokens, model, true)]);
     const answer = text.replace(/\*\*(.+?)\*\*/g, "$1").replace(/^#{1,6}\s+/gm, "").replace(/^\s*[*-]\s+/gm, "— ").slice(0, 8000);
     return reply(req, 200, { answer, urls: ctx.urls, tokens, model, ...limits(Number(now) || 0) });
   } catch (e) {
     const err = e as { code?: string; tokens?: number };
-    const { data: now } = await admin.rpc("chat_settle", { uid: user.id, d: day, delta: (err.tokens || 0) - reserved });
+    const [{ data: now }] = await Promise.all([admin.rpc("chat_settle", { uid: user.id, d: day, delta: (err.tokens || 0) - reserved }), log(err.tokens || 0, null, false)]);
     const code = err.code || "ai_unavailable";
     return reply(req, code === "not_configured" ? 503 : 502, { error: code, ...limits(Number(now) || 0) });
   }

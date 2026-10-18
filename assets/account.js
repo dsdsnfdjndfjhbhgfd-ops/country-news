@@ -67,6 +67,10 @@
     [/saved_limit_reached/i, "Можно сохранить не больше 500 новостей. Уберите старые в кабинете."],
     [/comment_rate_limit/i, "Слишком часто: не больше 5 комментариев в минуту. Подождите немного."],
     [/violates check constraint|check constraint/i, "Сервер не принял эти данные. Обновите страницу и попробуйте снова."],
+    [/admin_only/i, "Это доступно только администраторам."],
+    [/user_not_found/i, "Такого пользователя нет: проверьте почту или ник."],
+    [/could not find the function public\.admin_revoke/i, "Снятие администраторов ещё не включено в базе: выполните supabase/sql/admin_revoke.sql в Supabase → SQL Editor."],
+    [/cannot_revoke_self/i, "Себя снять нельзя: попросите другого администратора."],
     [/network|fetch/i, "Нет связи с сервером входа. Проверьте интернет и попробуйте снова."]
   ];
   function human(error) {
@@ -350,6 +354,22 @@
       return data;
     },
 
+    // ---------- Admin page (admin.html): the database checks admin rights in every function ----------
+    async adminCall(fn, args) {
+      need();
+      const { data, error } = await sb.rpc(fn, args);
+      if (error) throw new Error(human(error));
+      return data;
+    },
+    adminOverview() { return this.adminCall("admin_overview"); },
+    adminUsers(q = "", lim = 50, off = 0) { return this.adminCall("admin_users", { q, lim, off }); },
+    adminUser(uid) { return this.adminCall("admin_user", { uid }); },
+    adminVisits(lim = 100, before = null) { return this.adminCall("admin_visits", { lim, before }); },
+    adminRequests(lim = 100, before = null) { return this.adminCall("admin_requests", { lim, before }); },
+    adminList() { return this.adminCall("admin_list"); },
+    adminGrant(target) { return this.adminCall("admin_grant", { target: String(target || "").trim() }); },
+    adminRevoke(target) { return this.adminCall("admin_revoke", { target }); },
+
     isSaved(url) { return saved.has(url); },
     savedList() { return [...saved.values()]; },
     async toggleSaved(item) {
@@ -528,6 +548,7 @@
     document.querySelectorAll("[data-account]").forEach(slot => {
       slot.textContent = "";
       if (user) {
+        if (admin) { const ad = el("a", "acc-admin", "Админка"); ad.href = "admin.html"; if (/admin\.html$/.test(location.pathname)) ad.setAttribute("aria-current", "page"); slot.append(ad); }
         const a = el("a", "acc-me"); a.href = "account.html"; a.title = user.email;
         a.append(el("span", "acc-avatar", (user.email || "?")[0].toUpperCase()), el("span", "acc-name", "Кабинет"));
         if (Account.vip) a.append(el("span", "acc-vip", "VIP"));
@@ -543,6 +564,30 @@
   Account.onChange(paintSlots);
   ready.then(paintSlots);
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", paintSlots); else paintSlots();
+
+  // ---------- Visits for the admin page: page, country, where from, phone or computer ----------
+  // A random id kept in this browser tells repeat visits apart; nothing else about the device is sent.
+  function visitorId() {
+    try {
+      let v = localStorage.getItem("ev:vid");
+      if (!/^[A-Za-z0-9_-]{8,40}$/.test(v || "")) { v = (crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2) + Date.now().toString(36)).replace(/[^A-Za-z0-9]/g, ""); localStorage.setItem("ev:vid", v); }
+      return v;
+    } catch { return "tmp" + Math.random().toString(36).slice(2, 14); }
+  }
+  const PAGES = { "": "home", "index.html": "home", "news.html": "news", "article.html": "article", "account.html": "account", "ratings.html": "ratings", "chat.html": "chat", "admin.html": "admin" };
+  function logVisit() {
+    const page = PAGES[location.pathname.split("/").pop()];
+    if (!sb || !page) return;
+    const country = (location.hash.match(/^#([A-Z]{2})\b/) || [])[1] || new URLSearchParams(location.search).get("c") || null;
+    let ref = null;
+    try { const h = document.referrer && new URL(document.referrer).hostname; if (h && h !== location.hostname) ref = h; } catch {}
+    const device = matchMedia("(pointer: coarse) and (max-width: 900px)").matches ? "mobile" : "desktop";
+    sb.rpc("log_visit", { p_page: page, p_country: country, p_visitor: visitorId(), p_ref: ref, p_device: device }).then(r => r, () => {});
+  }
+  ready.then(logVisit); // after the session is known, so a signed-in visit is tied to the account
+  // The feed switches countries by #RU, #DE… without reloading the page
+  let lastHash = location.hash;
+  window.addEventListener("hashchange", () => { if (location.hash !== lastHash) { lastHash = location.hash; logVisit(); } });
 
   window.Account = Account;
 })();

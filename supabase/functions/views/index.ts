@@ -156,7 +156,7 @@ Deno.serve(async (req: Request) => {
   const limit = isVip ? VIP_DAILY : FREE_DAILY;
   const over = (mine.count || 0) >= limit ? "limit_user" : (all.count || 0) >= GLOBAL_DAILY ? "limit_global" : "";
   if (over) return old ? reply(req, 200, answer(country, g, old, { cached: true, stale: true })) : reply(req, 429, { error: over, limit, vip: isVip });
-  await admin.from("view_requests").insert({ user_id: user.id });
+  await admin.from("view_requests").insert({ user_id: user.id, country, grp: groupId }); // country and group: for the admin page
 
   // 6. The prompt: the group's main events, each with up to three headlines and feed summaries
   const name = NAMES[country];
