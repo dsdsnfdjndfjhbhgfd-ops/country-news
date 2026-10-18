@@ -3,6 +3,8 @@
 .acc-login:hover{background:var(--accent);color:var(--on-accent)}
 .acc-me{display:inline-flex;align-items:center;gap:8px;text-decoration:none;font:700 14px var(--sans);color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:4px 12px 4px 4px}
 .acc-me:hover{border-color:var(--accent);color:var(--accent)}
+.acc-admin{font:700 14px var(--sans);color:var(--muted);text-decoration:none;margin-right:10px}
+.acc-admin:hover,.acc-admin[aria-current]{color:var(--accent)}
 .acc-avatar{width:26px;height:26px;border-radius:50%;background:var(--accent);color:var(--on-accent);display:grid;place-items:center;font-size:13px}
 
 .acc-dialog{border:0;padding:0;border-radius:18px;background:var(--surface);color:var(--ink);width:min(420px,calc(100vw - 32px));box-shadow:0 20px 60px rgba(10,15,30,.35)}

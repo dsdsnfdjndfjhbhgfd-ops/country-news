@@ -120,7 +120,7 @@ Deno.serve(async (req: Request) => {
   const limit = isVip ? VIP_DAILY : FREE_DAILY;
   if ((mine.count || 0) >= limit) return reply(req, 429, { error: "limit_user", limit, vip: isVip });
   if ((all.count || 0) >= GLOBAL_DAILY) return reply(req, 429, { error: "limit_global" });
-  await admin.from("summary_requests").insert({ user_id: user.id });
+  await admin.from("summary_requests").insert({ user_id: user.id, country, url: urls[0] }); // country and link: for the admin page
 
   // 5. The event's text comes from the published site data, not from the request
   let items: { url: string; title: string; source?: string }[] = [], desc: Record<string, string> = {};
