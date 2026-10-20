@@ -26,6 +26,9 @@ const NAMES: Record<string, string> = {
   MA: "Марокко", SA: "Саудовская Аравия", BR: "Бразилия", YE: "Йемен",
 };
 const VIP_DAILY = 25, FREE_DAILY = 3, GLOBAL_DAILY = 400;
+// Countries outside the main list are collected on request (Edge Function "country", table country_feeds)
+const ruRegion = new Intl.DisplayNames(["ru"], { type: "region" });
+const nameOf = (code: string) => { if (NAMES[code]) return NAMES[code]; try { const n = ruRegion.of(code); return n && n !== code ? n : ""; } catch { return ""; } };
 
 const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, {
   auth: { persistSession: false, autoRefreshToken: false },
@@ -102,7 +105,7 @@ Deno.serve(async (req: Request) => {
   try { input = await req.json(); } catch { return reply(req, 400, { error: "bad_request" }); }
   const country = String(input.country || "");
   const urls = Array.isArray(input.urls) ? [...new Set(input.urls.map(String))].filter((x) => /^https?:\/\//i.test(x) && x.length <= 2000).slice(0, 6) : [];
-  if (!COUNTRIES.has(country) || !urls.length) return reply(req, 400, { error: "bad_request" });
+  if (!(COUNTRIES.has(country) || (/^[A-Z]{2}$/.test(country) && nameOf(country))) || !urls.length) return reply(req, 400, { error: "bad_request" });
 
   // 3. Already written for someone else (with "why it matters")? Reuse it, no AI call and no limit used.
   //    Older summaries without "why it matters" are written again.
@@ -125,10 +128,17 @@ Deno.serve(async (req: Request) => {
   // 5. The event's text comes from the published site data, not from the request
   let items: { url: string; title: string; source?: string }[] = [], desc: Record<string, string> = {};
   try {
-    const [a, b] = await Promise.all([siteJson(`/data/${country}.json`), siteJson(`/data/desc/${country}.json`)]);
-    if (!a) throw new Error("no data");
-    items = (a.items || []).filter((i: { url: string }) => urls.includes(i.url));
-    desc = b || {};
+    if (COUNTRIES.has(country)) {
+      const [a, b] = await Promise.all([siteJson(`/data/${country}.json`), siteJson(`/data/desc/${country}.json`)]);
+      if (!a) throw new Error("no data");
+      items = (a.items || []).filter((i: { url: string }) => urls.includes(i.url));
+      desc = b || {};
+    } else {
+      // A country collected on request: the collection the reader saw, with the outlets' summaries
+      const { data: kept } = await admin.from("country_feeds").select("items").eq("country", country).maybeSingle();
+      items = ((kept?.items || []) as { url: string; title: string; source?: string; desc?: string }[]).filter((i) => urls.includes(i.url));
+      for (const i of items as { url: string; desc?: string }[]) if (i.desc) desc[i.url] = i.desc;
+    }
   } catch { return reply(req, 502, { error: "data_unavailable" }); }
   if (!items.length) return reply(req, 404, { error: "event_not_found" });
 
@@ -146,7 +156,7 @@ Deno.serve(async (req: Request) => {
 Внутри текста не используй двойные кавычки ("), только «ёлочки».
 Ответь только JSON: {"summary":"...","why":"..."}
 
-Страна: ${NAMES[country]}.
+Страна: ${nameOf(country)}.
 ${parts.join("\n")}`;
 
   // 6. Ask the AI and keep the answer for everyone

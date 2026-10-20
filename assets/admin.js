@@ -6,7 +6,7 @@
   const NAMES = { RU: "Россия", US: "США", CN: "Китай", UA: "Украина", IL: "Израиль", IR: "Иран", DE: "Германия", GB: "Великобритания", FR: "Франция", TR: "Турция", IN: "Индия", JP: "Япония", PL: "Польша", BY: "Беларусь", KZ: "Казахстан", MA: "Марокко", SA: "Саудовская Аравия", BR: "Бразилия", YE: "Йемен" };
   const PAGES = { home: "Главная", news: "Лента", article: "Событие", account: "Кабинет", ratings: "Рейтинг изданий", chat: "Чат с ИИ", admin: "Админка" };
   const GROUPS = { ru: "Российские", ua: "Украинские", eu: "Европейские", us: "Американские", arab: "Арабские", il: "Израильские", ir: "Иранские", tr: "Турецкие", cn: "Китайские", asia: "Азиатские", in: "Индийские", pk: "Пакистанские", cis: "СНГ и Кавказ" };
-  const KINDS = { summary: "Пересказ", view: "Взгляд СМИ", chat: "Чат" };
+  const KINDS = { summary: "Пересказ", view: "Взгляд СМИ", chat: "Чат", country: "Страна по запросу" };
   const PAGE_SIZE = 50;
 
   function el(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
@@ -16,7 +16,8 @@
   const MSK = { timeZone: "Europe/Moscow" };
   const when = t => t ? new Date(t).toLocaleString("ru-RU", { ...MSK, day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "—";
   const dayLabel = d => new Date(d + "T12:00:00Z").toLocaleDateString("ru-RU", { day: "numeric", month: "short", timeZone: "UTC" });
-  const country = c => c ? (NAMES[c] || c) : "—";
+  const ruRegion = new Intl.DisplayNames(["ru"], { type: "region" });
+  const country = c => { if (!c) return "—"; try { return NAMES[c] || ruRegion.of(c); } catch { return c; } };
   const safeUrl = u => /^https?:\/\//i.test(u || "") ? u : null;
   function ago(t) {
     if (!t) return "—";
@@ -282,6 +283,7 @@
       if (url && r.country) { const a = el("a", null, "событие"); a.href = `article.html?c=${encodeURIComponent(r.country)}&u=${encodeURIComponent(url)}`; td.append(a, " · ", el("small", null, new URL(url).hostname)); }
       else td.textContent = r.detail || "—";
     } else if (r.kind === "view") td.textContent = r.detail ? (GROUPS[r.detail] || r.detail) + " СМИ" : "—";
+    else if (r.kind === "country") td.textContent = r.detail === "built" ? "собрано заново" : "из готового сбора";
     else { td.textContent = r.detail || "—"; if (r.ok === false) td.append(" ", el("span", "tag bad", "ИИ не ответил")); }
     return td;
   }

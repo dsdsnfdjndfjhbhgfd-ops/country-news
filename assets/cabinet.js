@@ -1,5 +1,7 @@
 const COUNTRIES = [["RU", "Россия"], ["US", "США"], ["CN", "Китай"], ["UA", "Украина"], ["IL", "Израиль"], ["IR", "Иран"], ["DE", "Германия"], ["GB", "Великобритания"], ["FR", "Франция"], ["TR", "Турция"], ["IN", "Индия"], ["JP", "Япония"], ["PL", "Польша"], ["BY", "Беларусь"], ["KZ", "Казахстан"], ["MA", "Марокко"], ["SA", "Саудовская Аравия"], ["BR", "Бразилия"], ["YE", "Йемен"]];
 const NAME = Object.fromEntries(COUNTRIES);
+// Countries outside the main list (collected on request) are named by the browser
+const regionName = code => { try { return NAME[code] || new Intl.DisplayNames(["ru"], { type: "region" }).of(code); } catch { return code; } };
 const main = document.getElementById("main");
 function el(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
 function fmt(ts) { return ts ? new Date(ts).toLocaleString("ru-RU", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" }) : ""; }
@@ -38,10 +40,10 @@ function render() {
   main.append(nm);
 
   const mine = el("section");
-  mine.append(el("h2", null, "Мои страны"), el("p", null, "Эти страны стоят первыми на главной и в ленте, а лента открывается на первой из них."));
+  mine.append(el("h2", null, "Мои страны"), el("p", null, "Эти страны стоят первыми на главной и в ленте, а лента открывается на первой из них. Любую другую страну можно добавить звёздочкой в ленте."));
   const chips = el("div", "chips");
   const picked = Account.countries;
-  for (const [code, name] of COUNTRIES) {
+  for (const [code, name] of [...COUNTRIES, ...picked.filter(code => !NAME[code]).map(code => [code, regionName(code)])]) {
     const b = el("button", null, (picked.includes(code) ? "★ " : "") + name); b.type = "button";
     b.setAttribute("aria-pressed", String(picked.includes(code)));
     b.onclick = async () => { b.disabled = true; await Account.toggleCountry(code); };
@@ -60,7 +62,7 @@ function render() {
     for (const it of items) {
       const li = el("li"); const body = el("div");
       const a = el("a", "t", it.title); a.href = /^https?:\/\//i.test(it.url || "") ? it.url : "#"; a.target = "_blank"; a.rel = "noopener";
-      body.append(a, el("div", "meta", [NAME[it.country] || it.country, it.topic, it.source, fmt(it.published_at)].filter(Boolean).join(", ")));
+      body.append(a, el("div", "meta", [it.country ? regionName(it.country) : "", it.topic, it.source, fmt(it.published_at)].filter(Boolean).join(", ")));
       if (Translate.isForeign(it.title) && /^https?:\/\//i.test(it.url || "")) {
         const tr = el("div", "tr"); tr.append("Перевести статью: ");
         Translate.articleLinks(it.url).forEach(([name, href], k) => { const l = el("a", null, name); l.href = href; l.target = "_blank"; l.rel = "noopener noreferrer"; tr.append(l); if (!k) tr.append(" или "); });
