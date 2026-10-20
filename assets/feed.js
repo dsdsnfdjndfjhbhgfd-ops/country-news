@@ -9,8 +9,11 @@ let savedTheme = "auto"; try { savedTheme = localStorage.getItem("cn:theme") || 
 applyTheme(savedTheme);
 document.querySelectorAll(".theme button").forEach(b => b.onclick = () => { applyTheme(b.dataset.t); Account.saveSettings({ theme: b.dataset.t }); });
 const QUICK = ["Россия","США","Китай","Украина","Израиль","Иран","Германия","Великобритания","Франция","Турция","Индия","Япония","Польша","Беларусь","Казахстан","Марокко","Саудовская Аравия","Бразилия","Йемен"];
-// Countries collected ahead of time by the GitHub Action (scripts/prefetch.mjs)
+// Countries collected ahead of time by the GitHub Action (scripts/prefetch.mjs); any other country
+// is collected on request from the same outlets by the Edge Function "country"
 const PREFETCHED = new Set("RU US CN UA IL IR DE GB FR TR IN JP PL BY KZ MA SA BR YE".split(" "));
+// Codes Intl knows that are not countries today (the same list as in supabase/functions/country/match.ts)
+const NOT_COUNTRIES = new Set("EU EZ UN QO XA XB ZZ AQ BV HM UM TF IO AC CP CQ DG EA IC TA SU FX DD YD UK CS YU ZR TP BU DY HV NH RH VD NT AN QU".split(" "));
 const ALIASES = { "сша":"US","америка":"US","штаты":"US","usa":"US","uk":"GB","англия":"GB","британия":"GB","великобритания":"GB","оаэ":"AE","uae":"AE","эмираты":"AE","корея":"KR","южная корея":"KR","северная корея":"KP","кндр":"KP","чехия":"CZ","молдавия":"MD","киргизия":"KG","белоруссия":"BY","беларусь":"BY","казахстан":"KZ","саудовская аравия":"SA","саудия":"SA","морокко":"MA" };
 const EN_FIX = { US:"United States", GB:"United Kingdom", KP:"North Korea", KR:"South Korea", CZ:"Czech Republic", MM:"Myanmar", CD:"Democratic Republic of the Congo", CG:"Republic of the Congo", CI:"Ivory Coast", PS:"Palestine", TR:"Turkey", AE:"United Arab Emirates" };
 // Prepositional case for the headline ("в Казахстане")
@@ -19,23 +22,31 @@ const LOC = { YE:"Йемене", RU:"России", US:"США", CN:"Китае"
 const ruNames = new Intl.DisplayNames(["ru"], { type: "region" });
 const enNames = new Intl.DisplayNames(["en"], { type: "region" });
 const index = new Map(); const ruList = [];
+const ALL = new Set(); // every country that can be shown: the main ones and those collected on request
 const A = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 for (const a of A) for (const b of A) {
   const code = a + b; let ru, en;
+  if (NOT_COUNTRIES.has(code)) continue;
   try { ru = ruNames.of(code); en = enNames.of(code); } catch { continue; }
-  if (!ru || ru === code || !en || en === code || !PREFETCHED.has(code)) continue;
+  if (!ru || ru === code || !en || en === code) continue;
+  ALL.add(code);
   index.set(low(ru), code); index.set(low(en), code);
+  const short = ru.replace(/\s*\(.*?\)/g, "").split(" - ")[0];
+  if (short !== ru) index.set(low(short), code);
+  if (!index.has(low(locOf(ru)))) index.set(low(locOf(ru)), code);
+  if (EN_FIX[code]) index.set(low(EN_FIX[code]), code);
   ruList.push(ru);
 }
-for (const [k, v] of Object.entries(ALIASES)) if (PREFETCHED.has(v)) index.set(k, v);
-for (const [k, v] of Object.entries(LOC)) if (PREFETCHED.has(k)) index.set(low(v), k);
+for (const [k, v] of Object.entries(ALIASES)) if (ALL.has(v)) index.set(k, v);
+for (const [k, v] of Object.entries(LOC)) if (ALL.has(k)) index.set(low(v), k);
 const dl = $("#countries");
 [...new Set(ruList)].sort((x, y) => x.localeCompare(y, "ru")).forEach(n => { const o = document.createElement("option"); o.value = n; dl.append(o); });
 
 function resolve(input) {
   const code = index.get(low(input));
   if (!code) return null;
-  return { code, ru: ruNames.of(code), en: EN_FIX[code] || enNames.of(code), loc: LOC[code] || "" };
+  const ru = ruNames.of(code);
+  return { code, ru, en: EN_FIX[code] || enNames.of(code), loc: LOC[code] || (PREFETCHED.has(code) ? "" : locOf(ru)), onDemand: !PREFETCHED.has(code) };
 }
 
 const quick = $("#quick");
@@ -49,7 +60,9 @@ function markQuick(code) {
 function paintQuick() {
   quick.querySelectorAll("button").forEach(b => b.remove());
   const mine = Account.countries;
-  const order = [...QUICK].sort((a, b) => (mine.includes(CODE_OF[b]) - mine.includes(CODE_OF[a])) || (mine.indexOf(CODE_OF[a]) - mine.indexOf(CODE_OF[b])));
+  for (const code of mine) if (!PREFETCHED.has(code) && ALL.has(code)) { const n = ruNames.of(code); if (!CODE_OF[n]) CODE_OF[n] = code; }
+  const names = [...QUICK, ...mine.filter(code => !PREFETCHED.has(code) && ALL.has(code)).map(code => ruNames.of(code))];
+  const order = names.sort((a, b) => (mine.includes(CODE_OF[b]) - mine.includes(CODE_OF[a])) || (mine.indexOf(CODE_OF[a]) - mine.indexOf(CODE_OF[b])));
   for (const name of order) {
     const b = document.createElement("button");
     b.type = "button"; b.textContent = (mine.includes(CODE_OF[name]) ? "★ " : "") + name;
@@ -71,7 +84,7 @@ function setStatus(text, loading) {
 function notice(text) { const o = $("#out"); o.textContent = ""; o.append(el("div", "notice", text)); }
 function skeleton(c) {
   const o = $("#out"); o.textContent = "";
-  const head = el("div", "res-head"); head.append(el("h2", null, c.ru)); head.append(el("p", null, "Собираю публикации"));
+  const head = el("div", "res-head"); head.append(el("h2", null, c.ru)); head.append(el("p", null, c.onDemand ? "Собираю публикации о стране по запросу: это займёт несколько секунд" : "Собираю публикации"));
   o.append(head);
   for (let i = 0; i < 4; i++) {
     const r = el("div", "sk"); const d = el("div");
@@ -318,13 +331,23 @@ function showGate() {
 async function run(input) {
   if (!Account.user) { showGate(); return; }
   const c = resolve(input);
-  if (!c) { setStatus(""); notice(`Страны «${input}» нет в списке. Доступны: ${QUICK.join(", ")}.`); return; }
+  if (!c) { setStatus(""); notice(`Страна «${input}» не найдена. Введите название по-русски или по-английски, например «Италия», «Египет» или «Mexico».`); return; }
   const id = ++runId;
   view.all = false;
-  $("#country").value = LOC[c.code] || c.ru;
+  $("#country").value = c.loc || c.ru;
   try { history.replaceState(null, "", "#" + c.code); } catch {}
 
   skeleton(c);
+  if (c.onDemand) {
+    setStatus("Собираю новости о стране…", true);
+    let d;
+    try { d = await Account.countryNews(c.code); }
+    catch (e) { if (id === runId) { setStatus(""); notice(e.message); } return; }
+    if (id !== runId) return;
+    setStatus("");
+    render(c, dedupe(d.items || []), { at: Date.parse(d.updated), onDemand: true });
+    return;
+  }
   setStatus("Загружаю новости…", true);
   const pre = await loadPrefetched(c.code);
   if (id !== runId) return;
@@ -563,7 +586,9 @@ function render(c, allItems, info) {
   // at least one of them writes about (with the full count of outlets) and shows their headline
   const chosen = new Set(prefs.outlets), byOutlets = chosen.size > 0;
   const items = byOutlets && prefs.outletMode === "only" ? periodItems.filter(a => chosen.has(a.source)) : periodItems;
-  let everything = cluster(items, c, prefs.singles, Infinity, rateOf);
+  // A country collected on request: AI marks, "inside / outside" and "why it matters" were written for one of the
+  // main countries, so they are not used; few outlets write about it, so news from one outlet are shown too
+  let everything = cluster(items, c, prefs.singles || !!info.onDemand, Infinity, info.onDemand ? null : rateOf);
   if (byOutlets) {
     everything = everything.filter(g => g.items.some(i => chosen.has(i.source)));
     for (const g of everything) g.lead = g.items.find(i => chosen.has(i.source));
@@ -571,7 +596,7 @@ function render(c, allItems, info) {
   const counts = { all: everything.length, scope: {} };
   for (const g of everything) counts[g.topic[0]] = (counts[g.topic[0]] || 0) + 1;
   let list = view.sphere === "all" ? everything : everything.filter(g => g.topic[0] === view.sphere);
-  for (const g of list) { g.scope = scopeFor(g, c.code); counts.scope[g.scope] = (counts.scope[g.scope] || 0) + 1; }
+  for (const g of list) { g.scope = info.onDemand ? guessScope(g, c.code) : scopeFor(g, c.code); counts.scope[g.scope] = (counts.scope[g.scope] || 0) + 1; }
   if (view.scope !== "all") list = list.filter(g => g.scope === view.scope);
   // "Newest first": split into time slots, most important first within each slot
   if (view.sort === "time") {
@@ -605,6 +630,7 @@ function render(c, allItems, info) {
     clearInterval(window.__upTimer); window.__upTimer = setInterval(() => up.isConnected ? paint() : clearInterval(window.__upTimer), 30000);
     head.append(up);
   }
+  if (info.onDemand) head.append(el("p", "on-demand", "Эта страна собирается по запросу из публикаций тех же изданий за двое суток. Здесь видны и новости из одного издания. Оценки важности от ИИ, обзоров страны и «Взгляда СМИ» для неё нет — они есть у 19 основных стран."));
   out.append(head);
   const rerender = () => { const y = window.scrollY; render(shown.c, shown.allItems, shown.info); window.scrollTo(0, y); };
   out.append(controls(rerender, counts, periodItems));
@@ -615,6 +641,7 @@ function render(c, allItems, info) {
   if (!groups.length) {
     if (!info.partial) out.append(el("div", "notice", false
       ? "За последнюю неделю важных событий не найдено. Попробуйте позже или выберите другую страну."
+      : info.onDemand && !byOutlets ? "За последние двое суток проверенные издания почти не писали об этой стране о политике, безопасности и экономике. Загляните позже: публикации пополняются каждые 15 минут."
       : byOutlets ? `Выбранные издания ${PERIOD_TEXT[prefs.period]} не писали о важных событиях этой страны. Добавьте издания или покажите все.`
       : `Важных событий ${PERIOD_TEXT[prefs.period]} не найдено.` + (prefs.singles ? " Данные обновляются каждые 15 минут, загляните позже." : " Включите новости из одного издания.")));
     return;
@@ -652,7 +679,7 @@ function render(c, allItems, info) {
     h.append(link); body.append(h);
     const brief = summaryFor(g);
     if (brief) { const s = el("p", "brief"); s.append(el("b", null, "Кратко. "), document.createTextNode(brief)); body.append(s); }
-    const why = whyFor(g);
+    const why = info.onDemand ? "" : whyFor(g);
     if (why) { const s = el("p", "brief why"); s.append(el("b", null, "Почему это важно. "), document.createTextNode(why)); body.append(s); }
 
     const src = el("div", "src");
@@ -751,8 +778,17 @@ function showOriginalTitles() {
 
 // Keep an open page current: re-read the data every 5 minutes and when the tab comes back
 async function refresh() {
-  if (!shown || !PREFETCHED.has(shown.c.code) || document.visibilityState !== "visible") return;
-  const c = shown.c, pre = await loadPrefetched(c.code);
+  if (!shown || document.visibilityState !== "visible") return;
+  const c = shown.c;
+  if (c.onDemand) {
+    let d; try { d = await Account.countryNews(c.code); } catch { return; }
+    if (!shown || shown.c.code !== c.code || Date.parse(d.updated) <= shown.info.at) return;
+    const y = window.scrollY;
+    render(c, dedupe(d.items || []), { at: Date.parse(d.updated), onDemand: true });
+    window.scrollTo(0, y);
+    return;
+  }
+  const pre = await loadPrefetched(c.code);
   if (!pre || !shown || shown.c.code !== c.code) return;
   const y = window.scrollY;
   render(c, dedupe(pre.items), { at: Date.parse(pre.updated) });
@@ -778,7 +814,7 @@ function applyAccountSettings() {
 }
 function startCountry() {
   const fromHash = location.hash.slice(1).toUpperCase();
-  const code = /^[A-Z]{2}$/.test(fromHash) && PREFETCHED.has(fromHash) ? fromHash : (Account.countries[0] || "RU");
+  const code = ALL.has(fromHash) ? fromHash : (Account.countries.find(x => ALL.has(x)) || "RU");
   run(ruNames.of(code));
 }
 let started = false;

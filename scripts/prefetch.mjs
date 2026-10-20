@@ -6,6 +6,7 @@ import vm from "node:vm";
 import { loadProviders, runPool } from "./ai-pool.mjs";
 import { SOURCES, GROUPS } from "./sources.mjs";
 import { fetchAll } from "./feeds.mjs";
+import { writePool } from "./pool.mjs";
 
 // How a country is recognised in a headline or summary. Words match from their start
 // ("украин" matches "Украины"); a trailing "!" means the whole word only.
@@ -86,6 +87,9 @@ for (const [code, res] of Object.entries(matchers)) {
   saved++;
 }
 if (!fresh.length) { console.log("No outlet answered"); process.exit(1); }
+// Everything fresh from every outlet, for countries outside the list above (collected on request, see pool.mjs)
+const pooled = await writePool(fresh, SOURCES, { now, keepMs: WINDOW_MS, perSource: PER_SOURCE });
+console.log(`Pool: ${pooled.items} items in ${pooled.shards} shards`);
 
 // ---------- Names used for grouping events ----------
 const NAMES = {

@@ -22,6 +22,15 @@ const COUNTRIES = {
   MA: ["Марокко", "Morocco", "Марокко"], SA: ["Саудовская Аравия", "Saudi Arabia", "Саудовской Аравии"], BR: ["Бразилия", "Brazil", "Бразилии"],
   YE: ["Йемен", "Yemen", "Йемене"]
 };
+// Any other country is collected on request (Edge Function "country"): its name comes from Intl
+const NOT_COUNTRIES = new Set("EU EZ UN QO XA XB ZZ AQ BV HM UM TF IO AC CP CQ DG EA IC TA SU FX DD YD UK CS YU ZR TP BU DY HV NH RH VD NT AN QU".split(" "));
+function countryInfo(code) {
+  if (COUNTRIES[code]) return COUNTRIES[code];
+  if (!/^[A-Z]{2}$/.test(code) || NOT_COUNTRIES.has(code)) return null;
+  let ru, en;
+  try { ru = new Intl.DisplayNames(["ru"], { type: "region" }).of(code); en = new Intl.DisplayNames(["en"], { type: "region" }).of(code); } catch { return null; }
+  return ru && ru !== code && en && en !== code ? [ru, en, locOf(ru)] : null;
+}
 
 function el(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
 function plural(n, one, few, many) { const a = n % 10, b = n % 100; return a === 1 && b !== 11 ? one : a >= 2 && a <= 4 && (b < 12 || b > 14) ? few : many; }
@@ -74,12 +83,13 @@ function eventLink(code, url) { return `article.html?c=${code}&u=${encodeURIComp
 const params = new URLSearchParams(location.search);
 const code = (params.get("c") || "").toUpperCase();
 const target = params.get("u") || "";
+const info = countryInfo(code), onDemand = !!info && !COUNTRIES[code];
 const main = $("#art");
 
 function message(title, text) {
   main.textContent = "";
   main.append(el("h1", null, title), el("p", "src", text));
-  const a = el("a", "btn-main", "Открыть ленту"); a.href = COUNTRIES[code] ? "news.html#" + code : "news.html";
+  const a = el("a", "btn-main", "Открыть ленту"); a.href = info ? "news.html#" + code : "news.html";
   main.append(a);
 }
 
@@ -95,6 +105,13 @@ function gate() {
 
 async function fetchJson(path) { const r = await fetch(path); if (!r.ok) throw new Error(r.status); return r.json(); }
 async function load() {
+  if (onDemand) {
+    // The same collection the feed showed; the outlets' summaries come with it
+    const d = await Account.countryNews(code);
+    const desc = {};
+    for (const a of d.items || []) if (a.desc) desc[a.url] = a.desc;
+    return { items: dedupe(d.items || []), desc, brief: {} };
+  }
   let v = "";
   try { const r = await fetch("data/status.json?t=" + Date.now(), { cache: "no-store" }); if (r.ok) v = (await r.json()).updated || ""; } catch {}
   v = encodeURIComponent(v || String(Math.floor(Date.now() / 60000)));
@@ -109,20 +126,20 @@ async function load() {
 let shown = false;
 async function start() {
   if (shown) return;
-  if (!COUNTRIES[code] || !/^https?:\/\//i.test(target)) { message("Событие не найдено", "Ссылка неполная. Откройте событие из ленты."); return; }
+  if (!info || !/^https?:\/\//i.test(target)) { message("Событие не найдено", "Ссылка неполная. Откройте событие из ленты."); return; }
   $("#back").href = "news.html#" + code;
-  $("#back").textContent = "← Лента: " + COUNTRIES[code][0];
+  $("#back").textContent = "← Лента: " + info[0];
   if (!Account.user) { gate(); return; }
   shown = true;
   let d;
   try { d = await load(); }
   catch { shown = false; message("Не удалось загрузить событие", "Проверьте подключение к интернету и обновите страницу."); return; }
 
-  const [ru, en, loc] = COUNTRIES[code];
+  const [ru, en, loc] = info;
   const c = { code, ru, en, loc };
   const from = Date.now() - 48 * 3600000;
   const recent = d.items.filter(a => seenTime(a.seendate) >= from);
-  const groups = cluster(recent, c, true, Infinity);
+  const groups = cluster(recent, c, true, Infinity);  // with news from one outlet, as in the feed
   let g = groups.find(x => x.items.some(i => i.url === target));
   if (!g) {
     // The event dropped out of the top list or out of the 48-hour window: show the single article if we still have it

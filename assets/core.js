@@ -6,6 +6,23 @@ function seenTime(s) {
   return Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]);
 }
 
+// Prepositional case of a country name (the feed's «Что происходит в …» and grouping of countries collected
+// on request): «Италия» -> «Италии», «Египет» -> «Египте»
+function locOf(name) {
+  const short = name.replace(/\s*\(.*?\)/g, "").split(" - ")[0];
+  return short.split(" ").map(w => {
+    if (/(ая|яя)$/.test(w)) return w.slice(0, -2) + "ой";
+    if (/(ий|ый)$/.test(w)) return w.slice(0, -2) + "ом";
+    if (/ия$/.test(w)) return w.slice(0, -1) + "и";
+    if (/[ая]$/.test(w)) return w.slice(0, -1) + "е";
+    if (/ы$/.test(w)) return w.slice(0, -1) + "ах";
+    if (/[йь]$/.test(w)) return w.slice(0, -1) + "е";
+    if (/[оуиеюэ]$/i.test(w) || w.length < 3 || /^[А-ЯЁA-Z]+$/.test(w)) return w; // «Конго», «Перу», «ОАЭ»
+    if (/[^аяеоуыюиэьй][ео][^аяеоуыюиэьй]$/.test(w)) return w.slice(0, -2) + w.slice(-1) + "е"; // «Египет» -> «Египте»
+    return w + "е";
+  }).join(" ");
+}
+
 // ---------- Importance filter ----------
 const TOPICS = [
   ["Безопасность", "--t-security", ["войн","воен","армия","армии","удар","атак","ракет","дрон","беспилот","обстрел","фронт","террор","взрыв","нато","оборон","мобилиз","перемир","конфликт","ядерн","war","militar","army","strike","attack","missile","drone","troops","terror","explos","nato","defen","ceasefire","conflict","shell","invasion","nuclear"]],

@@ -195,12 +195,13 @@ tbody tr.click:hover{background:var(--bg)}
 
     <section id="tab-requests" role="tabpanel" class="panel" style="margin-top:20px" hidden>
       <h2>Запросы к ИИ</h2>
-      <p class="msg" style="margin-bottom:12px">Новые пересказы событий, обзоры «Взгляд СМИ» и вопросы в чате (первые 500 символов). Ответы, взятые из готовых, сюда не попадают: они не тратят лимит.</p>
+      <p class="msg" style="margin-bottom:12px">Новые пересказы событий, обзоры «Взгляд СМИ», вопросы в чате (первые 500 символов) и страны, которые читатели открыли по запросу. Пересказы и обзоры, взятые из готовых, сюда не попадают: они не тратят лимит.</p>
       <div class="toolbar"><div class="seg" id="req-kind" role="group" aria-label="Тип запроса">
         <button type="button" data-v="" aria-pressed="true">Все</button>
         <button type="button" data-v="summary" aria-pressed="false">Пересказы</button>
         <button type="button" data-v="view" aria-pressed="false">Взгляд СМИ</button>
         <button type="button" data-v="chat" aria-pressed="false">Чат</button>
+        <button type="button" data-v="country" aria-pressed="false">Страны</button>
       </div></div>
       <div class="scroll"><table>
         <thead><tr><th>Когда</th><th>Кто</th><th>Что</th><th>Страна</th><th>Подробно</th><th class="num">Токены</th></tr></thead>

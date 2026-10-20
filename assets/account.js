@@ -321,6 +321,27 @@
       return data;
     },
 
+    // ---------- Countries outside the 19 main ones, collected on request (Edge Function "country") ----------
+    // The news comes from the same outlets; one collection is shared by all readers until the next update.
+    async countryNews(country) {
+      if (!user) throw new Error("Войдите, чтобы смотреть ленту.");
+      need();
+      const { data, error } = await sb.functions.invoke("country", { body: { country } });
+      if (error) {
+        let code = "";
+        try { code = (await error.context.json()).error || ""; } catch {}
+        const text = {
+          login_required: "Войдите, чтобы смотреть ленту.",
+          unknown_country: "Такой страны нет в списке.",
+          limit_user: "Сегодня вы собрали слишком много новых стран (60 в сутки). Уже собранные открываются как обычно, новые — завтра.",
+          limit_global: "Сегодня общий лимит сбора новых стран исчерпан. Попробуйте завтра.",
+          data_unavailable: "Не удалось получить публикации изданий. Попробуйте через несколько минут."
+        }[code];
+        throw new Error(text || "Не получилось собрать новости страны. Попробуйте позже.");
+      }
+      return data;
+    },
+
     // ---------- AI chat about a country, VIP only (Edge Function "chat") ----------
     // 50 000 tokens per day, the day starts at 00:00 Moscow time; the server counts and checks them
     chatLimit: CHAT_TOKENS,
