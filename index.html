@@ -10,7 +10,7 @@
 <script src="assets/boot.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;700;800&family=Literata:opsz,wght@7..72,500;7..72,700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
 <link rel="stylesheet" href="assets/account.css">
 <link rel="stylesheet" href="assets/fx.css">
 <style>
@@ -52,31 +52,73 @@ a:focus-visible,button:focus-visible{outline:3px solid var(--accent);outline-off
 .theme button:hover{color:var(--ink)}
 .theme button[aria-pressed="true"]{background:var(--ink);color:var(--surface)}
 
-.hero{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:24px;align-items:center;padding-top:clamp(12px,4vw,40px)}
-.hero-text{display:flex;flex-direction:column;gap:22px;min-width:0}
-.globe{position:relative;display:flex;justify-content:center;min-width:0}
-.globe canvas{display:block;touch-action:pan-y;cursor:grab;max-width:100%}
-.globe canvas:active{cursor:grabbing}
-.globe-tip{position:absolute;transform:translate(-50%,calc(-100% - 16px));width:max-content;max-width:260px;padding:10px 12px;background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:12px;box-shadow:0 10px 30px rgba(11,18,32,.18);font-size:13px;line-height:1.4;pointer-events:none;display:flex;flex-direction:column;gap:3px;z-index:2}
-.globe-tip[hidden]{display:none}
-.globe-tip b{font-size:15px}
-.globe-tip span{color:var(--muted)}
-.globe-tip p{margin:2px 0 0;font-family:var(--serif);font-weight:700}
-.globe-tip i{font-style:normal;color:var(--accent);font-weight:700;font-size:12px}
-@media (max-width:860px){.hero{grid-template-columns:minmax(0,1fr)}.globe{order:2}}
-.hero h1{margin:0;font-weight:800;font-size:clamp(36px,6vw,64px);line-height:1.03;letter-spacing:-.03em;max-width:15ch;text-wrap:balance}
-.hero h1 mark{white-space:nowrap;background:linear-gradient(transparent 70%,var(--marker) 70%);color:inherit;padding:0 .04em}
-.hero p{margin:0;font-size:clamp(18px,2.2vw,21px);color:var(--muted);max-width:58ch}
-.cta{display:flex;flex-wrap:wrap;gap:12px;align-items:center}
-.btn{display:inline-block;font-weight:700;font-size:17px;text-decoration:none;border-radius:999px;padding:14px 24px;background:var(--ink);color:var(--surface)}
-.btn:hover{background:var(--accent);color:var(--on-accent)}
-.btn.ghost{background:transparent;color:var(--ink);border:2px solid var(--line);padding:12px 22px}
-.btn.ghost:hover{border-color:var(--accent);color:var(--accent);background:transparent}
-.hero p.note{font-size:15px}
-.live{display:flex;align-items:center;gap:8px;font-size:15px;color:var(--ink);font-weight:500;min-height:24px}
-.live::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--t-economy);flex:none}
+.hero{display:flex;justify-content:center;text-align:center;padding-top:clamp(28px,6vw,72px)}
+.hero-text{display:flex;flex-direction:column;align-items:center;gap:22px;min-width:0;max-width:880px}
+.eyebrow{margin:0;font-size:clamp(17px,2vw,21px);font-weight:600;color:var(--muted);letter-spacing:-.01em}
+.hero h1{margin:0;font-weight:700;font-size:clamp(40px,7.4vw,84px);line-height:1.04;letter-spacing:-.035em;text-wrap:balance}
+.grad{background:linear-gradient(90deg,#0071e3 0%,#6e5ce6 50%,#e0245e 100%);-webkit-background-clip:text;background-clip:text;color:transparent;white-space:nowrap}
+.hero p.lead{margin:0;font-size:clamp(19px,2.3vw,24px);line-height:1.38;color:var(--muted);max-width:42ch;letter-spacing:-.015em}
+.cta{display:flex;flex-wrap:wrap;gap:14px;align-items:center;justify-content:center}
+.btn{display:inline-block;font-weight:500;font-size:17px;text-decoration:none;border-radius:980px;padding:12px 24px}
+.hero p.note{font-size:14px;color:var(--muted);max-width:60ch}
+.live{display:flex;align-items:center;justify-content:center;gap:8px;font-size:14px;color:var(--muted);min-height:22px}
+.live::before{content:"";width:8px;height:8px;border-radius:50%;background:#30d158;flex:none;box-shadow:0 0 0 4px rgba(48,209,88,.18)}
 
-section h2{margin:0 0 6px;font-weight:800;font-size:clamp(26px,3.6vw,36px);letter-spacing:-.02em}
+/* Map of events: a full-width black section, as on apple.com product pages */
+body{overflow-x:clip}
+.worldmap{--t-politics:#2e86f5;--t-security:#ef4466;--t-economy:#1c9e83;--muted:#a1a1a6;
+  margin-inline:calc(50% - 50vw);padding:clamp(56px,9vw,110px) max(16px,calc(50vw - 600px)) clamp(40px,6vw,80px);background:#000;color:#f5f5f7;
+  display:flex;flex-direction:column;gap:clamp(20px,3vw,36px);color-scheme:dark}
+.wm-head{text-align:center;display:flex;flex-direction:column;align-items:center;gap:10px}
+.wm-head h2{margin:0;font-size:clamp(34px,5.6vw,64px);font-weight:700;letter-spacing:-.035em;line-height:1.05}
+.wm-head .sub{margin:0;color:#a1a1a6;font-size:clamp(17px,2vw,21px);max-width:46ch}
+.worldmap .eyebrow{color:#a1a1a6}
+.wm-stage{position:relative;width:100%}
+.wm-land{position:absolute;inset:0;display:block}
+.wm-layer{position:absolute;inset:0}
+.wm-mark{position:absolute;width:30px;height:30px;margin:-15px 0 0 -15px;padding:0;border:0;background:none;cursor:pointer;z-index:2;--tc:var(--t-politics)}
+.wm-mark::before{content:"";position:absolute;left:50%;top:50%;width:10px;height:10px;margin:-5px 0 0 -5px;border-radius:50%;background:var(--tc);box-shadow:0 0 0 2px #000,0 0 12px var(--tc)}
+.wm-mark::after{content:"";position:absolute;left:50%;top:50%;width:10px;height:10px;margin:-5px 0 0 -5px;border-radius:50%;border:2px solid var(--tc);opacity:0;animation:wm-ping 2.6s cubic-bezier(.2,.6,.3,1) infinite}
+.wm-mark:nth-child(3n)::after{animation-delay:.9s}.wm-mark:nth-child(3n+1)::after{animation-delay:1.7s}
+.wm-mark.on::before{width:14px;height:14px;margin:-7px 0 0 -7px;background:#fff;box-shadow:0 0 0 3px var(--tc),0 0 18px var(--tc)}
+@keyframes wm-ping{0%{transform:scale(1);opacity:.9}100%{transform:scale(4.2);opacity:0}}
+.wm-label{position:absolute;left:50%;top:100%;transform:translate(-50%,2px);font-size:11px;font-weight:500;color:#d2d2d7;white-space:nowrap;opacity:0;transition:opacity .2s;pointer-events:none}
+.wm-mark:hover .wm-label,.wm-mark:focus-visible .wm-label,.wm-mark.on .wm-label{opacity:1}
+.wm-mark:focus-visible{outline:2px solid #2997ff;outline-offset:2px;border-radius:50%}
+.wm-card{display:flex;flex-direction:column;width:260px;text-decoration:none;color:#f5f5f7;background:rgba(28,28,30,.88);-webkit-backdrop-filter:saturate(180%) blur(20px);backdrop-filter:saturate(180%) blur(20px);
+  border-radius:18px;overflow:hidden;box-shadow:0 0 0 .5px rgba(255,255,255,.14),0 24px 60px rgba(0,0,0,.6)}
+.wm-layer .wm-card{position:absolute;z-index:3;opacity:0;transition:opacity .45s ease,transform .55s cubic-bezier(.2,.9,.25,1.15)}
+.wm-layer .wm-card.above{transform:translateY(calc(-100% - 6px)) scale(.86);transform-origin:50% 100%;margin-top:-14px}
+.wm-layer .wm-card.below{transform:translateY(6px) scale(.86);transform-origin:50% 0;margin-top:16px}
+.wm-layer .wm-card.above.in{opacity:1;transform:translateY(-100%) scale(1)}
+.wm-layer .wm-card.below.in{opacity:1;transform:translateY(0) scale(1)}
+.wm-layer .wm-card.out{opacity:0}
+.wm-card img{display:block;width:100%;aspect-ratio:16/9;object-fit:cover;background:#2c2c2e}
+.wm-cover{position:relative;width:100%;aspect-ratio:16/9;display:flex;align-items:flex-end;padding:12px 14px;overflow:hidden;
+  background:radial-gradient(120% 140% at 0% 0%,color-mix(in srgb,var(--tc,#2e86f5) 85%,#fff 15%) 0%,color-mix(in srgb,var(--tc,#2e86f5) 55%,#000 45%) 55%,#111 100%)}
+.wm-cover span{font-size:22px;font-weight:700;letter-spacing:-.025em;color:#fff;text-shadow:0 1px 12px rgba(0,0,0,.35)}
+.wm-body{padding:12px 14px 14px;display:flex;flex-direction:column;gap:6px}
+.wm-meta{display:flex;align-items:center;gap:8px;font-size:12px}
+.wm-meta b{font-weight:600}
+.wm-topic{color:var(--tc);font-weight:600}
+.wm-card p{margin:0;font-size:15px;font-weight:600;line-height:1.3;letter-spacing:-.015em;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.wm-card small{color:#a1a1a6;font-size:12px}
+.wm-card:hover p{color:#2997ff}
+.wm-dock{min-height:0}
+.wm-dock .wm-card{width:100%;flex-direction:row;animation:wm-in .5s cubic-bezier(.2,.9,.25,1.1)}
+.wm-dock .wm-card img,.wm-dock .wm-card .wm-cover{width:38%;aspect-ratio:auto;min-height:100%;flex:none}
+@keyframes wm-in{from{opacity:0;transform:translateY(12px) scale(.97)}to{opacity:1;transform:none}}
+.wm-strip{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(240px,1fr);gap:14px;overflow-x:auto;scroll-snap-type:x mandatory;padding:4px 2px 12px;scrollbar-width:none;
+  margin-inline:calc(-1 * max(16px,calc(50vw - 600px)));padding-inline:max(16px,calc(50vw - 600px));scroll-padding-inline:max(16px,calc(50vw - 600px))}
+.wm-strip::-webkit-scrollbar{display:none}
+.wm-strip .wm-card{width:auto;scroll-snap-align:start;background:#1c1c1e;transition:transform .3s cubic-bezier(.2,.8,.2,1)}
+.wm-strip .wm-card:hover{transform:scale(1.02)}
+.wm-empty .wm-stage{display:none}
+@media (max-width:700px){.wm-strip{grid-auto-columns:78%}.wm-mark{width:34px;height:34px;margin:-17px 0 0 -17px}.wm-mark::after{animation-name:wm-ping-sm}}
+@keyframes wm-ping-sm{0%{transform:scale(1);opacity:.8}100%{transform:scale(2.6);opacity:0}}
+@media (prefers-reduced-motion: reduce){.wm-mark::after{animation:none}.wm-layer .wm-card,.wm-dock .wm-card,.wm-strip .wm-card{transition:none;animation:none}}
+
+section h2{margin:0 0 8px;font-weight:700;font-size:clamp(30px,4.4vw,48px);letter-spacing:-.03em;line-height:1.08}
 section > p.sub{margin:0 0 22px;color:var(--muted);max-width:60ch}
 
 .board{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
@@ -135,15 +177,18 @@ footer{font-size:14px;color:var(--muted);border-top:1px solid var(--line);paddin
 footer a{color:var(--muted)}
 @media (max-width:560px){.btn{font-size:16px;padding:12px 20px}.btn.ghost{padding:10px 18px}}
 </style>
+<link rel="stylesheet" href="assets/apple.css">
 </head>
 <body>
 <div class="wrap">
   <header class="topbar">
     <a class="brand" href="./">ev<span>.news</span></a>
+    <span class="acc-m" data-account></span>
     <nav class="nav">
       <a href="news.html#RU">Лента</a>
       <a href="chat.html">Чат с ИИ</a>
       <a href="ratings.html">Рейтинг изданий</a>
+      <a href="#map">Карта</a>
       <a href="#features">Возможности</a>
       <a href="#how">Как это работает</a>
       <span data-account></span>
@@ -157,8 +202,9 @@ footer a{color:var(--muted)}
 
   <section class="hero">
     <div class="hero-text">
-    <h1>Главное о <mark>любой стране</mark> за последние двое суток</h1>
-    <p>Сайт сам читает <span data-sources>300</span> российских и зарубежных изданий, раскладывает новости по странам и оставляет только политику, безопасность и экономику. Сверху то, о чём пишут сразу несколько редакций и что ИИ считает важным. 19 ключевых стран готовы заранее, любую другую введите в поиск — новости о ней соберутся за несколько секунд.</p>
+    <p class="eyebrow">Новости <span data-sources>300</span> изданий</p>
+    <h1>Главное о любой стране. <span class="grad">За двое суток.</span></h1>
+    <p class="lead">Сайт сам читает <span data-sources>300</span> российских и зарубежных изданий, раскладывает новости по странам и оставляет только политику, безопасность и экономику. Сверху то, о чём пишут сразу несколько редакций и что ИИ считает важным. 19 ключевых стран готовы заранее, любую другую введите в поиск — новости о ней соберутся за несколько секунд.</p>
     <div class="cta">
       <a class="btn" href="news.html">Открыть ленту</a>
       <a class="btn ghost" href="#features">Что умеет сайт</a>
@@ -166,7 +212,16 @@ footer a{color:var(--muted)}
     <p class="note">Лента открывается после бесплатной регистрации: нужны только ник, почта и пароль. С аккаунтом можно выбрать свои страны, сохранять и обсуждать новости, а с VIP-подпиской — спрашивать ИИ о любой из 19 ключевых стран.</p>
     <div class="live" id="live">Загружаю последние данные…</div>
     </div>
-    <div class="globe" id="globe"></div>
+  </section>
+
+  <section class="worldmap" id="map" aria-labelledby="map-title">
+    <div class="wm-head">
+      <p class="eyebrow">Карта событий</p>
+      <h2 id="map-title">Мир прямо сейчас</h2>
+      <p class="sub">Главные события 19 ключевых стран всплывают на карте по очереди. Наведите на страну или нажмите на неё, чтобы увидеть её новости.</p>
+    </div>
+    <div id="wm"></div>
+    <div class="wm-strip" id="wm-strip" aria-label="Главное событие каждой страны"></div>
   </section>
 
   <section>
@@ -254,7 +309,7 @@ footer a{color:var(--muted)}
 <script src="assets/vendor/supabase.js"></script>
 <script src="assets/email-check.js"></script>
 <script src="assets/account.js"></script>
-<script src="assets/globe.js"></script>
+<script src="assets/worldmap.js"></script>
 <script src="assets/home.js"></script>
 <script src="assets/fx.js"></script>
 </body>

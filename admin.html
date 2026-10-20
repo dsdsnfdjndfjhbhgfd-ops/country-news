@@ -10,7 +10,7 @@
 <script src="assets/boot.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;700;800&family=Literata:opsz,wght@7..72,500;7..72,700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
 <link rel="stylesheet" href="assets/account.css">
 <style>
 /* Layout: heading, tabs (overview, users, visits, requests, admins), one panel at a time.
@@ -136,11 +136,13 @@ tbody tr.click:hover{background:var(--bg)}
 .gate{display:flex;flex-direction:column;gap:12px;align-items:flex-start;padding:28px;background:var(--surface);border:1px solid var(--line);border-radius:16px}
 .gate p{margin:0;color:var(--muted);max-width:56ch}
 </style>
+<link rel="stylesheet" href="assets/apple.css">
 </head>
 <body>
 <div class="wrap">
   <header class="topbar">
     <a class="brand" href="./">ev<span>.news</span></a>
+    <span class="acc-m" data-account></span>
     <nav class="nav"><a href="./">Главная</a><a href="news.html">Лента</a><a href="chat.html">Чат с ИИ</a><a href="ratings.html">Рейтинг изданий</a><span data-account></span></nav>
   </header>
 

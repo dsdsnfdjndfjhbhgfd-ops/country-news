@@ -7,6 +7,7 @@ import { loadProviders, runPool } from "./ai-pool.mjs";
 import { SOURCES, GROUPS } from "./sources.mjs";
 import { fetchAll } from "./feeds.mjs";
 import { writePool } from "./pool.mjs";
+import { buildMap } from "./mapdata.mjs";
 
 // How a country is recognised in a headline or summary. Words match from their start
 // ("украин" matches "Украины"); a trailing "!" means the whole word only.
@@ -367,3 +368,9 @@ for (const code of Object.keys(COUNTRIES)) {
 }
 await writeFile("data/status.json", JSON.stringify(status));
 console.log("Status saved");
+
+// ---------- Events for the map on the home page (data/map.json, see mapdata.mjs) ----------
+const slimItems = async code => { try { return JSON.parse(await readFile(`data/${code}.json`, "utf8")).items || []; } catch { return []; } };
+const mapEvents = await buildMap(core, Object.fromEntries(Object.keys(COUNTRIES).map(code => [code, countryOf(code)])), slimItems, rateOf);
+await writeFile("data/map.json", JSON.stringify({ updated: status.updated, countries: mapEvents }));
+console.log("Map: " + Object.values(mapEvents).reduce((n, l) => n + l.length, 0) + " events");

@@ -1,0 +1,153 @@
+/* ev.news design, after apple.com: calm grey canvas, white cards with soft shadows, one blue for actions,
+   large tight headlines, a translucent sticky bar. Loaded last on every page, so it overrides the
+   page's own colour tokens and the shared components without touching their layout code. */
+
+/* ---------- Palette (light / dark), checked for colour-blind separation of the three topics ---------- */
+:root{
+  --bg:#f5f5f7; --surface:#ffffff; --ink:#1d1d1f; --muted:#6e6e73; --line:#d2d2d7; --meter-off:#e8e8ed;
+  --accent:#0066cc; --on-accent:#ffffff; --btn:#0071e3; --btn-hover:#0077ed; --marker:#ff9f0a;
+  --t-politics:#0066cc; --t-security:#e0245e; --t-economy:#1f8a70; --t-intl:#6e5ce6; --t-society:#b25000;
+  --fill:rgba(118,118,128,.12); --fill-strong:rgba(118,118,128,.2);
+  --bar:rgba(251,251,253,.78); --bar-line:rgba(0,0,0,.08);
+  --shadow:0 1px 2px rgba(0,0,0,.04),0 6px 24px rgba(0,0,0,.06); --shadow-hover:0 2px 6px rgba(0,0,0,.06),0 16px 40px rgba(0,0,0,.1);
+  --radius:18px;
+  --sans:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display","Inter","Helvetica Neue",Arial,sans-serif;
+  --serif:-apple-system,BlinkMacSystemFont,"SF Pro Display","Inter","Helvetica Neue",Arial,sans-serif;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#000000; --surface:#1c1c1e; --ink:#f5f5f7; --muted:#a1a1a6; --line:#38383a; --meter-off:#2c2c2e;
+  --accent:#2997ff; --on-accent:#ffffff; --btn:#0071e3; --btn-hover:#0077ed; --marker:#ff9f0a;
+  --t-politics:#2e86f5; --t-security:#ef4466; --t-economy:#1c9e83; --t-intl:#8e8cff; --t-society:#ff9f0a;
+  --fill:rgba(118,118,128,.24); --fill-strong:rgba(118,118,128,.36);
+  --bar:rgba(22,22,23,.78); --bar-line:rgba(255,255,255,.1);
+  --shadow:none; --shadow-hover:0 0 0 1px rgba(255,255,255,.12);
+  color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#000000; --surface:#1c1c1e; --ink:#f5f5f7; --muted:#a1a1a6; --line:#38383a; --meter-off:#2c2c2e;
+  --accent:#2997ff; --on-accent:#ffffff; --btn:#0071e3; --btn-hover:#0077ed; --marker:#ff9f0a;
+  --t-politics:#2e86f5; --t-security:#ef4466; --t-economy:#1c9e83; --t-intl:#8e8cff; --t-society:#ff9f0a;
+  --fill:rgba(118,118,128,.24); --fill-strong:rgba(118,118,128,.36);
+  --bar:rgba(22,22,23,.78); --bar-line:rgba(255,255,255,.1);
+  --shadow:none; --shadow-hover:0 0 0 1px rgba(255,255,255,.12);
+  color-scheme:dark}
+
+/* ---------- Type ---------- */
+body{font-family:var(--sans);letter-spacing:-.011em;-webkit-font-smoothing:antialiased;-webkit-tap-highlight-color:transparent;text-rendering:optimizeLegibility}
+h1,h2,h3{letter-spacing:-.022em}
+h1{font-weight:700}
+section h2,.res-head h2{font-weight:700;letter-spacing:-.025em}
+.ev h3,.card .top,.name,.podium .nm,.art h1,.list a.t{font-family:var(--serif);font-weight:600;letter-spacing:-.018em}
+a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,#country:focus-visible{outline:2px solid var(--btn);outline-offset:3px;border-radius:6px}
+::selection{background:rgba(0,113,227,.22)}
+
+/* ---------- Sticky translucent bar (full width behind the centred content) ---------- */
+html,body{overflow-x:clip}
+body{padding-top:0}  /* the bar starts at the very top of the page */
+.topbar{position:sticky;top:env(safe-area-inset-top,0px);z-index:50;min-height:52px;padding-block:8px;margin-top:0;margin-bottom:0;isolation:isolate}
+.topbar::before{content:"";position:absolute;inset:0 calc(50% - 50vw);z-index:-1;background:var(--bar);border-bottom:1px solid var(--bar-line);
+  -webkit-backdrop-filter:saturate(180%) blur(20px);backdrop-filter:saturate(180%) blur(20px)}
+.brand{font-weight:700;font-size:21px;letter-spacing:-.03em}
+.brand span{color:var(--accent)}
+.nav,.home,.top-right{gap:4px 18px}
+.nav a,.to-main{font:400 14px var(--sans);letter-spacing:-.01em;color:var(--ink);opacity:.8;text-decoration:none;background:none;border:0;padding:6px 0;border-radius:0}
+.nav a:hover,.to-main:hover{opacity:1;color:var(--accent);border:0}
+.nav a[aria-current]{opacity:1;color:var(--ink);font-weight:600}
+.acc-me{border:0;background:var(--fill);font-weight:500;padding:3px 12px 3px 3px}
+.acc-me:hover{background:var(--fill-strong);color:var(--ink)}
+.acc-avatar{background:var(--btn);color:#fff}
+.acc-login{background:var(--btn);color:#fff;font-weight:500;padding:7px 16px}
+.acc-login:hover{background:var(--btn-hover);color:#fff}
+.acc-admin{font-weight:500;color:var(--ink);opacity:.8}
+
+/* ---------- Segmented controls: theme switch, filters, tabs ---------- */
+.theme,.seg,.tabs,.acc-tabs{background:var(--fill);border:0;border-radius:10px;padding:2px;gap:2px;box-shadow:none}
+.theme button,.seg button,.tabs button,.acc-tabs button{border-radius:8px;color:var(--ink);font-weight:500}
+.theme button{font-size:13px;padding:5px 10px}
+.theme button[aria-pressed="true"],.seg button[aria-pressed="true"],.tabs button[aria-selected="true"],.acc-tabs button[aria-selected="true"]{
+  background:var(--surface);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.12),0 0 0 .5px rgba(0,0,0,.04)}
+:root[data-theme="dark"] .theme button[aria-pressed="true"],:root[data-theme="dark"] .seg button[aria-pressed="true"],:root[data-theme="dark"] .tabs button[aria-selected="true"]{background:#636366}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .theme button[aria-pressed="true"],:root:not([data-theme="light"]) .seg button[aria-pressed="true"],:root:not([data-theme="light"]) .tabs button[aria-selected="true"],:root:not([data-theme="light"]) .acc-tabs button[aria-selected="true"]{background:#636366}}
+
+/* ---------- Buttons: one blue for actions, pills ---------- */
+.btn,.btn.primary,#go,.acc-submit,.gate .row button,.btn-main,.c-send,.brief-btn,.vip-btn{background:var(--btn);color:#fff;border:0;border-radius:980px;font-weight:500;letter-spacing:-.01em}
+.btn:hover,.btn.primary:hover,#go:hover,.acc-submit:hover,.gate .row button:hover,.btn-main:hover,.c-send:hover,.brief-btn:hover{background:var(--btn-hover);color:#fff;border-color:transparent}
+.btn.ghost,.gate .row button.alt{background:transparent;color:var(--accent);border:1px solid var(--accent)}
+.btn.ghost:hover,.gate .row button.alt:hover{background:var(--accent);color:#fff;border-color:var(--accent)}
+.btn.danger{background:var(--fill);color:var(--t-security)}
+.btn.danger:hover{background:var(--t-security);color:#fff}
+.more{border-radius:980px}
+.save-btn,.c-link,.star-btn,.clear{border-radius:980px}
+.save-btn,.c-link{border:0;background:var(--fill);color:var(--ink);font-weight:500}
+.save-btn:hover,.c-link:hover{background:var(--fill-strong);color:var(--ink)}
+.save-btn[aria-pressed="true"],.c-link.has{background:var(--btn);color:#fff}
+.star-btn{border:0;background:var(--fill);font-weight:500}
+.star-btn[aria-pressed="true"]{background:rgba(0,113,227,.12);color:var(--accent)}
+
+/* ---------- Chips ---------- */
+.quick button,.chips button{border:0;background:var(--surface);box-shadow:var(--shadow);border-radius:980px;font-weight:500}
+.quick button:hover,.chips button:hover{color:var(--accent);box-shadow:var(--shadow-hover)}
+.quick button[aria-current],.chips button[aria-pressed="true"]{background:var(--ink);color:var(--bg);box-shadow:none}
+
+/* ---------- Cards and panels: no borders, soft shadow, large radius ---------- */
+.card,.feat,.panel,.tile,.gate,.notice,#sources > div,.steps li,.empty,.vip,.essay,.views,.lead-box,.brief-box,.podium li,.cabinet-card,.who-box,.chat-box,.res-card{
+  border:0;border-radius:var(--radius);background:var(--surface);box-shadow:var(--shadow)}
+.card,.feat{transition:transform .3s cubic-bezier(.2,.8,.2,1),box-shadow .3s ease}
+.card:hover,.feat:hover{border-color:transparent;box-shadow:var(--shadow-hover);transform:translateY(-2px)}
+.card.mine{box-shadow:0 0 0 2px var(--btn),var(--shadow)}
+.steps li{border-top:0}
+.steps li::before{color:var(--accent);font-weight:700}
+.vip{box-shadow:0 0 0 1.5px var(--marker),var(--shadow)}
+.tier::after{background:var(--line)}
+
+/* ---------- Feed ---------- */
+.res-head{border-bottom:0;padding-bottom:4px}
+.ev{border-bottom:1px solid var(--line)}
+.ev.lead{border:0;border-radius:24px;box-shadow:var(--shadow);border-top:0;position:relative;overflow:hidden}
+.ev.lead::before{content:"";position:absolute;inset:0 0 auto 0;height:4px;background:var(--tc,var(--accent))}
+.ev .thumb{border-radius:14px}
+.ev.lead .thumb{border-radius:16px}
+.topic{letter-spacing:0}
+.meter i{border-radius:3px}
+.fresh{background:var(--t-economy);color:#fff}
+.scope,.ai-mark,.lang{border-radius:6px}
+#country{color:var(--accent);background-image:linear-gradient(var(--accent),var(--accent));background-size:100% .07em}
+#country:focus{background-size:100% .1em}
+
+/* ---------- Inputs and dialogs ---------- */
+input[type=text],input[type=email],input[type=password],input[type=search],textarea,select{border-radius:12px}
+.acc-dialog,.src-dialog,.user-dialog{border-radius:22px;box-shadow:0 30px 80px rgba(0,0,0,.35)}
+.acc-dialog::backdrop,.src-dialog::backdrop,.user-dialog::backdrop{background:rgba(0,0,0,.45);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
+
+/* ---------- Footer ---------- */
+footer{border-top:1px solid var(--line);font-size:12px;color:var(--muted)}
+
+/* ---------- Phones ---------- */
+.acc-m{display:none}
+@media (max-width:760px){
+  /* The account button stays in sight next to the brand; the copy inside the scrolling links is hidden */
+  .acc-m{display:inline-flex;margin-left:auto}
+  .nav [data-account]{display:none}
+  body{padding-inline:16px;font-size:16px}
+  /* The bar becomes two rows: brand and account, then the links scroll sideways */
+  .topbar{gap:4px 10px}
+  .top-right{flex-wrap:nowrap;width:100%;justify-content:space-between;gap:10px}
+  .theme button{font-size:12px;padding:4px 8px}
+  .topbar .nav,.topbar .home{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;max-width:100%;mask-image:linear-gradient(90deg,#000 88%,transparent)}
+  .topbar .nav::-webkit-scrollbar,.topbar .home::-webkit-scrollbar{display:none}
+  .nav a,.to-main{white-space:nowrap;padding:8px 0;font-size:15px}
+  .btn,.btn.ghost{padding:12px 22px}
+  .card:hover,.feat:hover{transform:none}
+  .quick{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;padding:4px 2px 8px;margin-inline:-16px;padding-inline:16px;scroll-snap-type:x proximity}
+  .quick::-webkit-scrollbar{display:none}
+  .quick button{flex:none;scroll-snap-align:start}
+  .seg{max-width:100%;overflow-x:auto;flex-wrap:nowrap;scrollbar-width:none}
+  .seg::-webkit-scrollbar{display:none}
+  .seg button{white-space:nowrap}
+  /* Feed filters: one control group per row, nothing squeezed into narrow columns */
+  .controls{flex-direction:column;align-items:stretch;gap:12px}
+  .ctl-group{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center}
+  .switch{white-space:nowrap}
+  .c-link,.save-btn{padding:7px 14px}
+}
+@media (prefers-reduced-motion: reduce){.card,.feat{transition:none}.card:hover,.feat:hover{transform:none}}
