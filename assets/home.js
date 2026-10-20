@@ -49,13 +49,13 @@ function drawSources(list) {
 }
 
 let lastStatus = null;
-const globe = Globe.mount(document.getElementById("globe"), { max: 500 });
+WorldMap.mount(document.getElementById("wm"), document.getElementById("wm-strip"));
 drawBoard(null);
 Account.onChange(e => { if (e !== "TOKEN_REFRESHED") drawBoard(lastStatus); if (e === "SIGNED_IN" && ["auto","light","dark"].includes(Account.settings.theme)) applyTheme(Account.settings.theme); });
 fetch("data/status.json?t=" + Date.now(), { cache: "no-store" })
   .then(r => r.ok ? r.json() : Promise.reject())
   .then(s => {
-    lastStatus = s; drawBoard(s); globe.setStatus(s); drawSources(s.sources || []);
+    lastStatus = s; drawBoard(s); drawSources(s.sources || []);
     const t = new Date(s.updated), min = Math.round((Date.now() - t) / 60000);
     const total = Object.values(s.countries).reduce((n, c) => n + c.items, 0);
     document.getElementById("live").textContent =

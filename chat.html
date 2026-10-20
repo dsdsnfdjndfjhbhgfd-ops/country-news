@@ -10,7 +10,7 @@
 <script src="assets/boot.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;700;800&family=Literata:opsz,wght@7..72,500;7..72,700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
 <link rel="stylesheet" href="assets/account.css">
 <style>
 /* Layout: one column. Heading, country chips, then the chat card; the events the AI sees fold out below it. */
@@ -116,11 +116,13 @@ h1 .acc-vip{font-size:14px;padding:3px 8px}
 }
 @media (prefers-reduced-motion:reduce){.spinner{animation:none}.countries button{transition:none}}
 </style>
+<link rel="stylesheet" href="assets/apple.css">
 </head>
 <body>
 <div class="wrap">
   <header class="topbar">
     <a class="brand" href="./">ev<span>.news</span></a>
+    <span class="acc-m" data-account></span>
     <nav class="nav"><a href="./">Главная</a><a href="news.html">Лента</a><a href="chat.html" aria-current="page">Чат с ИИ</a><a href="ratings.html">Рейтинг изданий</a><span data-account></span></nav>
   </header>
 
