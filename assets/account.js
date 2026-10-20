@@ -587,11 +587,13 @@
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", paintSlots); else paintSlots();
 
   // ---------- Visits for the admin page: page, country, where from, phone or computer ----------
-  // A random id kept in this browser tells repeat visits apart; nothing else about the device is sent.
+  // A random id tells repeat visits apart; nothing else about the device is sent. It is kept in this browser
+  // only when the reader accepted cookies (cookies.js), otherwise only while the tab is open.
   function visitorId() {
     try {
-      let v = localStorage.getItem("ev:vid");
-      if (!/^[A-Za-z0-9_-]{8,40}$/.test(v || "")) { v = (crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2) + Date.now().toString(36)).replace(/[^A-Za-z0-9]/g, ""); localStorage.setItem("ev:vid", v); }
+      const store = window.CookieConsent && CookieConsent.allowsStats() ? localStorage : sessionStorage;
+      let v = store.getItem("ev:vid");
+      if (!/^[A-Za-z0-9_-]{8,40}$/.test(v || "")) { v = (crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2) + Date.now().toString(36)).replace(/[^A-Za-z0-9]/g, ""); store.setItem("ev:vid", v); }
       return v;
     } catch { return "tmp" + Math.random().toString(36).slice(2, 14); }
   }
