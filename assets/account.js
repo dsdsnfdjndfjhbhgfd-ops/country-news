@@ -2,12 +2,14 @@
 // favourite countries, feed settings and saved news (tables: profiles, saved).
 // Pages include supabase-js from the CDN, then this file, then use window.Account.
 (function () {
-  const SUPABASE_URL = "https://bsgidggxlzinntgdnxgt.supabase.co";
+  // On evnews.site requests go through our own server (/sb/ -> Supabase), so the site works fast from Russia.
+  const SUPABASE_DIRECT = "https://bsgidggxlzinntgdnxgt.supabase.co";
+  const SUPABASE_URL = /(^|\.)evnews\.site$/.test(location.hostname) ? location.origin + "/sb" : SUPABASE_DIRECT;
   const SUPABASE_KEY = "sb_publishable_E2ZTQHXlOriOj_J4aquDSw_qMmTmRuC"; // publishable key, safe in the browser
   const SITE = location.origin + location.pathname.replace(/[^/]*$/, ""); // folder the site lives in
 
   const sb = window.supabase && window.supabase.createClient
-    ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
+    ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { storageKey: "sb-bsgidggxlzinntgdnxgt-auth-token" } }) // same key as before: users stay signed in
     : null;
 
   let user = null, recovery = false, admin = false, vip = null;

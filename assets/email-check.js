@@ -28,8 +28,10 @@
     for (const p of POPULAR) { const dd = distance(domain, p); if (dd < bestD) { bestD = dd; best = p; } }
     return bestD <= 2 ? best : null;
   }
+  // On evnews.site DNS lookups go through our own server (works fast from Russia)
+  const DNS_URL = /(^|\.)evnews\.site$/.test(location.hostname) ? "/dns/resolve" : "https://dns.google/resolve";
   async function dns(name, type) {
-    const r = await fetch(`https://dns.google/resolve?name=${encodeURIComponent(name)}&type=${type}`, { signal: AbortSignal.timeout(5000) });
+    const r = await fetch(`${DNS_URL}?name=${encodeURIComponent(name)}&type=${type}`, { signal: AbortSignal.timeout(5000) });
     if (!r.ok) throw new Error("dns");
     return r.json();
   }
